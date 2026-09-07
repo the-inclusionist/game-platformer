@@ -20,7 +20,7 @@
 //
 // Sem I/O no import: `document`/`setTimeout` só aparecem DENTRO das funções.
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (B3).
-import { COIN_TARGET } from '@the-inclusionist/engine/core/constants.js';
+import { COIN_TARGET } from './tuning.js';
 import { t } from '@the-inclusionist/engine/core/i18n.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 import type { PlayerQuiz } from './entity.js'; // ADR-0039: o jogador carrega o SUPERTIPO, não a união

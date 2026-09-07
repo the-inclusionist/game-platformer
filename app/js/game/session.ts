@@ -83,7 +83,8 @@
 
 import { t } from '@the-inclusionist/engine/core/i18n.js';
 import type { GamePlayerView, GamePlayer } from './entity.js'; // ADR-0033: a fatia do JOGO — `quiz` mora aqui
-import { TILE, COIN_TARGET, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { COIN_TARGET } from './tuning.js';
 import { BOX, SPAWN_X, SPAWN_Y, makePlayer } from './player.js';
 import { screenBaseSize } from '@the-inclusionist/engine/core/screens.js';
 

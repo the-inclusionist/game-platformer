@@ -16,7 +16,8 @@
 //
 // ÂNCORA: tests/physics-golden.node.test.js replaya 14 trajetórias capturadas do jogo rodando
 // (tests/fixtures/physics-golden.json). Qualquer mudança de comportamento aqui aparece lá.
-import { TILE, TUNE, EASY, COIN_TARGET } from '@the-inclusionist/engine/core/constants.js';
+import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { TUNE, COIN_TARGET } from './tuning.js';
 import { ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
 import { t } from '@the-inclusionist/engine/core/i18n.js';
 import type { ControlledGamePlayer } from './entity.js'; // ADR-0033: a fatia do JOGO — `quiz` mora aqui

@@ -192,7 +192,8 @@ const INCL_VERSION = String((typeof __BUILD__ !== 'undefined' && __BUILD__.versi
 
 /* ===================== constantes ===================== */
 // Constantes puras extraídas para core/constants.js (modularização Fase B).
-import { LOGICAL_W, LOGICAL_H, TILE, COIN_TARGET, TUNE, ANIM } from '@the-inclusionist/engine/core/constants.js';
+import { LOGICAL_W, LOGICAL_H, TILE, ANIM } from '@the-inclusionist/engine/core/constants.js';
+import { COIN_TARGET, TUNE } from './game/tuning.js';
 import { TILE_TYPES } from '@the-inclusionist/engine/core/constants.js'; // a tabela do que cada tile É — a reciclagem pergunta "isto é água?"
 import { acaoDeCarga } from './game/carry.js'; // qual botão pega, solta e arremessa (ADR-0045)
 import { MATERIAIS, travarNaPlaca } from './game/recycling.js'; // os quatro materiais, e a trava da placa

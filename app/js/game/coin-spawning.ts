@@ -6,7 +6,8 @@
 // fica PIXI-free p/ o project node. rebuildExtras/setupExtras/pupTexFor (power-ups) NÃO entram aqui: já foram
 // deixados no game.js numa extração anterior (ver o cabeçalho de game/powerups.ts) por estarem acoplados ao
 // portão + textura; mantemos essa fronteira. Ver docs/5-Refactoring/plano-modularizacao-mapa.md.
-import { TILE, COIN_TARGET } from '@the-inclusionist/engine/core/constants.js';
+import { TILE } from '@the-inclusionist/engine/core/constants.js';
+import { COIN_TARGET } from './tuning.js';
 import { shuffle } from '@the-inclusionist/engine/core/rng.js';
 import { vizMode } from '@the-inclusionist/engine/core/state.js';
 import { coins, setCoins } from './state.js'; // item 19: `coins`/`quizLevel` sao estado do JOGO

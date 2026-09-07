@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import * as COL from '@the-inclusionist/engine/core/collision.js';
 import * as P from '../app/js/game/player.js';
-import { TUNE } from '@the-inclusionist/engine/core/constants.js';
+import { TUNE } from '../app/js/game/tuning.js';
 
 // ctx mínimo de colisão (modo normal): só o WORLD importa para a geometria do jogador.
 const useWorld = (grid) => COL.initCollision({

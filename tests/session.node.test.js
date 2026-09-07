@@ -19,7 +19,8 @@ import {
   SCREEN_LABELS,
 } from '../app/js/game/session.js';
 import { BOX, SPAWN_X, SPAWN_Y, makePlayer } from '../app/js/game/player.js';
-import { TILE, EASY, COIN_TARGET } from '@the-inclusionist/engine/core/constants.js';
+import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { COIN_TARGET } from '../app/js/game/tuning.js';
 import * as COL from '@the-inclusionist/engine/core/collision.js';
 import { initCoins } from '../app/js/game/coins.js';
 import { initCoinSpawning, getCoinSprites } from '../app/js/game/coin-spawning.js';
