@@ -1,0 +1,70 @@
+{
+  "name": "@the-inclusionist/game-platformer",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "The Inclusionist — the platformer. The accessibility-first 2D pixel-art game that the engine was extracted from, now consuming it as a package (ADR-0036, ADR-0068, ADR-0083).",
+  "license": "AGPL-3.0-or-later",
+  "comment:origin": [
+    "THIS REPOSITORY EXISTS BECAUSE ADR-0036 ORDERED IT ON 2026-08-25, and the code only moved on 06/09.",
+    "The record chose `S1 — the game leaves; this repository becomes the engine`, and explicitly REJECTED",
+    "`S3 — one monorepo holding engine, shell and every game`. ADR-0058 rejected the monorepo again (T4),",
+    "ADR-0068 fixed one repository per game, and ADR-0082 fixed the name `game-<slug>`.",
+    "The git history of these files stays in `the-inclusionist-engine`, which is public under AGPL: the move",
+    "is a COPY plus a removal, not a history rewrite. Rewriting 200+ commits of interleaved paths to carry",
+    "the history across would have risked the engine's own history to gain a `git log` that is one clone away."
+  ],
+  "comment:dependencies": [
+    "The engine is a DEPENDENCY, by NAME and by semver — never a `file:` path (ADR-0083 §2, ADR-0036).",
+    "⚠️ A `file:` consumer is not a consumer for proof purposes: it reads the engine's folder live, with all",
+    "of its devDependencies present, and that is exactly how `6.36.1` shipped unbuildable (ADR-0093).",
+    "`pixi.js` is the engine's PEER and is pinned by it to 7.4.2 — two copies would be two renderers arguing",
+    "over one canvas (ADR-0035)."
+  ],
+  "comment:neural-voice": [
+    "⚠️ THE NEURAL VOICE IS DECLARED **HERE**, AND THAT IS THE WHOLE POINT OF ADR-0094. The engine stopped",
+    "naming the vendor on 06/09: it arrives through the `carregarVozNeural` port, which `app/js/main.ts`",
+    "opens with one line. So the game that WANTS the voice declares the package and pays for it — and the",
+    "135.4 MB of `onnxruntime-web` that it drags in as a non-optional peer stop being charged to every",
+    "consumer of the engine, including games that will never speak.",
+    "⚠️ MEASURED IN THIS VERY MOVE: the first `vite build` here failed with the exact error that made the",
+    "engine's `6.36.1` unbuildable — `Rolldown failed to resolve import \"@mintplex-labs/piper-tts-web\"` —",
+    "except pointing at `app/js/main.ts` instead of at the engine's shipped code. That is the port working:",
+    "the cost landed on whoever opened it.",
+    "The vendor is DISCONTINUED and ADR-0022 schedules the swap for sherpa-onnx-wasm. When it happens, it is",
+    "one line in `main.ts` and one line here — not a new version of the engine for everybody."
+  ],
+  "dependencies": {
+    "@mintplex-labs/piper-tts-web": "^1.0.4",
+    "@the-inclusionist/engine": "^7.0.1",
+    "pixi.js": "7.4.2"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:node": "vitest run --project node",
+    "test:browser": "vitest run --project browser",
+    "validate": "npm run typecheck && vitest run && vite build"
+  },
+  "devDependencies": {
+    "@vitest/browser": "^4.0.0",
+    "@vitest/browser-playwright": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "playwright": "^1.49.0",
+    "typescript": "^5.7.0",
+    "vite": "^8.0.0",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.0.0"
+  },
+  "overrides": {
+    "vite-plugin-pwa": {
+      "vite": "$vite"
+    }
+  }
+}

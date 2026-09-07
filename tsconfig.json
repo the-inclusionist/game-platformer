@@ -1,0 +1,24 @@
+{
+  "//": "Herdado do repositório da engine no dia da separação (06/09), com UMA diferença de fundo: aqui não há",
+  "//2": "`app/js/core`, `app/js/ui` nem `app/js/platform` — eles chegam por `@the-inclusionist/engine/*`, e é o",
+  "//3": "`exports` do pacote que decide o que este projeto alcança. Um import que não passe por lá não resolve,",
+  "//4": "que é a fronteira a funcionar em vez de a ser prometida.",
+  "//5": "`checkJs:false` acompanha a engine: os testes `.js` não são checados pelo tsc — o Vitest é o gate.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "node"],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true
+  },
+  "include": ["app/js", "tests", "vite.config.ts"]
+}
