@@ -95,7 +95,9 @@ import { AUDIO_CATS } from '@the-inclusionist/engine/platform/audio-mixer.js'; /
 import { FONT_GROUPS } from '@the-inclusionist/engine/ui/fonts.js'; // Fase 2: tipografia (catálogo + persistência)
 import { $, $$, toggleBtn, toggleLabel } from '@the-inclusionist/engine/ui/dom.js';
 import { initSettingsAudio } from '@the-inclusionist/engine/ui/settings-audio.js';
-import { initSettingsControls, ACT_LABEL, keyName } from '@the-inclusionist/engine/ui/settings-controls.js';
+import { initSettingsControls, keyName } from '@the-inclusionist/engine/ui/settings-controls.js';
+import { escaparHtml } from '@the-inclusionist/engine/core/escape-html.js';
+import { linhasDaAjuda } from './game/help-lines.js'; // a tela de ajuda deixou de ler o ACT_LABEL (#125)
 import { initSettingsVisual, ROLE_LABELS } from '@the-inclusionist/engine/ui/settings-visual.js';
 import { initSettingsCaa } from '@the-inclusionist/engine/ui/settings-caa.js';
 import { cityTiles } from '@the-inclusionist/engine/render/city-tiles.js'; // #16: os tiles da Cidade como dados, não como PNG // 7º menu: Comunicação Aumentada e Alternativa (ADR-0028)
@@ -1766,7 +1768,13 @@ function closeOptions(){ const ov=$('#options'); if(!ov)return; ov.hidden=true; 
 const ctrlBtn=$('#opt-controls'); if(ctrlBtn)ctrlBtn.addEventListener('click',openOptions);
 // AJUDA (do menu de pausa): controles DO jogador que abriu (pauseActor) + notas desta build.
 function openHelp(){ const ov=$('#help'); if(!ov)return; const c=$('#help-content'); const pa=rodada.pauseActor||0; const map=kbFor(pa);
-  const rows=Object.keys(ACT_LABEL).map(a=>`<div class="ctrl-row"><span>${t(ACT_LABEL[a])}</span><span>${(map[a]||[]).map(keyName).map(k=>'<kbd>'+k+'</kbd>').join(' ')||'—'}</span></div>`).join('');
+  // ⚠️ AS LINHAS VÊM DO PRESET DESTE JOGO (`acoesDoJogo`), e não do `ACT_LABEL` da engine — que conhece OITO
+  // posições enquanto o vocabulário tem catorze, e que é a tabela deste jogo a viver dentro do motor. Era o
+  // último leitor dela, e a issue #125 da engine mede que remover a tabela de lá depende desta linha.
+  //
+  // O `escaparHtml` é defesa em profundidade: o rótulo vem do preset deste repositório, não de fora, mas ele
+  // entra num template que vira `innerHTML` e a regra da casa é não interpolar texto em marcação sem escapar.
+  const rows=linhasDaAjuda(acoesDoJogo(),map).map(l=>`<div class="ctrl-row"><span>${escaparHtml(l.rotulo)}</span><span>${l.teclas.map(keyName).map(k=>'<kbd>'+k+'</kbd>').join(' ')||'—'}</span></div>`).join('');
   // O cabecalho e' UMA FRASE por caso ('Seus controles' / 'Seus controles · Jogador N'), e nao um prefixo mais
   // um sufixo: uma lingua que ponha o numero do jogador ANTES do titulo so consegue se a frase inteira morar
   // no dicionario. Mesma decisao de `sr.audio.*` e dos anuncios motores.
