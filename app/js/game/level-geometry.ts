@@ -8,7 +8,8 @@
 // See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
 import * as PIXI from 'pixi.js';
-import { ehPerigo, ehTrampolim, ehAgua, ehEscada, ehSecreto } from '@the-inclusionist/engine/core/constants.js';
+import { ehPerigo, ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
+import { ehAgua, ehEscada, ehSecreto } from './tile-flags.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 import { tileAt, solidTile } from '@the-inclusionist/engine/core/collision.js';
 import { TILE } from '@the-inclusionist/engine/core/constants.js';

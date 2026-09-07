@@ -6,7 +6,8 @@
 // See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
 import { tileAt, surfTop } from '@the-inclusionist/engine/core/collision.js';
-import { ehEscada, ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
+import { ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
+import { ehEscada } from './tile-flags.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 import { TILE, TILE_TYPES } from '@the-inclusionist/engine/core/constants.js';
 import { BOX } from './player.js';

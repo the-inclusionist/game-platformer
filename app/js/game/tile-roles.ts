@@ -31,7 +31,8 @@
 // seria chutar. Fica declarado em vez de adivinhado.
 
 import type { PaintableRole } from '@the-inclusionist/engine/render/hc-role-data.js';
-import { ehPerigo, ehAgua, ehEscada, ehTrampolim, ehPortao } from '@the-inclusionist/engine/core/constants.js';
+import { ehPerigo, ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
+import { ehAgua, ehEscada, ehPortao } from './tile-flags.js';
 
 /**
  * Tile → papel semântico. `null` = ESTRUTURA (pedra, parede, ar): não recebe repintura, fica no cinza-azulado
