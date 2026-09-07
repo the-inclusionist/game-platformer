@@ -54,9 +54,24 @@ export default defineConfig({
   ],
   build: { outDir: '../dist', emptyOutDir: true },
   test: {
+    // ⚠️ A ENGINE TEM DE SER PROCESSADA PELO VITEST, e não externalizada como qualquer `node_modules` —
+    // e a declaração vai DENTRO de cada project, porque eles não herdam a config do topo (o mesmo que este
+    // ficheiro já regista para os plugins). Pô-la só aqui em cima não fez efeito nenhum.
+    //
+    // Achado na separação do cartucho (issue #111): `recycling-tex.node.test.js` faz `vi.mock('pixi.js')`
+    // para poder ir da textura de volta ao bitmap, e o mock deixou de alcançar o módulo sob teste no
+    // instante em que ele passou a vir de `node_modules/@the-inclusionist/engine`. O Vitest não instrumenta
+    // dependências externas por omissão, então o módulo carregava o PixiJS de verdade e estourava com
+    // `Unrecognized source type to auto-detect Resource`.
+    //
+    // ⚠️ Isto vale para QUALQUER consumidor que teste contra a engine, e é uma diferença real entre consumir
+    // por `file:` — onde o código está na árvore e é instrumentado — e consumir pelo PACOTE.
     projects: [
       {
-        test: { name: 'node', environment: 'node', include: ['tests/**/*.node.test.{js,ts}'] },
+        test: {
+          name: 'node', environment: 'node', include: ['tests/**/*.node.test.{js,ts}'],
+          server: { deps: { inline: [/@the-inclusionist[\\/]engine/] } },
+        },
         root: import.meta.dirname,
         plugins: [atlasDeSprites({ raizSprites: RAIZ_SPRITES })],
       },
@@ -65,6 +80,7 @@ export default defineConfig({
           name: 'browser',
           include: ['tests/**/*.browser.test.{js,ts}'],
           browser: { enabled: true, provider: playwright(), headless: true, instances: [{ browser: 'chromium' }] },
+          server: { deps: { inline: [/@the-inclusionist[\\/]engine/] } },
         },
         root: import.meta.dirname,
         plugins: [atlasDeSprites({ raizSprites: RAIZ_SPRITES })],

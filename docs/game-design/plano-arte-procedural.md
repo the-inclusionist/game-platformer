@@ -1,0 +1,97 @@
+# Plano — Arte procedural semântica (imagem semântica + dicionário de paletas)
+
+Pedido do José em 2026-07-03. Substitui o dilema "PNG × procedural": a arte vira **dado semântico** e as cores
+vivem num **dicionário de paletas separado**. Escopo travado: **unificado** — personagens **e** tiles/mundo.
+Realiza o pilar "arte = dados / GPL-clean". Research-first (fontes ao fim). Estudo para decisão; nada de código.
+
+## 1. Modelo (confirmado com o José)
+- **Imagem semântica** (o asset): por pixel, **(região, luminosidade)** — nunca uma cor. `região` = o que é
+  (pele, cabelo, camisa, calça, metal, pedra, água, contorno…); `luminosidade` = degrau ordenado sombra→luz
+  (+ papel `contorno`). Nada é chapado: a luminosidade preserva volume/sombreamento.
+- **Dicionário de paletas** (separado, do jogo): por região, um conjunto de **rampas** escolhíveis (ex.: pele
+  clara/média/escura; N cores de camisa; materiais de tile). Uma rampa = cor por nível de luminosidade.
+- **Render**: `cor(pixel) = paleta[ variante_escolhida_da_região ][ luminosidade ]`. Mesma imagem semântica +
+  paletas diferentes → recolor infinito, com sombreamento correto. Compatibilidade = só rampas da mesma região.
+
+## 2. Referências estudadas
+- **Palette swap / color ramps indexados** (NES/SNES; tutoriais Slynyrd; modo indexado do Aseprite): recolorir
+  trocando a paleta mantendo os índices — a base clássica disto.
+- **Recolor por LUT/rampa em jogos modernos** (ex.: *Dead Cells* — swap de cor por rampas HSV; *Rain World* —
+  cor procedural): separar **forma/sombreamento** de **cor** é técnica consagrada.
+- **Semente no próprio repo:** `game.js` já tem caminho indexado — `PIP_PAL` (paleta de 10 cores),
+  `indexedToCanvas()` (índice→canvas) e `silhouetteCanvasIdx()` (silhueta chapada p/ alto-contraste). **Este
+  plano generaliza esse código** de "paleta fixa" para "semântica (região+luminosidade) + dicionário de
+  paletas". Não é do zero.
+
+## 3. Formato do dado semântico (a "imagem semântica")
+Por asset, dois canais por pixel: **regionId** (qual região) + **lumLevel** (nível na rampa; um valor especial
+= `contorno`). Proposta:
+- **Armazenamento legível/diffável** (coerente com o mapa-glifo): um grid de texto onde cada célula é
+  `região×luminosidade` — ex.: letra=região (`p`=pele, `c`=cabelo, `s`=camisa…) + dígito=luminosidade
+  (`p0`..`p4`), ou um glifo por combinação para asset pequeno. Alternativa compacta: PNG "de dados" (índice no
+  canal, sem cor real) — mas perde legibilidade; **preferir texto/JSON indexado** enquanto os sprites são
+  pequenos (24×32). Definir no detalhamento.
+- **Animações**: várias imagens semânticas (frames) + tags (reusa `frameTags` do Aseprite na importação).
+- **Metadados**: tamanho, âncora/pés (slice), lista de regiões usadas.
+
+## 4. Dicionário de paletas (separado)
+- Estrutura: `região → { variantes: { nome: rampa[] } }`, onde `rampa[lumLevel] = cor`. Ex.:
+  `pele → { clara:[…], media:[…], escura:[…] }`, `camisa → { vermelha:[…], azul:[…] }`,
+  `pedra → { cinza:[…], musgo:[…] }`.
+- **Regras de compatibilidade** embutidas na estrutura (só se troca variante DENTRO da região; níveis fixos).
+- **Contorno** pode ser global (uma cor) ou por região (contorno de pele ≠ de metal) — decidir.
+- Vive como **dado do jogo** (não no asset): `app/js/art/palettes.js` (ou `.json`), pré-cacheado.
+
+## 5. Motor de render (combinar semântica + paleta)
+- **Compor um canvas** por (asset, combinação-de-paletas) uma vez e cachear a `PIXI.Texture` (NEAREST) — como
+  o `indexedToCanvas` atual já faz, só que a fonte é a imagem semântica + as variantes escolhidas. Recolor =
+  recompor o canvas (barato p/ sprites pequenos) ou, no futuro, um **shader/LUT** (mapear (região,lum)→cor na
+  GPU) se precisar de troca em tempo real de muitos.
+- **Sombreamento correto** vem de graça: o `lumLevel` indexa o degrau da rampa.
+- **Perf (hardware fraco = pilar):** cache por combinação; recompor só quando a escolha muda.
+
+## 6. Importação (o editor lê; o jogo não)
+Reusa as pesquisas de `plano-tiled-aseprite.md` — agora como **parsers de import**, não runtime:
+- **png/jpg**: extrai as cores únicas → lista para o humano anotar (cor→(região,luminosidade)).
+- **Aseprite / Libresprite** (Libresprite = fork GPL, ótimo p/ o pilar): lê PNG+JSON → frames + `frameTags`
+  (animações) + a **paleta indexada** (no modo indexado, já vem a ordem de cores — acelera a anotação).
+- **Tiled / LDtk** (ambos JSON): importa o **tileset** (imagem) + a grade, para anotar tiles por material.
+- O import produz a **imagem semântica** + sugestões (agrupar por luminosidade via ordenação HSV das cores).
+
+## 7. Editor (`tools/`, standalone, no-build)
+- Abrir bitmap/animação (formatos acima) → **paleta detectada**.
+- Para cada cor: escolher **região** (dropdown de materiais) + **luminosidade** (degrau, ou "contorno").
+  Auto-sugestão: ordenar por luminância e propor níveis; agrupar cores parecidas.
+- **Preview ao vivo**: aplicar variantes do dicionário (trocar pele/roupa/material) e ver o sombreamento.
+- **Salvar**: imagem semântica (+ frames/tags) no formato do §3. Validar: toda cor anotada, níveis coerentes,
+  contorno presente.
+- Reusa `art/palettes.js` e o motor de render do jogo (uma verdade só; valida as fronteiras da engine).
+
+## 8. Encaixe na engine (`../2-Architecture/plano-engine.md`)
+- Novo subsistema **Arte/Material** (`art/`): `semantic.js` (formato+parse), `palettes.js` (dicionário),
+  `recolor.js` (motor de composição). O subsistema **Render** consome texturas já compostas; as **Entidades**
+  pedem "personagem com pele=X, camisa=Y". **Tiles** idem (material por tipo).
+- **Alto-contraste** = uma paleta especial (chapado + contorno) aplicada pelo mesmo `recolor` → some a
+  duplicação de caminho que a pesquisa do Aseprite apontou.
+- Encaixa no **boot async** (carrega dicionário + imagens semânticas).
+
+## 9. Entrega em etapas (cada uma verificável)
+1. **Formato + motor de recolor** (`art/semantic.js` + `art/palettes.js` + `art/recolor.js`), provado num
+   asset pequeno (ex.: o menino), gerando a textura recolorida — sem editor ainda. Generaliza `PIP_/indexedToCanvas`.
+2. **Alto-contraste via paleta** (migra `silhouetteCanvasIdx` para o novo motor).
+3. **Editor** `tools/`: importar png/jpg + anotar + preview + salvar.
+4. **Import Aseprite/Libresprite** (frames+tags+paleta indexada).
+5. **Import Tiled/LDtk** (tileset → materiais de tile) — une com o tilemap-glifo.
+6. **Migrar personagens e tiles** do jogo para o sistema semântico; PNGs viram só fonte de autoria.
+
+## 10. Riscos
+- **Escopo grande (unificado)** → entregar em etapas §9; começar por 1 personagem antes de generalizar p/ tiles.
+- **Anotação trabalhosa** → auto-sugestão por luminância + import da paleta indexada do Aseprite reduzem o esforço.
+- **Perf de recolor** → cache por combinação; shader/LUT só se necessário.
+- **Legibilidade do formato** vs compactação → decidir texto/JSON vs PNG-de-dados no detalhamento (preferir
+  legível enquanto sprites são pequenos).
+- **a11y não pode regredir** → o alto-contraste passa a ser paleta; testar cedo (etapa 2).
+
+*Fontes:* Aseprite (modo indexado / color ramps; docs CLI, gists dacap) · técnicas de palette-swap/LUT em
+pixel-art (Slynyrd ramps; palette-swap gamedev) · Libresprite (fork GPL do Aseprite) · LDtk/Tiled (JSON) ·
+`plano-tiled-aseprite.md` (parsers de import) · semente no repo (`PIP_PAL`/`indexedToCanvas`/`silhouetteCanvasIdx`).
