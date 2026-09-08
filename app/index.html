@@ -81,25 +81,10 @@
       <!-- Indicador/botão de simulação DENTRO da tela (cegueira=branca, baixa visão=verde). Toque/clique 2× volta ao normal. -->
       <button id="viz-indicator" type="button" hidden aria-label="Modo de simulação ativo. Toque duas vezes para voltar às cores normais." data-i18n-aria="a11y.simActive"></button>
       <!-- (Dicas de início removidas — pedido do José 2026-07-04: o rodapé do splash mostra os controles) -->
-      <!-- Pausa DENTRO do canvas (tela = canvas). Um jogador pausa → todos pausam. -->
-      <div id="pause-overlay" class="pause-incanvas" hidden>
-        <div class="pause-card" role="dialog" aria-modal="true" aria-labelledby="pause-h">
-          <h2 id="pause-h">Pausado</h2>
-          <div id="pause-menu" class="pause-menu" role="menu" aria-label="Menu de pausa" data-i18n-aria="a11y.pauseMenu">
-            <button id="pm-resume" class="pm-btn" role="menuitem" type="button" data-act="resume">▶ Continuar</button>
-            <button id="opt-letra" class="pm-btn" role="menuitem" type="button" aria-label="Comunicação: letras e símbolos" data-i18n-aria="a11y.communication">🔠 Comunicação</button>
-            <button class="pm-btn" role="menuitem" type="button" data-act="audio">🦻 Acessibilidade auditiva</button>
-            <button class="pm-btn" role="menuitem" type="button" data-act="motora">♿ Acessibilidade motora</button>
-            <button class="pm-btn" role="menuitem" type="button" data-act="anim">🎞 Sensibilidade visual</button>
-            <button class="pm-btn" role="menuitem" type="button" data-act="visual">🎨 Acessibilidade visual</button>
-            <button class="pm-btn" role="menuitem" type="button" data-act="caa">🔠 Comunicação (letras e símbolos)</button>
-            <button class="pm-btn" role="menuitem" type="button" data-act="empatia">🫂 Modo empatia</button>
-            <button class="pm-btn" role="menuitem" type="button" data-act="print">📷 Print (ver a tela)</button>
-            <button class="pm-btn" role="menuitem" type="button" data-act="quit">🚪 Sair do jogo</button>
-          </div>
-          <p id="pause-legend" class="pause-legend"></p>
-        </div>
-      </div>
+      <!-- A PAUSA GLOBAL NAO EXISTE (Etapa 2). O bloco #pause-overlay que estava aqui — quarenta linhas com
+           dez .pm-btn escritos a mao — era um cadaver: a engine forcava-o escondido em toda fase e dois gates
+           afirmavam-no. Removido em 2026-09-08. O menu de pausa e POR TELA e quem o constroi e a engine
+           (ui/pause-icons buildScreenPause), com o design em @the-inclusionist/engine/style.css. -->
       <!-- Desafio Soma-Sub (DOM, acessível) -->
       <div id="quiz" class="quiz" hidden></div>
       <!-- Legenda de efeitos sonoros (C1): visual + aria-live -->
