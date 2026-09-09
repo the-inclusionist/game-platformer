@@ -43,21 +43,25 @@ jobs:
   ci:
     uses: the-inclusionist/the-inclusionist-engine/.github/workflows/game-ci.yml@main
     with:
-      # 🔴 FALSE, AND THE LINE IS HERE RATHER THAN ABSENT BECAUSE THE SHARED WORKFLOW ASKS FOR EXACTLY THAT:
-      # «a game that ships to a school with `a11y: false` is a game that skipped pillar 2, and the input is
-      # named so that skipping it is a VISIBLE line in the caller instead of an absence».
+      # ⚠️ TRUE, AND THIS LINE WAS `false` FOR EXACTLY ONE COMMIT. It went in saying that this repository —
+      # the largest consumer of an accessibility-first engine — had no axe at all, while `game-soccer` did,
+      # and naming what would close the gap: an axe script, WATCHED PASSING and PROVED ABLE TO FAIL, in that
+      # order. That is what happened, and turning the flag on in its own commit is the point: a gate that has
+      # never run is how a red gate reaches `main`.
       #
-      # 📏 The reason is measured and not a preference: this repository has NO axe. There is no `test:a11y`
-      # script and no axe package in `devDependencies` — the flag runs `npm run preview` and an axe script,
-      # and neither exists here. Turning it on would put a gate on the branch that has never run once, which
-      # is how a red gate reaches `main`.
+      # WHAT WAS DONE BEFORE THIS LINE CHANGED, in this order:
       #
-      # ⚠️ AND THE UNCOMFORTABLE HALF IS WORTH WRITING DOWN RATHER THAN ENCODING QUIETLY: `game-soccer` has an
-      # axe gate and THIS repository — the largest consumer of an accessibility-first engine — has none. That
-      # is a gap in the game, not a property of this file. What closes it is an axe suite here plus the
-      # `test:a11y` script, watched passing AND proved able to fail, in that order; then this line becomes
-      # `true` in a commit of its own that says what was watched.
-      a11y: false
+      #   1. `npm run build`, then the exact sequence `game-ci.yml` runs — the built game served over HTTP,
+      #      then `npm run test:a11y` against it. Printed `✓ axe: 0 WCAG A/AA violations`.
+      #   2. PROVED IT CAN FAIL, which is the half that makes the green mean anything. Stripping `lang` from
+      #      `<html>` in the served build returned `✗ axe: 1 WCAG A/AA violation(s)` — `html-has-lang` — and
+      #      exit 1; a rebuild restored it and the gate went green again.
+      #
+      # 📌 `lang` and not an emptied button, and `game-soccer` recorded why after trying the other one first:
+      # this game fills its text from the dictionary at boot, so emptied markup is REPAIRED before axe ever
+      # sees it and the mutation stays green. A defect the runtime cannot repair is the one that proves the
+      # gate looks at anything.
+      a11y: true
 
       # ⚠️ INHERITED, AND THE CHOICE IS MEASURED — `game-soccer` PINS this and the difference is real, so the
       # two cases must be told apart rather than copied. It pins because it has a floor of its OWN:
