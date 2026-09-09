@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# THE CALLER — and it is short on purpose (ADR-0068 §4).
+#
+# The gate itself lives once, in the engine repository, and every game invokes it. Copying it here would
+# create the failure that record refuses: three hundred copies drift, and the ones that drift silently are
+# the ones that stop gating.
+#
+# ========================= WHY THIS FILE ARRIVED LAST, AND WHAT IT COST =========================
+# 📏 MEASURED on 2026-09-08: of the six games in the local catalogue, four called this workflow and two did
+# not — and the two were the ones that matter most. This one is the MONOLITH OF ORIGIN, the largest consumer
+# of the engine, and the repository that has to migrate in lockstep with the 8.0 major. It was going to
+# receive the biggest change of that major with no automatic verification of any kind.
+#
+# ⚠️ AND IT COULD NOT BE ADDED EARLIER, for a reason that was a SETTING and not code: the engine repository
+# is private and its `actions/permissions/access` was `none`, so no other repository in the organisation
+# could resolve `uses: the-inclusionist/…/game-ci.yml@main`. The four callers that already existed were ALL
+# RED, each with ZERO jobs — which is why none of them had a log to read. Adding a fifth caller before that
+# changed would have produced a fifth red pipeline that said nothing. The setting was changed to
+# `organization` on 2026-09-08; this file is what that unblocked.
+#
+# ========================= WHAT WAS MEASURED BEFORE COMMITTING IT =========================
+# The four steps `game-ci.yml` runs, run here first, and read by EXIT CODE rather than by the summary — a
+# vitest run can print `N passed` and still exit non-zero on unhandled errors:
+#
+#   · `npm audit --omit=dev --audit-level=high` → 0
+#   · `npm run typecheck`                       → 0
+#   · `npx vitest run`                          → 0 · 41 files / 738 tests · zero unhandled
+#   · `npm run build`                           → 0
+#
+# ⚠️ ONE STEP WAS NOT REPRODUCED LOCALLY: `npm ci`. It rewrites `node_modules` in a working tree that is not
+# the one this was measured from, and this project has already paid for touching a consumer's dependencies.
+# CI runs it, and it is the step where a lockfile problem would appear.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    uses: the-inclusionist/the-inclusionist-engine/.github/workflows/game-ci.yml@main
+    with:
+      # 🔴 FALSE, AND THE LINE IS HERE RATHER THAN ABSENT BECAUSE THE SHARED WORKFLOW ASKS FOR EXACTLY THAT:
+      # «a game that ships to a school with `a11y: false` is a game that skipped pillar 2, and the input is
+      # named so that skipping it is a VISIBLE line in the caller instead of an absence».
+      #
+      # 📏 The reason is measured and not a preference: this repository has NO axe. There is no `test:a11y`
+      # script and no axe package in `devDependencies` — the flag runs `npm run preview` and an axe script,
+      # and neither exists here. Turning it on would put a gate on the branch that has never run once, which
+      # is how a red gate reaches `main`.
+      #
+      # ⚠️ AND THE UNCOMFORTABLE HALF IS WORTH WRITING DOWN RATHER THAN ENCODING QUIETLY: `game-soccer` has an
+      # axe gate and THIS repository — the largest consumer of an accessibility-first engine — has none. That
+      # is a gap in the game, not a property of this file. What closes it is an axe suite here plus the
+      # `test:a11y` script, watched passing AND proved able to fail, in that order; then this line becomes
+      # `true` in a commit of its own that says what was watched.
+      a11y: false
+
+      # ⚠️ INHERITED, AND THE CHOICE IS MEASURED — `game-soccer` PINS this and the difference is real, so the
+      # two cases must be told apart rather than copied. It pins because it has a floor of its OWN:
+      # `scripts/build-sw.mjs` imports precache rules from TypeScript source and needs Node 24's native type
+      # stripping. This repository has no such floor — no `build-sw.mjs`, no PWA plugin in `vite.config.ts`,
+      # and its two build scripts (`atlas.mjs`, `vite-plugin-atlas.mjs`) are plain ESM.
+      #
+      # 📌 Pinning without a floor is the drift ADR-0068 §4 refuses, one line at a time: a number repeated in
+      # six repositories that nobody remembers to move. `.node-version` here reads 24.14.0, the same as the
+      # engine's default at the time of writing; when the engine moves, this game moves with it, which is the
+      # point of a shared default.
