@@ -237,7 +237,11 @@ describe('game/session — roundStartFields × makePlayer: as duas listas que pr
       // reinício (irmão de `toggleMove`); a trava é estado de RODADA e zera, senão a partida começaria
       // correndo por causa de um botão apertado na anterior.
       'toggleRun',
-      'viz', 'walkAnim', 'walkDir',
+      // `visual` entra ao lado de `viz` porque é a MESMA coisa dita duas vezes: o eixo da engine 8.0.0
+      // (tema + correção + simulação) e a chave legada que `render/viz-setters` mantém em dia. O perfil da
+      // criança é de PÁGINA e não de rodada — ADR-0038, «uma página, uma criança, um perfil» —, então um
+      // reinício que o zerasse tiraria o alto contraste de quem depende dele no meio da sessão.
+      'visual', 'viz', 'walkAnim', 'walkDir',
     ]);
   });
   it('[Interface] `owned` nasce um array NOVO a cada chamada (dois jogadores não dividem inventário)', () => {

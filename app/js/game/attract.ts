@@ -12,7 +12,10 @@ import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 
 /** O bot da demonstração de atração move um jogador de verdade; a fatia é a mesma que o `stepPlayer` lê. */
 type Player = PlayerView<'x' | 'y' | 'facing' | 'vx' | 'vy' | 'onGround' | 'jumpEdge'>;
-interface Kb { right?: string[]; left?: string[] }
+// ⚠️ `readonly` E ANULÁVEL porque é isto que o `KeyScheme` da engine 8.0.0 passou a ser
+// (`Record<Action, readonly string[] | null>`). Só se LÊ daqui, com `?? []` nos dois usos abaixo,
+// então alargar não custa nada e evita uma cópia defensiva no chamador.
+interface Kb { right?: readonly string[] | null; left?: readonly string[] | null }
 type Cenarios = Record<string, { nome?: string } | undefined>;
 
 export interface AttractCtx {

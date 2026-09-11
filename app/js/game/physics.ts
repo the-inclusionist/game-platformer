@@ -62,7 +62,9 @@ export type PhysicsPlayer = Pick<ControlledGamePlayer,
   'stepT' | 'guardT' | '_swapDown' | '_swapT' | '_swapSonar' |
   'easy' | 'toggleMove' | 'runCane' | 'collected' |
   'quiz' | 'quit' | 'waiting' | 'elevTarget' | '_fallV' | 'caneDist' |
-  'ctrl' | 'pad' | 'viz' |
+  // `visual` é o eixo da engine 8.0.0 e é por ele que `caneOn` decide; `viz` fica porque é a chave LEGADA
+  // que `render/viz-setters` mantém em dia, e há leitura dela mais abaixo.
+  'ctrl' | 'pad' | 'viz' | 'visual' |
   // `sq`/`sqT` NÃO são lidos aqui — são ESCRITOS por `render/fx.setSquash`, que este módulo chama com o
   // próprio jogador. Fora da vista, o `Squashable` de lá (cujos campos são todos opcionais) recusava o
   // `PhysicsPlayer` pela regra de tipo fraco do TS: nenhuma propriedade em comum. A vista tem de incluir

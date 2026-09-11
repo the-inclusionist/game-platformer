@@ -71,7 +71,7 @@ initCrt({
 });
 import type { Player, PlayerView } from '@the-inclusionist/engine/core/entity.js'; // a entidade da ENGINE, e a vista mínima dela
 import type { GamePlayer, ControlledGamePlayer } from './game/entity.js'; // as deste JOGO — ver `jogadores`/`controlados`
-import type { ModalIntent } from '@the-inclusionist/engine/input/keydown.js'; // a intenção direcional do ADR-0033
+import type { ModalIntent, ControlsSnapshot } from '@the-inclusionist/engine/input/keydown.js'; // a intenção direcional do ADR-0033
 import type { RenderTextureLike, SpriteLike, GraphicsLike } from '@the-inclusionist/engine/render/screen-pipeline.js'; // o ctx de lá declara estes
 import type { MotionSceneKey, MotionSceneFlags, MotionCharDef } from '@the-inclusionist/engine/ui/settings-motion.js'; // as quatro chaves de movimento reduzido
 import type { HcRoleKey } from '@the-inclusionist/engine/render/hc-role-data.js'; // HC_ROLE é Record<HcRoleKey, …>: a chave não é `string`
@@ -90,7 +90,7 @@ import { SOMASUB_SHAPES, WORD_INITIALS } from './game/activity-content.js'; // E
 import { JUICE, saveJuice, puffDust, burstSparkle, addShake, addHitstop, setSquash, stepFx, initFx, tickHitstop, getParticles, getHitstopT, getShakeT } from '@the-inclusionist/engine/render/fx.js'; // Estágio 4 (Tier 2): juice (partículas/shake/hitstop/squash)
 import { parallaxPlaceholder, themeSkyTexture, themeHillsTexture, themeCitySkyTexture, themeSkylineTexture } from '@the-inclusionist/engine/render/scene-parallax.js'; // Estágio 4 (Tier 2): geradores de textura do parallax
 import { worldCanvas, initWorldTex } from '@the-inclusionist/engine/render/world-tex.js'; // Estágio 4 (Tier 2): builder da textura NORMAL do mundo
-import { kb, initKB, setKB, saveKB, resetKB } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
+import { kb, initKB, setKB, saveKB, resetKB, fabricaComOJogo } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
 import { AUDIO_CATS } from '@the-inclusionist/engine/platform/audio-mixer.js'; // Fase 2: categorias do mixer (dados); audioCat/catNode/setCatGain vêm de audio.js
 import { FONT_GROUPS } from '@the-inclusionist/engine/ui/fonts.js'; // Fase 2: tipografia (catálogo + persistência)
 import { $, $$, toggleBtn, toggleLabel } from '@the-inclusionist/engine/ui/dom.js';
@@ -121,16 +121,21 @@ function rotuloCurto(acao: string): string | null {
   return shortLabellerFrom(platformerPreset())(acao as Action);
 }
 
-function acoesDoJogo(): readonly { readonly acao: string; readonly rotulo: string }[] {
+// ⚠️ `Action` E JÁ NÃO `string`: a engine 8.0.0 estreitou `SettingsControlsCtx.acoesDoJogo`, e o conserto
+// foi APAGAR o `as string` que alargava de volta o que `presetActions` já devolvia certo. O alargamento
+// era antigo e custava a recusa de tecla duplicada, que casa a posição pela PALAVRA da ação.
+function acoesDoJogo(): readonly { readonly acao: Action; readonly rotulo: string }[] {
   const preset = platformerPreset();
   const rotulo = labellerFrom(preset);
   return presetActions(preset)
-    .map((a) => ({ acao: a as string, rotulo: rotulo(a) || '' }))
+    .map((a) => ({ acao: a, rotulo: rotulo(a) || '' }))
     .filter((x) => x.rotulo !== '');
 }
+import { ehCego, ehBaixaVisao, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js'; // os dois eixos (8.0.0): quem responde ao sonar
 import { VIZ_MODES, VIZ_BY_KEY, VIZ_CYCLE, simulatesDisability } from '@the-inclusionist/engine/render/viz-modes.js'; // Fase 2: modos visuais de a11y (dados)
 import { PAD_DESIGNS } from '@the-inclusionist/engine/input/devices.js'; // Fase 2: rótulos de gamepad/toque (dados)
-import { keys, padCur, padPrevAct, held } from '@the-inclusionist/engine/input/state.js'; // Fase 2.22: estado de input + held
+import { keys, padCur, padPrevAct, held, marcarTecla, marcarTeclaSemOrigem, soltarTecla } from '@the-inclusionist/engine/input/state.js'; // Fase 2.22: estado de input + held
+import { criarArestaComAlternancia } from '@the-inclusionist/engine/input/latch-edge.js';
 import { audioCtx, ensureAC, soundOn, volume, setSoundOn, setVolume, audioOut, hearingLoss, setHearingLossGraph, setMasterMuted, audioCat, initAudioMixer, catNode, setCatGain, tone, tonePan, noiseBuffer, noiseHit, _footCount } from '@the-inclusionist/engine/platform/audio.js'; // Fase 2: base + mestre + mixer + sínteses (oscilador + ruído)
 import { gameSay } from '@the-inclusionist/engine/platform/speech.js';
 import { createAudioJingles } from '@the-inclusionist/engine/platform/audio-jingles.js'; // Tier 2 (áudio r1): jingles de vitória/enigma/fogos
@@ -420,10 +425,26 @@ initFocusTrap({
 function ehToque(){ try{ return matchMedia('(pointer:coarse)').matches && matchMedia('(hover:none)').matches; }catch(e){ return 'ontouchstart' in window; } }
 // O AVISO DE ALCANCE (issue #112). Ligado aqui pelo mesmo motivo dos outros dois fios: esta raiz NAO passa
 // por `createGame`.
-// ⚠️ HOJE ELE NAO DISPARA, e isso e uma MEDIDA e nao um acaso: este preset declara NOVE acoes e o controle de
-// tela tem exatamente nove lugares. O jogo de plataforma foi desenhado para caber no toque. O fio existe para
-// o dia em que ele declarar a decima — a partir dai o tablet deixa de alcancar, e a crianca precisa de saber
-// disso ANTES e nao no meio.
+// ⚠️ ELE PASSOU A DISPARAR NO TOQUE, E A FRASE QUE ESTAVA AQUI ESTAVA CERTA PELA PERGUNTA ERRADA. Dizia que
+// não dispara «porque este preset declara NOVE ações e o controle de tela tem exatamente nove LUGARES» — e
+// contar lugares responde se as ações CABEM, não se a criança consegue segurá-las ao mesmo tempo. A engine
+// 8.0.0 acrescentou a segunda pergunta (`seguraPedidas`), e é ela que este jogo reprova.
+//
+// TRÊS, medido na física e não estimado: correr para a direita e saltar são `right` + `action1` + `action2`
+// ao mesmo tempo. Direção segura-se (physics.ts:194,197), correr segura-se (:359,:362,:390) e pular
+// segura-se (:290 flutuar no fácil, :292 braçada na água, :167 trampolim).
+//
+// O acorde trocar+especial (:243) NÃO levanta a conta: tem rota alternativa — segurar trocar ~0,3s
+// sozinho. O campo pergunta o que o jogo EXIGE; contar uma conveniência relataria uma barreira que não há.
+//
+// E a conta é da ROTA PADRÃO, de propósito. Com a trava de corrida cai para dois, com as duas travas para
+// um — mas declarar dois seria declarar como exigência o que só é verdade depois de a criança ACHAR e
+// LIGAR a acomodação. O aviso é para quem ainda não a achou.
+//
+// 📏 Consequência, e ela é visível: só o toque declara teto (`SEGURA_TOQUE = 2`, transports.js:60);
+// teclado e pad não declaram nenhum. Então num tablet ou telemóvel o aviso aparece — e a resposta a ele é
+// a trava do botão de correr (`#opt-togglerun`), que põe a exigência em dois. Ver a nota do
+// `onTouchControlsShown` mais abaixo, que é quem a liga sozinha no toque.
 mostrarAvisoDeAlcance(
   { procurar: (sel) => $<HTMLElement>(sel), criar: (tag) => document.createElement(tag), t, srAlert },
   alcance(transportesPadrao({
@@ -433,7 +454,11 @@ mostrarAvisoDeAlcance(
     // derrubaria o boot. A duplicacao e de UMA expressao e esta anotada dos dois lados.
     toque: ehToque,
     teclado: () => !ehToque(),
-  }), presetActions(platformerPreset())),
+    // ⚠️ O RATO NÃO É UM TRANSPORTE À PARTE (ADR-0112): sozinho não carrega as catorze posições. Ele é o
+    // SINAL CONTÍNUO ao lado do teclado, e por isso entra como pergunta de DISPOSITIVO — medida como as
+    // outras três, e não deduzida de `!ehToque()`: um portátil com ecrã táctil tem os dois.
+    rato: () => { try { return matchMedia('(pointer:fine)').matches; } catch (e) { return false; } },
+  }), presetActions(platformerPreset()), 3),
 );
 // As seis flags `*Open` que moravam aqui morreram: quem sabe se um painel esta aberto e o proprio DOM, e o
 // registro de ui/settings-panel le de la (D1). `jumpEdge` estava nesta mesma linha e tambem morreu: era
@@ -452,6 +477,15 @@ initKB(); // o mapa de teclas vive em input/keyboard (#50); aqui só o disparo d
 // inicialização, quando o `const` ainda não tinha sido avaliado. `jogadores()` não sofria disso por
 // acidente — todos os usos dele vêm depois. Quem mover isto daqui quebra o boot, e não o tsc.
 const kbRuntime = initKeyboardRuntime({ getKB: () => kb, getNumPlayers: () => rodada.numPlayers, getPlayers: () => controlados() });
+// O ESQUEMA DE FÁBRICA DESTE ASSENTO (engine 8.0.0, `SettingsControlsCtx.kbPadraoFor`). Uma SEGUNDA leitura
+// sobre a mesma máquina: a regra «quantos jogadores → que balde» é desta raiz, e escrevê-la outra vez à mão
+// criaria uma cópia que diverge no dia em que uma das duas mudar.
+//
+// 🎯 E NÃO SE OBTÉM POR `resetKB()`, embora ele devolva exatamente a configuração de fábrica: o `resetKB`
+// faz `store.remove(CKEY)` ANTES de devolver a cópia. Como este painel chama o leitor a CADA render, usá-lo
+// apagaria o remapeamento da criança a cada abertura do painel — e o estrago só apareceria no arranque
+// seguinte, quando o mapa dela voltasse ao de fábrica sem que nada o tivesse pedido.
+const kbFabrica = initKeyboardRuntime({ getKB: fabricaComOJogo, getNumPlayers: () => rodada.numPlayers, getPlayers: () => controlados() });
 const kbFor = (i: number) => kbRuntime.kbFor(i);
 // controls/KJUMP..KRUN/GAME_KEYS nao moram mais aqui (D1): eram oito copias de kbRuntime.computeControlsState(),
 // e `applyControls` existia so para refaze-las. A memoria foi para dentro de input/keyboard-runtime, que e quem
@@ -476,6 +510,44 @@ assignControls();
    setas preservam — passar qualquer um deles por VALOR derruba o boot em TDZ.
    Fica no lugar exato do ouvinte antigo, e nao mais abaixo: descer mudaria a ORDEM DE REGISTRO dos ouvintes
    de bolha da janela, e hoje este e o primeiro. */
+// ⚠️ UMA INSTÂNCIA SÓ, E ELA É O CONTRATO (engine 8.0.0). Teclado, toque e pad recebem A MESMA aresta:
+// o CHANGELOG da engine diz «the same instance … so every transport writes the same player». Duas
+// instâncias escreveriam a alternância de marcha em cópias diferentes, e o sintoma seria a alternância
+// ligada no teclado e morta no pad — sem erro em lado nenhum.
+//
+// `criarArestaComAlternancia` (e não o `arestaDoJogador` cru de input/state) porque ESTE jogo tem
+// alternância: `toggleMove`/`walkDir` vivem no jogador, que é exatamente o `JogadorDaAlternancia` que
+// a fábrica pede.
+const arestaDoJogador = criarArestaComAlternancia(() => players);
+
+/*
+ * ⚠️ DUAS ADAPTAÇÕES QUE EXISTEM POR UMA COSTURA DA ENGINE, e não por desleixo daqui — medido na 9.0.0:
+ *
+ *   · `input/keyboard-runtime.kbFor(i)` PRODUZ `KeyScheme` = `Record<Action, readonly string[] | null>`;
+ *   · `ui/shell.KbCtx.kbFor` CONSOME `Record<string, string[]>`;
+ *   · `input/keydown.ControlsSnapshot` CONSOME `string[]` mutável, enquanto `ControlsState` produz `readonly`.
+ *
+ * A 8.0.0 alargou o `KeyScheme` (leitura só, e a posição pode ser `null`) e deixou estes dois consumidores
+ * na forma velha. Ninguém tinha notado porque `createGame` NÃO chama `initShell` nem passa `kbFor` — a
+ * costura só é alcançável por um consumidor que monta a raiz à mão, e este é o único.
+ *
+ * Enquanto a engine não unifica, a conversão mora AQUI, num sítio só e com nome, em vez de um `as` espalhado.
+ * `null` vira lista vazia: para quem lê, "a posição não tem tecla" e "a posição tem zero teclas" são o mesmo
+ * fato, e nenhum dos dois consumidores escreve de volta.
+ */
+function esquemaLargo(k: ReturnType<typeof kbRuntime.kbFor>): Record<string, string[]> {
+  const fora: Record<string, string[]> = {};
+  for (const [acao, teclas] of Object.entries(k)) fora[acao] = teclas ? [...teclas] : [];
+  return fora;
+}
+function instantaneoDosControles(): ControlsSnapshot {
+  const c = kbRuntime.controlsState();
+  // `controls` NÃO entra: o `ControlsSnapshot` são as sete listas e mais nada — o `KeyScheme` inteiro é do
+  // `ControlsState`, que é outro tipo. Passá-lo era excesso tolerado por vir de função, não campo pedido.
+  return { gameKeys: c.gameKeys,
+    action1: [...c.action1], action2: [...c.action2],
+    left: [...c.left], right: [...c.right], up: [...c.up], down: [...c.down] };
+}
 const keydownApi = initKeydown({
   isTelaDeTitulo: () => fatosDaCena().telaDeTitulo,
   // VERBATIM do `phase === 'playing' || phase === 'paused'`: `!telaDeTitulo` NÃO seria a mesma coisa — numa
@@ -484,8 +556,11 @@ const keydownApi = initKeydown({
   attractOnInput: () => attractCtl.onInput(),
   handleCaptureKeydown: (e) => ctrlPanel.handleCaptureKeydown(e),
   getNumPlayers: () => rodada.numPlayers, getPlayers: () => players,
-  getControls: () => kbRuntime.controlsState(),
+  getControls: instantaneoDosControles,
   heldKeys: keys, isOneButton: () => oneButton,
+  // As quatro portas que a engine 8.0.0 passou a exigir: quem marca, quem solta, e de QUE transporte veio
+  // a tecla. Sem elas o teclado deixa de contar como aresta do jogador.
+  marcarTecla, marcarTeclaSemOrigem, soltarTecla, arestaDoJogador,
   actionOf: (code, i) => kbRuntime.actionOf(code, i),
   whichPlayer: (code) => kbRuntime.whichPlayer(code),
   $, escapeTarget: () => overlays.escapeTarget(), closeOverlayById: (id) => overlays.closeById(id),
@@ -575,7 +650,13 @@ function setHearingLoss(on: boolean){ setHearingLossGraph(on); store.setBool('in
 function surfaceUnder(pl: PlayerView<'x' | 'y'>){ const tile=tileAt(Math.floor(pl.x/TILE),Math.floor((pl.y+1)/TILE)); if(tile!==2&&tile!==6&&tile!==5)return null; return CENARIO==='cidade'?'piso':'pedra'; }
 // Tipado pelo que LÊ, não pelo que recebe: assim serve ao `Player` inteiro e às vistas estreitas que os
 // módulos declaram (`PhysicsPlayer` é um `Pick`, e um `Player` inteiro não é atribuível a ele).
-const caneOn=(pl: PlayerView<'viz'>)=>{ const m=VIZ_BY_KEY[pl.viz]; return modoCego || !!(m&&(m.kind==='blind'||m.kind==='lowvision')); }; // predicado de visão (movimento/render) — fica no main.js
+// A MESMA PERGUNTA QUE O SONAR FAZ, escrita uma vez. Era `VIZ_BY_KEY[pl.viz]` com os `kind` 'blind' e
+// 'lowvision' atravessados à mão; a engine 8.0.0 publica os dois predicados e apagou a tabela do ctx do
+// sonar (#104). A conta é idêntica — o que muda é que agora há UM sítio a errá-la, e não dois.
+const visaoComprometidaDe=(v: VisualState)=> ehCego(v) || ehBaixaVisao(v);
+// `caneOn` é a pergunta do DESENHO e soma o modo cego global; o sonar recebe o modo cego à parte, por
+// isso lá vai só o predicado de cima. A diferença é real e está anotada dos dois lados.
+const caneOn=(pl: PlayerView<'visual'>)=> modoCego || visaoComprometidaDe(pl.visual); // predicado de visão (movimento/render) — fica no main.js
 // caneColor extraído p/ render/wheelchair-sprites.js (Estágio 4).
 // TTS (narração por voz: Piper neural lazy + fallback Web Speech) extraído p/ platform/tts.ts (Tier 2, #38). Criado ANTES do
 // audio-nav porque o nav injeta narrate. As funções de painel (populateTTS*/reflectTTS) ficam no main.js (→ #54) e usam get/set.
@@ -601,11 +682,19 @@ const sonarNav = createAudioSonar({
   targetsOf: (i) => coins.filter((cn) => !cn.taken && cn.owner === i).map((cn) => ({ x: cn.x, y: cn.y })),
   nameAt: () => ({ text: t('hud.nome.moeda'), gender: 'f', plural: false }),
   tonePan, srSay, narrate: tts.narrate,
-  VIZ_BY_KEY, getModoCego: () => modoCego, LOGICAL_W,
+  // ⚠️ A ENGINE PEDE A RESPOSTA, E JÁ NÃO A TABELA (#104): recebia `VIZ_BY_KEY` e atravessava-a com
+  // `pl.viz`; agora pergunta se ESTA criança tem a visão comprometida. Quem sabe é esta raiz, que
+  // conhece os dois eixos — `platform/` não pode importar de `render/` sem inverter uma camada.
+  // O `pl` do sonar só carrega `i/x/y`, então o estado visual vem do jogador desta lista.
+  visaoComprometida: (pl) => { const p = players[pl.i]; return !!p && visaoComprometidaDe(p.visual); },
+  getModoCego: () => modoCego, LOGICAL_W,
   getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
   getAudioCtx: () => audioCtx, getSoundOn: () => soundOn, getAudioCat: () => audioCat,
 });
-const nav = createAudioNav({ tileAt, solidAt, held, tonePan, noiseHit, BOX, TILE,
+// `held` adaptado: `input/state.held` estreitou para `Action` na 8.0.0 e `audio-nav` ainda declara
+// `act: string` — a mesma costura do `kbFor` acima. O cast é seguro por medição: este módulo só passa
+// 'up' e 'down' (audio-nav.js:64 e :75), duas ações reais.
+const nav = createAudioNav({ tileAt, solidAt, held: (pl, act) => held(pl, act as Action), tonePan, noiseHit, BOX, TILE,
   getCenario: () => CENARIO, sonar: sonarNav });
 // ===== F4: camadas de AMBIENTE (loops sintetizados) + PISTA/GUIA auditivo (beacon em laço) =====
 // Trilha de ambiente sintetizada + trovão extraídos p/ platform/audio-ambient.ts (Tier 2, áudio r4). O clima VISUAL fica no
@@ -722,7 +811,7 @@ const { setCenario } = createSetCenario({
 // e ja nao tinha chamador aqui (o rotulo do painel vem de ui/settings-visual, que reexporta o do modulo).
 // A RECOMPOSICAO do filtro CSS fica: ela mistura o modo de visao ativo e invalida caches de textura,
 // coisas que nao sao do realce L->Q.
-initLqFilter({ onChange: () => { if(app&&view){ if(rodada.numPlayers<=1)applyVizGlobal(players[0].viz); else view.style.filter=lqFilter(); } } });
+initLqFilter({ onChange: () => { if(app&&view){ if(rodada.numPlayers<=1)applyVizGlobal(players[0].visual); else view.style.filter=lqFilter(); } } });
 // vizMode vem de core/state.js (Fase 2, mega-var 6). Init de boot SEM persistir (preserva o rastreio de prefers-contrast):
 initVizMode((()=>{ try{ const v=store.get('incl_viz',null); if(v&&VIZ_CYCLE.includes(v))return v; }catch(e){}
   // A guarda `window.matchMedia &&` saiu: o `tsc` acusa TS2774 porque ela testa uma função que SEMPRE existe
@@ -1091,7 +1180,6 @@ const pauseIcons = initPauseIcons({
   dynLabel: (b) => (b.nivel ? (t('pause.nivel', { n: quizLevel, nome: QL_NAME[quizLevel] })) : null),
   getPauseActs: () => pauseActs,            // LAZY: pauseActs e const bem abaixo (TDZ)
   setPauseActor: (i) => rodada.setPauseActor(i),
-  getPauseScreens: () => vpPause,           // buildGameHud REATRIBUI vpPause -> getter, nao a array
   getA11yBars: () => vpBars,                // idem: `let` reatribuido a cada remontagem do HUD
   getModoCego: () => modoCego, setModoCego,
   getAudioCat: () => audioCat, setCatGain,
@@ -1102,6 +1190,15 @@ const pauseIcons = initPauseIcons({
   // ligar o TTS pelo icone deixava o botao do painel dizendo 'Desligado' com aria-pressed=false,
   // ou seja, mentindo o estado para leitor de tela.
   reflectTtsPanelEnabled: true,
+  // ⚠️ TRUE, E MEDIDO: este jogo segura direção (physics.ts:194,197), correr (:359,:362,:390) e pular
+  // (:290 flutuar no fácil, :292 braçada na água, :167 trampolim). Responder `false` ESCONDERIA a linha
+  // `#opt-altmove` — que existe em `index.html:211` e é a acomodação de quem não consegue manter tecla
+  // pressionada. Um controle escondido a quem depende dele é pior que um controle ausente.
+  //
+  // FUNÇÃO e não valor: a engine 9.0.0 trocou `boolean` por `() => boolean` porque o ícone estava a
+  // descrever o jogo que arrancou primeiro. Aqui a resposta não muda, e é função à mesma — o contrato é
+  // que manda, não a nossa estabilidade.
+  seguraTeclas: () => true,
   isLibrasOn: vlibrasOpen, toggleLibras,
   rm, saveRM, rmKeys: RM_KEYS, rmChar: RM_CHAR,
   setToggleMove,
@@ -1177,7 +1274,8 @@ function configureRender(){ screenPipeline.configureRender(); }
 
 // E5: minimapa estilo Metroid (canto inferior esquerdo, fixo na tela, fog-of-war)
 initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1): container + fog-of-war (markSeen/redrawMinimapIfDirty/drawMinimapPlayer/resetMinimap/setMinimapCorner/…)
-buildGameHud(); // HUD por jogador no init (single-screen; configureRender só roda ao trocar nº de telas)
+// ⚠️ A MONTAGEM DO HUD SAIU DAQUI E DESCEU PARA DEPOIS DE `pauseActs` — ver a nota lá em baixo. Movê-la
+// de volta para cá derruba o arranque inteiro, e o `tsc` não o vê.
 
 /* ===================== física (por jogador — E11) -> game/physics.ts (B1) =====================
    sampleFeatures/resolveX/resolveY/triggerLava e o CORPO de fisica do stepPlayer moram no modulo, ancorados
@@ -1464,6 +1562,8 @@ const gamepadApi = initGamepad({
   isAttractActive: () => attractCtl.isAttract(), stopAttract: () => attractCtl.stopAttract(),
   isTouchMode: () => document.body.classList.contains('touch-mode'), hideTouchControls: () => hideTouchControls(),
   getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
+  // A MESMA instância do teclado e do toque — ver o bloco acima de `initKeydown`.
+  arestaDoJogador,
   navTitle, sharedDialogOpen, navDialog, getPauseMenu: (i) => vpPause[i], navPause,
   // O modo `accessibility` do ADR-0044 (item 7): o direcional dirige a barra rapida em vez do personagem.
   naBarraDe: (i) => pauseIcons.naBarraDe(i),
@@ -1527,7 +1627,10 @@ const soundBtn=$('#opt-sound'), capBtn=$('#opt-captions');
 if(capBtn) toggleBtn(capBtn, captionsOn);
 if(soundBtn){ soundBtn.setAttribute('aria-haspopup','dialog'); soundBtn.addEventListener('click',openAudio); } // botão de áudio agora abre o mixer
 if(capBtn) capBtn.addEventListener('click',()=>{ setCaptionsOnValue(!captionsOn); toggleBtn(capBtn,captionsOn); srSay(t(captionsOn?'sr.captions.on':'sr.captions.off')); });
-const motor = initSettingsMotor({ $, srSay, store, players, getNumPlayers: () => rodada.numPlayers, setToggleMove, setToggleRun, rebuildCoins }); // painel motor: ui/settings-motor.ts (registra #opt-facil, #opt-altmove e as abas)
+// `seguraTeclas: true` — a MESMA resposta do cartão de pausa, e aqui é VALOR e não função: os dois
+// contextos divergem de propósito na engine (o do cartão virou função na 9.0.0 porque o ícone descrevia o
+// jogo que arrancou primeiro; este não tem esse problema). Com `false` a engine esconderia `#opt-altmove`.
+const motor = initSettingsMotor({ $, srSay, store, players, getNumPlayers: () => rodada.numPlayers, seguraTeclas: true, setToggleMove, setToggleRun, rebuildCoins }); // painel motor: ui/settings-motor.ts (registra #opt-facil, #opt-altmove e as abas)
 
 /* Modos de visualização: Normal + Alto contraste + simulações/correções. A FABRICA (parallaxTexFor,
    treeTexFor, playerVizTex, pixiFilterFor, o overlay de baixa visao e as matrizes CVD) migrou para
@@ -1576,7 +1679,10 @@ const viz = initVizSetters({
 });
 // `updateVizIndicator` saiu: desestruturado e nunca lido desde que migrou para `render/viz-setters`.
 const { applySharedTextures, updateVpDots, applyVpFilters, setPlayerViz,
-        applyVizGlobal, reapplyVizAll, renderVizGroup } = viz;
+        applyVizGlobal, reapplyVizAll, renderVizGroup, renderEixosVisuais } = viz;
+// `renderVizGroup` fica: a EMPATIA ainda o usa (é um grupo de rádios de modos, e simular uma deficiência
+// continua a ser uma escolha única). O painel VISUAL é que passou a ter dois controles — tema e correção —
+// e a engine 8.0.0 trocou o campo do seu ctx por `renderEixosVisuais` (#104).
 const _rebakeDirect = viz.rebakeDirect;
 // renderVpOverlay migrou para render/viewports.ts (B2).
 // updateVpDots/applyVpFilters migraram para render/viz-setters.ts (Onda A).
@@ -1627,7 +1733,7 @@ function setOutlineFg(v: number){ const antes=hcOutlineFg; setOutlineFgValue(v);
   _rebakeDirect(); visual.render(); srSay(t('sr.visual.outlineFg',{v:t(OUTLINE_KEY[hcOutlineFg])})); }
 function setOutlineBg(v: number){ const antes=hcOutlineBg; setOutlineBgValue(v); if(hcOutlineBg===antes)return;
   _rebakeDirect(); visual.render(); srSay(t('sr.visual.outlineBg',{v:t(OUTLINE_KEY[hcOutlineBg])})); }
-const visual = initSettingsVisual({ $, srSay, renderVizGroup, getPlayers: () => players, getNumPlayers: () => rodada.numPlayers, getVisualSettings: () => ({ lq: getLqT(), ownerColors, cbSafe, outlineFg: hcOutlineFg, outlineBg: hcOutlineBg, roleColors: HC_ROLE }), getSelectedPlayer: () => rodada.selVizPlayer, setSelectedPlayer: (i) => rodada.setSelVizPlayer(i), setPlayerViz, setLq, setOwnerColors, setCbSafe, setOutlineFg, setOutlineBg, setRoleColor, resetRoleColors }); // painel visual: ui/settings-visual.ts
+const visual = initSettingsVisual({ $, srSay, renderEixosVisuais, getPlayers: () => players, getNumPlayers: () => rodada.numPlayers, getVisualSettings: () => ({ lq: getLqT(), ownerColors, cbSafe, outlineFg: hcOutlineFg, outlineBg: hcOutlineBg, roleColors: HC_ROLE }), getSelectedPlayer: () => rodada.selVizPlayer, setSelectedPlayer: (i) => rodada.setSelVizPlayer(i), setPlayerViz, setLq, setOwnerColors, setCbSafe, setOutlineFg, setOutlineBg, setRoleColor, resetRoleColors }); // painel visual: ui/settings-visual.ts
 function reflectVizButtons(){ const help=players.some(p=>{const m=VIZ_BY_KEY[p.viz];return m&&m.kind==='hcnew';});
   const sim=players.some(p=>simulatesDisability(p.viz));
   const bv=$('#opt-visual'); if(bv)bv.classList.toggle('is-on',help); const be=$('#opt-empathy'); if(be)be.classList.toggle('is-on',sim||hearingLoss||oneButton||wheelchair); }
@@ -1692,10 +1798,25 @@ const touchCtl = initTouch({ $, srSay, store, root: document.documentElement, is
   // AUTOMÁTICA NO TOQUE: liga a alternância do correr só para quem NUNCA escolheu (sem valor salvo). Quem
   // desligou de propósito não a vê voltar — o valor salvo vence, e desfazer a escolha da criança seria a
   // mesma coisa que o mixer de áudio já recusa a fazer.
+  //
+  // 🔴 NÃO APAGUE ISTO COM O CHANGELOG DA ENGINE NA MÃO. A 8.0.0 diz, nomeando este ficheiro e esta linha,
+  // que «once `arestaDoJogador` is passed, that repository's `onTouchControlsShown` patch can go: it exists
+  // to compensate for the edge this change delivers». A aresta FOI passada — e a frase está errada.
+  //
+  // Medido na 9.0.0: `input/latch-sync.js` só escreve `p.toggleMove`, e a base chama-se `BASE_DA_MARCHA =
+  // 'togglemove'`. A aresta nova sincroniza a trava de MARCHA. Esta linha liga `p.toggleRun`, a trava do
+  // botão de CORRER. São irmãs e não a mesma, e o comentário da própria engine admite-o em
+  // `latch-sync.js:7`: «`p.toggleRun` tem um leitor de RODADA no cartucho (`game/run-toggle`), com uma
+  // trava própria». Nada na engine escreve `toggleRun` — só a i18n dos anúncios e a chave do armazém.
+  //
+  // E ela ficou LOAD-BEARING com o `seguraPedidas: 3` lá em cima: a exigência da rota padrão são três
+  // posições e o toque segura duas, então é esta linha que põe a criança de telemóvel em dois sem lhe
+  // pedir que descubra o painel motor primeiro. Apagá-la devolve o jogo a uma exigência que o aparelho
+  // dela não alcança — sem erro em lado nenhum, e só ela dá por isso.
   onTouchControlsShown: () => { players.forEach((p,i)=>{ if(store.get(store.KEYS.toggleRunP(i))==null && !p.toggleRun){ p.toggleRun=true; motor.reflectToggleRun(); } }); } });
 // (o proprio initTouch ja aplica o desenho salvo no fim da sua inicializacao)
 loadPlayerA11y(players[0],0); // carrega viz/easy/alternância persistidos do jogador 1 (migra chaves antigas)
-vizReady=true; applyVizGlobal(players[0].viz); // estado inicial (solo)
+vizReady=true; applyVizGlobal(players[0].visual); // estado inicial (solo) — o EIXO, e já não a chave legada
 
 /* TIPOGRAFIA — menu próprio na pausa (saiu da Sensibilidade visual, pedido do José 2026-07-02).
    3 grupos, UMA fonte ativa (radio), pré-visualização com o pangrama "Juiz foge e bota fita de cetim
@@ -1762,7 +1883,7 @@ audioPanel.reflectModoCego();
 
 /* E10: remap de controles + persistência (B2) */
 const ctrlPanel = initSettingsControls({
-  acoesDoJogo, $, srSay, srAlert, store: { saveKB, resetKB }, kb, setKB, kbFor, getNumPlayers: () => rodada.numPlayers, applyControls, assignControls }); // painel de controles: ui/settings-controls.ts (registra #ctrl-reset e os botoes de remap)
+  acoesDoJogo, $, srSay, srAlert, store: { saveKB, resetKB }, kb, setKB, kbFor, kbPadraoFor: (i) => kbFabrica.kbFor(i), getNumPlayers: () => rodada.numPlayers, applyControls, assignControls }); // painel de controles: ui/settings-controls.ts (registra #ctrl-reset e os botoes de remap)
 function openOptions(){ const ov=$('#options'); if(!ov)return; ctrlPanel.render(rodada.pauseActor); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector('button'); if(f)f.focus(); } // E3: edita o controle do jogador que abriu
 function closeOptions(){ const ov=$('#options'); if(!ov)return; ov.hidden=true; ctrlPanel.cancelCapture(); if(!overlays.restoreFocus('options'))menuFocus(sharedDialogOpen()); }
 const ctrlBtn=$('#opt-controls'); if(ctrlBtn)ctrlBtn.addEventListener('click',openOptions);
@@ -1885,7 +2006,7 @@ const shell = initShell({
   reflectPauseIcons: () => reflectPauseIcons(),
   getGamepads: () => (navigator.getGamepads ? navigator.getGamepads() : []),
   isTouchMode: () => document.body.classList.contains('touch-mode'),
-  padLayoutFromId, padMapFor: (id) => gamepadApi.padMapFor(id), kbFor, keyName,
+  padLayoutFromId, padMapFor: (id) => gamepadApi.padMapFor(id), kbFor: (i) => esquemaLargo(kbFor(i)), keyName,
   openCaa: () => caa.open(),
   setQuizLevel, getQuizLevel: () => quizLevel,
   openTypo: () => openTypo(), openAudio: () => openAudio(), openMovement: () => openMovement(),
@@ -1926,6 +2047,22 @@ overlays.register('typo',     { close:()=>closeTypo(),     inEscapeChain:true })
 overlays.register('touchcfg', { close:()=>touchCtl.closeTouchCfg(), inEscapeChain:true });
 overlays.register('help',     { close:()=>closeHelp(),              inEscapeChain:true });
 const pauseActs = shell.pauseActs; // tabela de acoes dos .pm-btn -> ui/shell.ts (ui/pause-icons le por getPauseActs)
+
+// 🔴 O HUD MONTA-SE AQUI, E A POSIÇÃO É O CONTRATO. Estava ~770 linhas acima, logo a seguir ao minimapa, e
+// com a engine 8.0.0 isso passou a rebentar o arranque com «Cannot access 'pauseActs' before initialization»
+// — um ReferenceError que o `tsc` NÃO vê, porque a leitura mora dentro do fecho `getPauseActs: () =>
+// pauseActs`, o que é legal para o compilador e fatal em execução.
+//
+// A cadeia, medida no navegador e não deduzida: `buildGameHud()` → `ui/hud.buildGameHud` →
+// `buildScreenPause` → `ui/pause-icons.buildScreenPause` → `refrescarItensDaPausa` → `getPauseActs()`.
+// A engine passou a perguntar O QUE O JOGO ACCIONA na hora de CONSTRUIR o cartão, porque o ADR-0106 §5
+// manda esconder o item que ninguém aciona — e a nota dela diz-lo com todas as letras: «o §5 vale já na
+// montagem, e não só na primeira abertura» (pause-icons.js:800).
+//
+// Responder `{}` cedo e deixar o `reflectPauseIcons()` corrigir depois FUNCIONARIA, e é o conserto errado:
+// o cartão nasceria com os quinze itens escondidos, e a criança que o abrisse antes do primeiro reflect
+// veria um menu vazio. A tabela tem de existir quando o cartão se constrói.
+buildGameHud(); // HUD por jogador no init (single-screen; configureRender só roda ao trocar nº de telas)
 // Roteamento de input por jogador: cada tecla é do jogador dono dela (kbFor). Genéricas → jogador 0.
 const actionOf = (code: Parameters<typeof kbRuntime.actionOf>[0],pi: number) => kbRuntime.actionOf(code,pi);
 const whichPlayer = (code: Parameters<typeof kbRuntime.whichPlayer>[0]) => kbRuntime.whichPlayer(code);
@@ -2019,6 +2156,8 @@ const touchBindings = initTouchBindings({
   $, win: window, getSearch: () => location.search,
   getControls: () => kbRuntime.controlsState().controls,
   getPlayers: () => players, heldKeys: keys,
+  // As mesmas portas do `initKeydown`, e a MESMA aresta.
+  marcarTecla, soltarTecla, arestaDoJogador,
   attractOnInput: () => attractCtl.onInput(),
   showTouchControls, hideTips, togglePause,
   getTouchMap: () => touchCtl.getTouchMap(),

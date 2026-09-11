@@ -46,7 +46,7 @@
   ],
   "dependencies": {
     "@mintplex-labs/piper-tts-web": "^1.0.4",
-    "@the-inclusionist/engine": "^7.0.1",
+    "@the-inclusionist/engine": "^9.0.0",
     "pixi.js": "7.4.2"
   },
   "engines": {
