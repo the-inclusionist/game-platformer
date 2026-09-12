@@ -4,7 +4,7 @@
 // from game.js. The notation TOGGLES (fracNot) + their menu labels stay in game.js (fraction settings panel).
 // See docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4, game/quiz — frações).
 
-import { rnd } from '@the-inclusionist/engine/core/rng.js';
+import type { Rng } from '@the-inclusionist/engine/core/rng.js';
 
 /** Greatest common divisor. */
 export const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
@@ -53,10 +53,17 @@ function _sqGrid(k: number, cols: number, rows: number): string {
 }
 
 /** A proper-fraction (1..d) graphic as an HTML span (circle or square). Zero/improper → '' (caller shows a number). */
-export function fracGraphic(n: number, d: number, shape?: string): string {
+// ⚠️ `rng` É PARÂMETRO e não import (ADR-0141): este módulo é PURO e é o único do jogo que ainda o era,
+// então dar-lhe estado de escopo de módulo para receber a corrente teria custado exatamente a propriedade
+// que o torna testável.
+//
+// OBRIGATÓRIO, e não opcional. Opcional compilaria e criaria um ramo mudo: sem corrente, o `rng?.rnd()`
+// seria sempre falso e a forma QUADRADA nunca sairia — uma das duas figuras da fração desapareceria da
+// tela sem erro nenhum. Quem passa `shape` explicitamente não sorteia, mas continua a ter de o declarar.
+export function fracGraphic(n: number, d: number, shape: string | undefined, rng: Rng): string {
   if (d < 2 || d > 6 || n < 1 || n > d) return '';
   const sq = FRAC_GFX[d];
-  const useSq = shape === 'square' || (shape == null && sq && rnd() < 0.5);
+  const useSq = shape === 'square' || (shape == null && sq && rng.rnd() < 0.5);
   const svg = (useSq && sq) ? _sqGrid(n, sq.cols, sq.rows) : _pieUnit(n, d);
   // `data-frac` guarda o n/d CRU (é dado, e speakChoice o relê); o aria-label fala o VALOR, que é o que a
   // figura mostra.
@@ -67,7 +74,7 @@ export function fracGraphic(n: number, d: number, shape?: string): string {
  * Fala o VALOR de n/d, reduzido — que é o que quem enxerga percebe olhando o desenho.
  *
  * `fracGraphic(2, 2)` desenha um círculo INTEIRO, e o rótulo acessível dele dizia "dois meios" enquanto o
- * mesmo valor, quando saía como texto, dizia "1" — e qual dos dois a criança recebia era um `rnd() < 0.5` em
+ * mesmo valor, quando saía como texto, dizia "1" — e qual dos dois a criança recebia era um `rng.rnd() < 0.5` em
  * `game/quiz.ts`. Um sorteio invisível mudava a pergunta para quem usa leitor de tela, e a chave que corrige a
  * resposta (`keyOf`) sempre foi a reduzida. O nome acessível de uma imagem tem de transmitir o que ela mostra
  * (WCAG 1.1.1), então aqui se reduz primeiro e fala depois.

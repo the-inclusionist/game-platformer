@@ -7,8 +7,13 @@
 // ZOMBIES + Right-BICEP. Ver docs/5-Refactoring/plano-modularizacao-mapa.md (B3).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { initQuiz, generateBrailleCells, cKey } from '../app/js/game/quiz.js';
-import { reseed } from '@the-inclusionist/engine/core/rng.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
 import { createRunState } from '@the-inclusionist/engine/core/run-state.js';
+
+// A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
+// PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem
+// a sua e entrega-a ao módulo sob teste, que é o que o jogo passou a fazer.
+const rng = createRng();
 // A RODADA é local a este arquivo desde 2026-08-26 (ADR-0038, Fase B): `players`/`numPlayers` deixaram de
 // ser `let` de `core/state` e passaram a viver na instância que a raiz de composição possui. Aqui o teste
 // cria a sua, e os apelidos abaixo mantêm o corpo dos casos escrito como sempre esteve.
@@ -18,6 +23,7 @@ const setNumPlayersValue = (n) => rodada.setNumPlayers(n);
 
 import { setActivityValue } from '../app/js/game/state.js'; // GAME desde a Fase B (ADR-0038)
 import { setCoins, coins, setQuizLevelValue } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
+
 
 const $ = (sel) => document.querySelector(sel);
 const QL = { 1: 'Descobrindo palavras', 2: 'Descobrindo sílabas', 3: 'Montando palavras', 4: 'Escrevendo palavras', 5: 'Escrevendo em Braille' };
@@ -29,6 +35,7 @@ function makePl(i = 0) { return { i, x: 10, y: 20, vx: 3, vy: -4, collected: 0, 
 function makeCtx(over = {}) {
   const log = { srSay: [], srAlert: [], gameSay: [], narrate: [], sfx: [], puzzle: 0, sparkle: [], hideTouch: 0, updateHud: 0, win: [], respawn: [], sync: [] };
   const ctx = {
+    rng,
     getPlayers: () => rodada.players, getNumPlayers: () => rodada.numPlayers,
     $,
     getScreen: (i) => document.querySelector(`#screen-${i}`),
@@ -66,7 +73,7 @@ function setGame({ n = 1, level = 2, activity = 'mat1', nCoins = 3 } = {}) {
   setCoins(Array.from({ length: nCoins }, (_, i) => ({ x: i, y: 0, owner: 0, taken: false, shape: 'circulo', letter: 'g' })));
 }
 
-beforeEach(() => { mount(); setGame(); reseed(20260601); });
+beforeEach(() => { mount(); setGame(); rng.reseed(20260601); });
 afterEach(() => { vi.useRealTimers(); });
 
 // =================================================================================================

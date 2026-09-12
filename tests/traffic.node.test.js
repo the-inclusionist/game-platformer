@@ -3,12 +3,18 @@
 // PIXI injetada (project NODE: Graphics/Sprite falsos). Padrões: ZOMBIES + Right-BICEP. Comportamento verbatim
 // do monólito (game.js drawSemaforo/initTraffic/spawnCar/setFrontDim/stepTraffic). Ver docs/plano-modularizacao-mapa.md.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { reseed } from '@the-inclusionist/engine/core/rng.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
 import { setCenarioValue } from '../app/js/game/state.js'; // GAME desde a Fase B (ADR-0038)
 import {
+
   lightStateAt, planCarSpawn, nextSpawnThreshold, isBeforeStopLine, shouldBrake, advanceCar, isOffscreen,
   initTraffic, drawSemaforo, spawnCar, setFrontDim, stepTraffic, clearCars, getCars, getStreetY, SEM,
 } from '../app/js/game/traffic.js';
+
+// A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
+// PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem
+// a sua e entrega-a ao módulo sob teste, que é o que o jogo passou a fazer.
+const rng = createRng();
 
 /* ===================== helpers: camadas PIXI falsas (estruturais — sem depender do PIXI real) ===================== */
 function fakeGfx() {
@@ -36,11 +42,11 @@ function setup(over = {}) {
     WORLD_PX_W: 100, WORLD_PX_H: 200, WORLD_W: 20,
     getRm: () => over.rm || {},
   };
-  initTraffic(ctx);
+  initTraffic({ ...ctx, rng });
   return { carLayer };
 }
 
-beforeEach(() => { reseed(20260601); setCenarioValue('cidade'); setFrontDim(false); clearCars(); }); // isola _frontDim/cars entre testes (SEM.t/state/pole ficam por conta de cada teste — só o boot os fixa de novo)
+beforeEach(() => { rng.reseed(20260601); setCenarioValue('cidade'); setFrontDim(false); clearCars(); }); // isola _frontDim/cars entre testes (SEM.t/state/pole ficam por conta de cada teste — só o boot os fixa de novo)
 
 /* ===================== PURE: cadência do semáforo ===================== */
 describe('lightStateAt (cadência do semáforo — ciclo de 16s, sem flashes/WCAG 2.3.1)', () => {

@@ -24,7 +24,7 @@ import { COIN_TARGET } from './tuning.js';
 import { t } from '@the-inclusionist/engine/core/i18n.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 import type { PlayerQuiz } from './entity.js'; // ADR-0039: o jogador carrega o SUPERTIPO, não a união
-import { rnd, randInt, shuffle } from '@the-inclusionist/engine/core/rng.js';
+import type { Rng } from '@the-inclusionist/engine/core/rng.js';
 
 import { activity as ACTIVITY } from './state.js'; // GAME desde a Fase B (ADR-0038)
 import { coins, quizLevel } from './state.js'; // item 19: `coins`/`quizLevel` sao estado do JOGO
@@ -129,7 +129,11 @@ export interface MathChallenge {
   fala: string;
 }
 /** Dados do MENU que a geração precisa: números da tabuada ligados + notações de fração ligadas. */
-export interface MathDeps { tabSel: readonly number[]; fracNot: Record<string, number> }
+// ⚠️ `rng` ENTRA AQUI e não por import (ADR-0141). Todos os geradores já recebem este objeto, então a
+// corrente do cartucho chega a oito deles sem mais nenhuma assinatura mudar. O que ela substitui era
+// `rnd`/`randInt`/`shuffle` de `core/rng` — atalhos ligados a uma corrente de ESCOPO DE MÓDULO que dois
+// cartuchos na mesma página estariam a partilhar, cada `reseed` a mover o sorteio do outro.
+export interface MathDeps { tabSel: readonly number[]; fracNot: Record<string, number>; rng: Rng }
 /** Um gerador por atividade. */
 export type MathGenerator = (deps: MathDeps) => MathChallenge;
 
@@ -137,10 +141,10 @@ export type MathGenerator = (deps: MathDeps) => MathChallenge;
  * 9 alternativas DISTINTAS contendo a resposta, sorteadas em [lo,hi] e embaralhadas.
  * Verbatim de `_mkChoices` (guarda de 400 tentativas: se o intervalo for menor que 9, devolve menos que 9).
  */
-export function mkChoices(answer: number | string, lo: number, hi: number): string[] {
+export function mkChoices(answer: number | string, lo: number, hi: number, rng: Rng): string[] {
   const set = [String(answer)]; let g = 0;
-  while (set.length < 9 && g++ < 400) { const s = String(randInt(lo, hi)); if (!set.includes(s)) set.push(s); }
-  return shuffle(set);
+  while (set.length < 9 && g++ < 400) { const s = String(rng.randInt(lo, hi)); if (!set.includes(s)) set.push(s); }
+  return rng.shuffle(set);
 }
 
 /**
@@ -160,74 +164,74 @@ function fala(a: number | string, op: string, b: number | string): string {
 }
 
 /** mat1 — QUANTIDADE: bolinhas → número (grade FIXA 1..9, sem sorteio de alternativas). */
-const genQuantidade: MathGenerator = () => {
-  const n = randInt(1, 9);
+const genQuantidade: MathGenerator = ({ rng }) => {
+  const n = rng.randInt(1, 9);
   return { dots: n, answer: String(n), prob: t('math.howManyDots'), choices: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], fala: t('sr.math.howManyDots') };
 };
 
 /** mat2 — SOMA FÁCIL: parcelas 0..5. */
-const genSomaFacil: MathGenerator = () => {
-  const a = randInt(0, 5), b = randInt(0, 5);
-  return { prob: `${a} + ${b} = ?`, answer: String(a + b), choices: mkChoices(a + b, 0, 10), fala: fala(a, '+', b) };
+const genSomaFacil: MathGenerator = ({ rng }) => {
+  const a = rng.randInt(0, 5), b = rng.randInt(0, 5);
+  return { prob: `${a} + ${b} = ?`, answer: String(a + b), choices: mkChoices(a + b, 0, 10, rng), fala: fala(a, '+', b) };
 };
 
 /** mat4 — SOMA E SUBTRAÇÃO 2: guarda um na cabeça e opera o outro nos dedos (até 20; nunca negativo). */
-const genSomaSub2: MathGenerator = () => {
-  const op = rnd() < 0.5 ? '+' : '−'; let a: number, b: number, ans: number;
-  if (op === '+') { a = randInt(0, 10); b = randInt(0, 10); ans = a + b; } else { a = randInt(0, 20); b = randInt(0, Math.min(10, a)); ans = a - b; }
-  return { prob: `${a} ${op} ${b} = ?`, answer: String(ans), choices: mkChoices(ans, 0, 20), fala: fala(a, op, b) };
+const genSomaSub2: MathGenerator = ({ rng }) => {
+  const op = rng.rnd() < 0.5 ? '+' : '−'; let a: number, b: number, ans: number;
+  if (op === '+') { a = rng.randInt(0, 10); b = rng.randInt(0, 10); ans = a + b; } else { a = rng.randInt(0, 20); b = rng.randInt(0, Math.min(10, a)); ans = a - b; }
+  return { prob: `${a} ${op} ${b} = ?`, answer: String(ans), choices: mkChoices(ans, 0, 20, rng), fala: fala(a, op, b) };
 };
 
 /** Número LIGADO no menu da tabuada/divisão (entra em qualquer posição). Sem seleção → 2. */
-function pickTabNumber(tabSel: readonly number[]): number { return tabSel.length ? tabSel[randInt(0, tabSel.length - 1)] : 2; }
+function pickTabNumber(tabSel: readonly number[], rng: Rng): number { return tabSel.length ? tabSel[rng.randInt(0, tabSel.length - 1)] : 2; }
 
 /** mat5 — TABUADA: multiplicando E multiplicador de 0..10; o nº ligado pode ser qualquer um dos dois. */
-const genTabuada: MathGenerator = ({ tabSel }) => {
-  const on = pickTabNumber(tabSel);
-  const other = randInt(0, 10); let a: number, b: number; if (rnd() < 0.5) { a = on; b = other; } else { a = other; b = on; }
-  return { prob: `${a} × ${b} = ?`, answer: String(a * b), choices: mkChoices(a * b, 0, 100), fala: fala(a, '×', b) };
+const genTabuada: MathGenerator = ({ tabSel, rng }) => {
+  const on = pickTabNumber(tabSel, rng);
+  const other = rng.randInt(0, 10); let a: number, b: number; if (rng.rnd() < 0.5) { a = on; b = other; } else { a = other; b = on; }
+  return { prob: `${a} × ${b} = ?`, answer: String(a * b), choices: mkChoices(a * b, 0, 100, rng), fala: fala(a, '×', b) };
 };
 
 /** mat6 — DIVISÃO inteira: divisor E quociente de 0..10 (divisor ≥1, sem ÷0); o nº ligado entra em qualquer posição. */
-const genDivisao: MathGenerator = ({ tabSel }) => {
-  const on = pickTabNumber(tabSel);
-  const other = randInt(0, 10); let divisor: number, quo: number;
-  if (on === 0) { quo = 0; divisor = randInt(1, 10); }                         // 0 só pode ser QUOCIENTE (0 ÷ divisor = 0)
-  else if (rnd() < 0.5) { quo = on; divisor = Math.max(1, other); }            // ligado = quociente
+const genDivisao: MathGenerator = ({ tabSel, rng }) => {
+  const on = pickTabNumber(tabSel, rng);
+  const other = rng.randInt(0, 10); let divisor: number, quo: number;
+  if (on === 0) { quo = 0; divisor = rng.randInt(1, 10); }                         // 0 só pode ser QUOCIENTE (0 ÷ divisor = 0)
+  else if (rng.rnd() < 0.5) { quo = on; divisor = Math.max(1, other); }            // ligado = quociente
   else { divisor = on; quo = other; }                                          // ligado = divisor
   const dividend = divisor * quo;
-  return { prob: `${dividend} ÷ ${divisor} = ?`, answer: String(quo), choices: mkChoices(quo, 0, 10), fala: fala(dividend, '÷', divisor) };
+  return { prob: `${dividend} ÷ ${divisor} = ?`, answer: String(quo), choices: mkChoices(quo, 0, 10, rng), fala: fala(dividend, '÷', divisor) };
 };
 
 /**
  * fr* — FRAÇÕES (soma/subtração; a NOTAÇÃO é sorteada entre as LIGADAS no menu).
  * "Gráficos SUBSTITUEM números" (José): cada operando/alternativa exibe GRÁFICO ou número, por sorteio — e o
- * sorteio só acontece quando existe gráfico para aquela fração (`g && rnd()<0.5` faz curto-circuito).
+ * sorteio só acontece quando existe gráfico para aquela fração (`g && rng.rnd()<0.5` faz curto-circuito).
  * A comparação é sempre pela CHAVE canônica REDUZIDA, independente da notação exibida.
  */
-function genFracoes(dens: readonly number[], { fracNot }: MathDeps): MathChallenge {
+function genFracoes(dens: readonly number[], { fracNot, rng }: MathDeps): MathChallenge {
   const D = dens.reduce((l, d) => l * d / gcd(l, d), 1);
-  let d1 = dens[randInt(0, dens.length - 1)], d2 = dens[randInt(0, dens.length - 1)]; const op = rnd() < 0.5 ? '+' : '−';
-  let n1 = randInt(1, d1), n2 = randInt(1, d2);
+  let d1 = dens[rng.randInt(0, dens.length - 1)], d2 = dens[rng.randInt(0, dens.length - 1)]; const op = rng.rnd() < 0.5 ? '+' : '−';
+  let n1 = rng.randInt(1, d1), n2 = rng.randInt(1, d2);
   if (op === '−' && n1 * (D / d1) < n2 * (D / d2)) { const t1 = n1, td = d1; n1 = n2; d1 = d2; n2 = t1; d2 = td; } // sem resultado negativo
   const N = op === '+' ? n1 * (D / d1) + n2 * (D / d2) : n1 * (D / d1) - n2 * (D / d2);
-  const ligadas = Object.keys(fracNot).filter((k) => fracNot[k]); const not = ligadas[randInt(0, ligadas.length - 1)] || 'v';
+  const ligadas = Object.keys(fracNot).filter((k) => fracNot[k]); const not = ligadas[rng.randInt(0, ligadas.length - 1)] || 'v';
   const keyOf = (v: number): string => fmtFrac(v, D, 'd');   // chave canônica REDUZIDA (compara a resposta), independe da notação
-  const dispChoice = (v: number): string => { const g = fracGraphic(v, D); return (g && rnd() < 0.5) ? g : fmtFrac(v, D, not); };
-  const dispOp = (nn: number, dd: number): string => { const g = fracGraphic(nn, dd); return (g && rnd() < 0.5) ? g : fmtFrac(nn, dd, not); };
+  const dispChoice = (v: number): string => { const g = fracGraphic(v, D, undefined, rng); return (g && rng.rnd() < 0.5) ? g : fmtFrac(v, D, not); };
+  const dispOp = (nn: number, dd: number): string => { const g = fracGraphic(nn, dd, undefined, rng); return (g && rng.rnd() < 0.5) ? g : fmtFrac(nn, dd, not); };
   const ansKey = keyOf(N), seen = new Set([ansKey]), vals = [N]; let gd = 0; // 9 respostas DISTINTAS (por chave) → matriz 3×3
-  while (vals.length < 9 && gd++ < 400) { const v = randInt(0, 4 * D), kk = keyOf(v); if (!seen.has(kk)) { seen.add(kk); vals.push(v); } }
-  const choices: Choice[] = shuffle(vals).map((v) => ({ key: keyOf(v), disp: dispChoice(v) }));
+  while (vals.length < 9 && gd++ < 400) { const v = rng.randInt(0, 4 * D), kk = keyOf(v); if (!seen.has(kk)) { seen.add(kk); vals.push(v); } }
+  const choices: Choice[] = rng.shuffle(vals).map((v) => ({ key: keyOf(v), disp: dispChoice(v) }));
   // ORDEM DO RNG preservada: `prob` (dois dispOp) é montado DEPOIS das alternativas, como no monólito.
   const prob = `<span class="frac-op">${dispOp(n1, d1)}</span> ${op} <span class="frac-op">${dispOp(n2, d2)}</span> = ?`;
   return { not, prob, answer: ansKey, choices, fala: fala(fracSpeak(n1 + '/' + d1), op, fracSpeak(n2 + '/' + d2)) };
 }
 
 /** mat3 e o PADRÃO — SOMA E SUBTRAÇÃO 1: dá para fazer nos dedos (soma ≤10, minuendo ≤10). */
-const genSomaSub1: MathGenerator = () => {
-  const op = rnd() < 0.5 ? '+' : '−'; let a: number, b: number, ans: number;
-  if (op === '+') { a = randInt(0, 9); b = randInt(0, 10 - a); ans = a + b; } else { a = randInt(0, 10); b = randInt(0, a); ans = a - b; }
-  return { prob: `${a} ${op} ${b} = ?`, answer: String(ans), choices: mkChoices(ans, 0, 10), fala: fala(a, op, b) }; // sem o nome da forma
+const genSomaSub1: MathGenerator = ({ rng }) => {
+  const op = rng.rnd() < 0.5 ? '+' : '−'; let a: number, b: number, ans: number;
+  if (op === '+') { a = rng.randInt(0, 9); b = rng.randInt(0, 10 - a); ans = a + b; } else { a = rng.randInt(0, 10); b = rng.randInt(0, a); ans = a - b; }
+  return { prob: `${a} ${op} ${b} = ?`, answer: String(ans), choices: mkChoices(ans, 0, 10, rng), fala: fala(a, op, b) }; // sem o nome da forma
 };
 
 /** Tabela de geradores por id de atividade (substitui a cadeia if/else — MESMO despacho, MESMO RNG). */
@@ -268,36 +272,36 @@ export function recentWords(): string[] { return _recentWords.slice(); }
  * Sorteia a palavra do round: prefere a letra da moeda, mas a NÃO-REPETIÇÃO nos últimos 5 rounds vem antes
  * (15 palavras > 5 → sempre há candidata). Verbatim de `pickWord`.
  */
-export function pickWord(letter: string): SyllableWord {
+export function pickWord(letter: string, rng: Rng): SyllableWord {
   const byL = SILABAS_WORDS.filter((w) => w.w[0] === letter);
   let cands = byL.filter((w) => !_recentWords.includes(w.w));                          // prefere a letra da moeda, sem repetir
   if (!cands.length) cands = SILABAS_WORDS.filter((w) => !_recentWords.includes(w.w)); // sem a letra, mas GARANTE não-repetição
   if (!cands.length) cands = byL.length ? byL : [...SILABAS_WORDS];                    // salvaguarda
-  const item = cands[randInt(0, cands.length - 1)];
+  const item = cands[rng.randInt(0, cands.length - 1)];
   _recentWords.push(item.w); if (_recentWords.length > 5) _recentWords.shift();        // janela dos últimos 5
   return item;
 }
 
 /** Níveis 2/3 — as 2 sílabas certas + até 7 distratoras do pool, tudo embaralhado. */
-export function generateSilabasOptions(item: SyllableWord): { correct: string[]; options: string[] } {
+export function generateSilabasOptions(item: SyllableWord, rng: Rng): { correct: string[]; options: string[] } {
   const correct = item.s.slice(), distract: string[] = [];
-  for (const sy of shuffle(SILABA_POOL)) { if (distract.length >= 7) break; if (!correct.includes(sy) && !distract.includes(sy)) distract.push(sy); }
-  return { correct, options: shuffle(correct.concat(distract)) };
+  for (const sy of rng.shuffle(SILABA_POOL)) { if (distract.length >= 7) break; if (!correct.includes(sy) && !distract.includes(sy)) distract.push(sy); }
+  return { correct, options: rng.shuffle(correct.concat(distract)) };
 }
 
 /** Nível 1 — a escrita certa + 3 distratores de FERREIRO (símbolo · repetidas · emoji-no-meio · tamanho). */
-export function generatePreChoices(item: SyllableWord): string[] {
+export function generatePreChoices(item: SyllableWord, rng: Rng): string[] {
   const opts = [item.w];
-  for (const d of shuffle(ferreiroDistractors(item))) { if (opts.length >= 4) break; if (!opts.includes(d)) opts.push(d); }
-  let guard = 0; while (opts.length < 4 && guard++ < 20) { const d = ferreiroDistractors(item)[randInt(0, 3)]; if (!opts.includes(d)) opts.push(d); }
-  return shuffle(opts);
+  for (const d of rng.shuffle(ferreiroDistractors(item, rng))) { if (opts.length >= 4) break; if (!opts.includes(d)) opts.push(d); }
+  let guard = 0; while (opts.length < 4 && guard++ < 20) { const d = ferreiroDistractors(item, rng)[rng.randInt(0, 3)]; if (!opts.includes(d)) opts.push(d); }
+  return rng.shuffle(opts);
 }
 
 /** Níveis 4/5 — grade de 12 letras: as letras DISTINTAS da palavra + extras do alfabeto pt-BR usado. */
-export function generateAlfOptions(word: string): string[] {
+export function generateAlfOptions(word: string, rng: Rng): string[] {
   const need = [...new Set(word.split(''))], extra: string[] = [];
-  for (const ch of shuffle('abcdefghijlmnoprstuvz'.split(''))) { if (need.length + extra.length >= 12) break; if (!need.includes(ch) && !extra.includes(ch)) extra.push(ch); }
-  return shuffle(need.concat(extra));
+  for (const ch of rng.shuffle('abcdefghijlmnoprstuvz'.split(''))) { if (need.length + extra.length >= 12) break; if (!need.includes(ch) && !extra.includes(ch)) extra.push(ch); }
+  return rng.shuffle(need.concat(extra));
 }
 
 /** Modo cego — a cela Braille de cada letra da palavra (letra · pontos · fala dos pontos). Puro. */
@@ -468,6 +472,8 @@ export function selRange(q: QuizComCursor): { min: number; max: number } {
  * tts/hud/menu de atividades), ou é um efeito que pertence a outro slice (moeda, HUD, vitória, toque).
  */
 export interface QuizCtx {
+  /** A corrente do cartucho (ADR-0141) — ver a nota em `MathDeps`. */
+  rng: Rng;
   /** Seletor DOM (`$` de ui/dom.ts). Injetado p/ o módulo nunca tocar `document` direto (project node). */
   $: DomQuery;
   /** `hud.getScreen(i)` — contêiner da tela do jogador; é onde o overlay de quiz do MP é criado. */
@@ -536,7 +542,7 @@ export function initQuiz(ctx: QuizCtx): QuizApi {
 
   /** MATEMÁTICA: gerador POR ATIVIDADE (menu inicial); grade de 9. */
   function openQuiz(pl: QuizPlayer, coinIndex: number, shapeId: string): void {
-    const gen = generateMath(ACTIVITY || '', { tabSel: c.tabSel, fracNot: c.fracNot });
+    const gen = generateMath(ACTIVITY || '', { tabSel: c.tabSel, fracNot: c.fracNot, rng: c.rng });
     const q: MathQuiz = { kind: 'somasub', coinIndex, shape: shapeId, sel: 0, tries: 0, revealed: false, prob: gen.prob, answer: gen.answer, choices: gen.choices };
     if (gen.dots !== undefined) q.dots = gen.dots;
     if (gen.not !== undefined) q.not = gen.not;
@@ -556,8 +562,8 @@ export function initQuiz(ctx: QuizCtx): QuizApi {
     if (kind === 'braille') { openBraille(pl, coinIndex, letter); return; } // E8: ditado de Braille
     if (kind === 'pre') { openPre(pl, coinIndex, letter); return; }
     if (kind === 'alf') { openAlf(pl, coinIndex, letter); return; }
-    const item = pickWord(letter);
-    const { correct, options } = generateSilabasOptions(item);
+    const item = pickWord(letter, c.rng);
+    const { correct, options } = generateSilabasOptions(item, c.rng);
     // hearSyl: Descobrindo sílabas (nível 2) fala a sílaba no hover/seleção; Montando (3) não
     abrirQuiz(pl, { kind: 'silabas', hearSyl: (quizLevel === 2), coinIndex, letter, word: item.w, emoji: item.e, correct, options, boxes: [null, null], sel: 0, tries: 0, revealed: false });
     pl.vx = 0; pl.vy = 0;
@@ -569,8 +575,8 @@ export function initQuiz(ctx: QuizCtx): QuizApi {
 
   /** Nível 1 — pré-silábico: qual das 3 escritas é a certa? O jogo SOLETRA a opção sob o cursor. */
   function openPre(pl: QuizPlayer, coinIndex: number, letter: string): void {
-    const item = pickWord(letter);
-    abrirQuiz(pl, { kind: 'pre', coinIndex, word: item.w, emoji: item.e, choices: generatePreChoices(item), sel: 0, tries: 0, revealed: false });
+    const item = pickWord(letter, c.rng);
+    abrirQuiz(pl, { kind: 'pre', coinIndex, word: item.w, emoji: item.e, choices: generatePreChoices(item, c.rng), sel: 0, tries: 0, revealed: false });
     pl.vx = 0; pl.vy = 0;
     c.srSay(who(pl) + t('sr.quiz.whichSpelling', { palavra: item.w }));
     c.gameSay(item.w); // fala o nome da imagem SEMPRE (independente do toggle TTS) — José
@@ -579,8 +585,8 @@ export function initQuiz(ctx: QuizCtx): QuizApi {
 
   /** Níveis 4/5 — escritor: montar a palavra LETRA a letra numa grade; 5 dita a cela Braille de cada letra. */
   function openAlf(pl: QuizPlayer, coinIndex: number, letter: string): void {
-    const item = pickWord(letter);
-    abrirQuiz(pl, { kind: 'alf', braille: quizLevel === 5, coinIndex, word: item.w, emoji: item.e, options: generateAlfOptions(item.w), boxes: Array(item.w.length).fill(null), sel: 0, tries: 0, revealed: false });
+    const item = pickWord(letter, c.rng);
+    abrirQuiz(pl, { kind: 'alf', braille: quizLevel === 5, coinIndex, word: item.w, emoji: item.e, options: generateAlfOptions(item.w, c.rng), boxes: Array(item.w.length).fill(null), sel: 0, tries: 0, revealed: false });
     pl.vx = 0; pl.vy = 0;
     c.srSay(who(pl) + t('sr.quiz.writeWord', { palavra: item.w, n: item.w.length }));
     renderQuiz(pl); quizSpeakSel(pl);
@@ -588,7 +594,7 @@ export function initQuiz(ctx: QuizCtx): QuizApi {
 
   /** E8: ditado de Braille (modo pessoa cega) — dita os pontos da cela por letra. */
   function openBraille(pl: QuizPlayer, coinIndex: number, letter: string): void {
-    const item = pickWord(letter);
+    const item = pickWord(letter, c.rng);
     abrirQuiz(pl, { kind: 'braille', coinIndex, letter, word: item.w, emoji: item.e, cells: generateBrailleCells(item.w), revealed: false });
     pl.vx = 0; pl.vy = 0; renderQuiz(pl); announceBraille(pl);
   }

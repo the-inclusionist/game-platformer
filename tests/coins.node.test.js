@@ -14,13 +14,19 @@ const players = rodada.players;
 const setNumPlayersValue = (n) => rodada.setNumPlayers(n);
 
 import { setCoins } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
-import { reseed } from '@the-inclusionist/engine/core/rng.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
+
+// A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
+// PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem
+// a sua e entrega-a ao módulo sob teste, que é o que o jogo passou a fazer.
+const rng = createRng();
+
 
 // liga colisão (p/ solidAt) + coins no MESMO mundo falso. flags.easy/wheelchair alimentam positionEasyCoins.
 const useWorld = (grid, flags = {}) => {
   const ctx = { world: grid, W: grid[0].length, H: grid.length };
   COL.initCollision({ ...ctx, isWheelchair: () => !!flags.wheelchair, isModoCego: () => false, caneDiv: () => 1, wcSolid: () => new Set(), gateTiles: () => new Set(), gateOpen: () => true });
-  COINS.initCoins({ ...ctx, anyEasy: () => !!flags.easy, isWheelchair: () => !!flags.wheelchair, numJogadores: () => rodada.numPlayers });
+  COINS.initCoins({ rng, ...ctx, anyEasy: () => !!flags.easy, isWheelchair: () => !!flags.wheelchair, numJogadores: () => rodada.numPlayers });
 };
 
 // (1,1)=ar com chão em (1,2); (3,1)=água com chão em (3,3) (dy=2); (5,1)=ar FLUTUANTE (sem chão) → não candidato.
@@ -54,22 +60,22 @@ describe('game/coins — findCoinCandidates (células que recebem item)', () => 
 describe('game/coins — pickCoins (sorteio por jogador + pools recebidos)', () => {
   const POS = new Set([1 * 16 + 3, 3 * 16 + 3]); // x possíveis (dos 2 candidatos do COINWORLD)
   it('[Right] n itens (1 jogador), do-nada nos pools → shape/letter vazios, owner 0, não coletado', () => {
-    useWorld(COINWORLD); reseed(1);
+    useWorld(COINWORLD); rng.reseed(1);
     const coins = COINS.pickCoins(2, {});
     expect(coins.length).toBe(2);
     for (const c of coins) { expect(c.owner).toBe(0); expect(c.taken).toBe(false); expect(c.shape).toBe(''); expect(c.letter).toBe(''); expect(POS.has(c.x)).toBe(true); }
   });
   it('[Boundary] n maior que os candidatos → limita ao nº de candidatos', () => {
-    useWorld(COINWORLD); reseed(2);
+    useWorld(COINWORLD); rng.reseed(2);
     expect(COINS.pickCoins(5, {}).length).toBe(2); // só há 2 candidatos
   });
   it('[Interface] pools de formas (somasub) → cada item recebe uma shape do pool; letter vazio', () => {
-    useWorld(COINWORLD); reseed(3);
+    useWorld(COINWORLD); rng.reseed(3);
     const coins = COINS.pickCoins(2, { shapes: ['circulo', 'quadrado'] });
     for (const c of coins) { expect(['circulo', 'quadrado']).toContain(c.shape); expect(c.letter).toBe(''); }
   });
   it('[Many] multiplayer: n itens POR jogador, um conjunto por dono (owners 0..np-1)', () => {
-    useWorld(COINWORLD); reseed(4); setNumPlayersValue(2);
+    useWorld(COINWORLD); rng.reseed(4); setNumPlayersValue(2);
     const coins = COINS.pickCoins(2, {});
     expect(coins.length).toBe(4); // 2 candidatos × 2 jogadores
     expect([...new Set(coins.map((c) => c.owner))].sort()).toEqual([0, 1]);

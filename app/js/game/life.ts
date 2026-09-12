@@ -11,7 +11,7 @@
 // real leaves (core/*) → imported directly. Formulas are verbatim from game.js. See
 // docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4, game/life).
 
-import { rnd, randInt } from '@the-inclusionist/engine/core/rng.js';
+import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js';
 import { ehPerigo } from '@the-inclusionist/engine/core/constants.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 
@@ -82,6 +82,8 @@ export interface LifeTexAtlas {
 interface ReducedMotion { decor?: boolean }
 
 export interface LifeCtx {
+  /** A corrente do cartucho (ADR-0141) — ver a mesma nota em `coins.ts`. */
+  rng: Rng;
   /** Os jogadores e quantos são. Estado de RODADA (ADR-0038): vêm da instância que a raiz possui — os
    *  bichos só perguntam quem está perto, e essa pergunta não pode depender de um `let` de módulo que
    *  dois jogos na mesma página compartilhariam. */
@@ -113,13 +115,16 @@ let streetCols: () => [number, number][] = () => [];
 let decoSprites: { x: number }[] = [];
 let rm: ReducedMotion = {};
 let W = 0, pxW = 0, pxH = 0;
+// Própria e descartável até `initLife()` chegar: o valor de omissão não pode ir buscar a corrente
+// PARTILHADA de `core/rng`, que é precisamente o que o ADR-0141 proíbe.
+let rng: Rng = createRng();
 
 /** Wire game.js's PIXI layer/textures + shared world queries into this module. Idempotent. */
 export function initLife(ctx: LifeCtx): void {
   getPlayers = ctx.getPlayers; getNumPlayers = ctx.getNumPlayers;
   layer = ctx.layer; makeSprite = ctx.makeSprite; lifeTex = ctx.lifeTex; adultTex = ctx.adultTex;
   lifeSurfaceAt = ctx.lifeSurfaceAt; lifeSurfaceLowAt = ctx.lifeSurfaceLowAt; streetCols = ctx.streetCols;
-  decoSprites = ctx.decoSprites; rm = ctx.rm; W = ctx.W; pxW = ctx.pxW; pxH = ctx.pxH;
+  decoSprites = ctx.decoSprites; rm = ctx.rm; W = ctx.W; pxW = ctx.pxW; pxH = ctx.pxH; rng = ctx.rng;
 }
 
 let creatures: Creature[] = [];
@@ -134,31 +139,31 @@ export function spawnCreature(force?: boolean): boolean {
   void force;
   if (creatures.length >= 10) return false;
   const pls = getPlayers();
-  const pl = (pls[randInt(0, Math.max(0, getNumPlayers() - 1))] || pls[0]) as LifePlayer;
+  const pl = (pls[rng.randInt(0, Math.max(0, getNumPlayers() - 1))] || pls[0]) as LifePlayer;
   const ptx = Math.floor(pl.x / TILE);
-  const K = LIFE_KINDS[[0, 0, 0, 1, 2, 3][randInt(0, 5)]!]!;
+  const K = LIFE_KINDS[[0, 0, 0, 1, 2, 3][rng.randInt(0, 5)]!]!;
   if (K.street && CENARIO !== 'cidade') return false; // dogs/adults are URBAN life; field/forest keep critters + butterflies
   let tx: number, ty: number, fade = 0;
   if (K.street) { // dogs and adults: low band; DOG preferably near a TREE (José's request)
-    if (K.k === 'cao' && decoSprites.length && rnd() < 0.8) {
-      const tr = decoSprites[randInt(0, decoSprites.length - 1)]!;
-      tx = Math.floor(tr.x / TILE) + (rnd() < 0.5 ? -1 : 1) * randInt(1, 3);
+    if (K.k === 'cao' && decoSprites.length && rng.rnd() < 0.8) {
+      const tr = decoSprites[rng.randInt(0, decoSprites.length - 1)]!;
+      tx = Math.floor(tr.x / TILE) + (rng.rnd() < 0.5 ? -1 : 1) * rng.randInt(1, 3);
       if (tx < 1 || tx >= W - 1) return false;
       ty = lifeSurfaceLowAt(tx); if (ty < 0) return false; fade = 30;
     } else {
       const open = streetCols().filter(([cx]) => Math.abs(cx - ptx) <= 22);
       if (!open.length) return false;
-      [tx, ty] = open[randInt(0, open.length - 1)]!; fade = 30;
+      [tx, ty] = open[rng.randInt(0, open.length - 1)]!; fade = 30;
     } // street: open column of the facade (may be visible → FADE-IN)
   } else {
-    tx = ptx + (rnd() < 0.5 ? -1 : 1) * (Math.floor(LOGICAL_W / TILE / 2) + 2 + randInt(0, 5));
+    tx = ptx + (rng.rnd() < 0.5 ? -1 : 1) * (Math.floor(LOGICAL_W / TILE / 2) + 2 + rng.randInt(0, 5));
     if (tx < 1 || tx >= W - 1) return false;
     ty = lifeSurfaceAt(tx); if (ty < 0) return false;
     if (CENARIO === 'cidade' && ty * TILE >= pxH * 0.55) return false; // city: cats/pigeons ONLY on the high parts
   }
-  const tex2: TexPair = K.k === 'adulto' ? adultTex[randInt(0, adultTex.length - 1)]! : lifeTex![K.tex as 'pombo' | 'gato' | 'cao'];
+  const tex2: TexPair = K.k === 'adulto' ? adultTex[rng.randInt(0, adultTex.length - 1)]! : lifeTex![K.tex as 'pombo' | 'gato' | 'cao'];
   const s = makeSprite(tex2[0]); s.anchor.set(0.5, 1); s.alpha = fade ? 0 : K.alpha; layer!.addChild(s);
-  creatures.push({ K, tex2, s, fade, x: tx * TILE + 8, y: ty * TILE, dir: rnd() < 0.5 ? -1 : 1, animT: 0, f: 0, state: 'walk', stateT: 0, vy: 0 });
+  creatures.push({ K, tex2, s, fade, x: tx * TILE + 8, y: ty * TILE, dir: rng.rnd() < 0.5 ? -1 : 1, animT: 0, f: 0, state: 'walk', stateT: 0, vy: 0 });
   return true;
 }
 
@@ -184,7 +189,7 @@ export function stepLife(dt: number): void {
       c.x += c.dir * K.spd * dt;
       const ty = Math.floor(c.y / TILE), nx = Math.floor((c.x + c.dir * 6) / TILE);
       if (nx < 1 || nx >= W - 1 || !solidAt(nx, ty) || solidAt(nx, ty - 1) || ehPerigo(tileAt(nx, ty - 1))) c.dir = (c.dir * -1) as 1 | -1; // beirada/parede/PERIGO à frente: meia-volta
-      if (K.peck && rnd() < 0.004) { c.state = 'peck'; c.stateT = 30; }
+      if (K.peck && rng.rnd() < 0.004) { c.state = 'peck'; c.stateT = 30; }
       c.s.texture = c.tex2[c.f];
     }
     if (K.fly && c.state !== 'fly') { // cosmetic flee-flight

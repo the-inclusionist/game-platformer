@@ -9,7 +9,13 @@ import * as COL from '@the-inclusionist/engine/core/collision.js';
 import * as COINS from '../app/js/game/coins.js';
 import * as CS from '../app/js/game/coin-spawning.js';
 import { setCoins, coins } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
-import { reseed } from '@the-inclusionist/engine/core/rng.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
+
+// A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
+// PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem
+// a sua e entrega-a ao módulo sob teste, que é o que o jogo passou a fazer.
+const rng = createRng();
+
 
 // (1,1)=ar com chão em (1,2); (3,1)=água com chão em (3,3) → 2 células candidatas (mesmo mundo do teste de coins).
 const COINWORLD = [
@@ -23,7 +29,7 @@ const COINWORLD = [
 const useWorld = (grid, flags = {}) => {
   const ctx = { world: grid, W: grid[0].length, H: grid.length };
   COL.initCollision({ ...ctx, isWheelchair: () => !!flags.wheelchair, isModoCego: () => false, caneDiv: () => 1, wcSolid: () => new Set(), gateTiles: () => new Set(), gateOpen: () => true });
-  COINS.initCoins({ ...ctx, anyEasy: () => !!flags.easy, isWheelchair: () => !!flags.wheelchair });
+  COINS.initCoins({ rng, ...ctx, anyEasy: () => !!flags.easy, isWheelchair: () => !!flags.wheelchair });
 };
 
 // container PIXI falso: só junta/esvazia a lista de sprites (o suficiente p/ afirmar o que rebuildCoins fez).
@@ -40,6 +46,7 @@ function fakeSprite(tex) { return { tex, x: 0, y: 0, tint: 0, visible: true, des
 
 let container, mode, ownerColors, pcolor, invalidated, elByHudPower;
 const baseCtx = () => ({
+  rng,
   coinContainer: container,
   createSprite: fakeSprite,
   coinTexFor: (m) => `coin:${m}`,
@@ -139,50 +146,50 @@ describe('game/coin-spawning — rebuildCoins (materialização dos sprites)', (
 describe('game/coin-spawning — addCoinsForOwner (gera+renova o conjunto de UM dono)', () => {
   it('[Right] anexa itens novos do dono pedido, preservando o item pré-existente de outro dono', () => {
     setCoins([{ x: 99, y: 99, owner: 1, taken: false, shape: '', letter: '' }]); // item de outro dono, já existente
-    reseed(1); CS.addCoinsForOwner(0);
+    rng.reseed(1); CS.addCoinsForOwner(0);
     expect(coins.some((c) => c.owner === 1 && c.x === 99)).toBe(true); // intacto
     expect(coins.filter((c) => c.owner === 0).length).toBeGreaterThan(0); // novos, do dono certo
     expect(coins.filter((c) => c.owner === 0).every((c) => c.taken === false)).toBe(true);
   });
 
   it('[Boundary] só há 2 candidatos no mundo falso → no máx. 2 itens novos (mesmo COIN_TARGET=10)', () => {
-    reseed(1); CS.addCoinsForOwner(0);
+    rng.reseed(1); CS.addCoinsForOwner(0);
     expect(coins.length).toBe(2);
     expect(CS.getCoinSprites().length).toBe(2); // rebuildCoins() já refletiu no render
   });
 
   it('[Interface] Lúdico: shape/letter ficam vazios', () => {
-    reseed(2); CS.addCoinsForOwner(0);
+    rng.reseed(2); CS.addCoinsForOwner(0);
     expect(coins.every((c) => c.shape === '' && c.letter === '')).toBe(true);
   });
 
   it('[Interface] Soma-Sub: cada item novo recebe uma shape do catálogo (não a textura de moeda)', () => {
     mode = 'somasub'; CS.initCoinSpawning(baseCtx());
-    reseed(3); CS.addCoinsForOwner(0);
+    rng.reseed(3); CS.addCoinsForOwner(0);
     expect(CS.getCoinSprites().every((s) => String(s.tex).startsWith('shape:'))).toBe(true);
   });
 
   it('[Interface] Sílabas: cada item novo recebe uma letra inicial (não a textura de moeda)', () => {
     mode = 'silabas'; CS.initCoinSpawning(baseCtx());
-    reseed(4); CS.addCoinsForOwner(0);
+    rng.reseed(4); CS.addCoinsForOwner(0);
     expect(CS.getCoinSprites().every((s) => String(s.tex).startsWith('letter:'))).toBe(true);
   });
 
   it('[Right] chama rebuildCoins ao final (o container reflete os itens recém-anexados)', () => {
-    reseed(5); CS.addCoinsForOwner(0);
+    rng.reseed(5); CS.addCoinsForOwner(0);
     expect(container.all().length).toBe(2);
   });
 });
 
 describe('game/coin-spawning — respawnCoinsForOwner (recomeço de UM jogador)', () => {
   it('[Right] descarta só os itens do dono e sorteia um conjunto novo (mesma contagem, mundo com 2 candidatos)', () => {
-    reseed(1); CS.addCoinsForOwner(0); CS.addCoinsForOwner(1); // 2 donos, 2 itens cada
-    reseed(9); CS.respawnCoinsForOwner(0);
+    rng.reseed(1); CS.addCoinsForOwner(0); CS.addCoinsForOwner(1); // 2 donos, 2 itens cada
+    rng.reseed(9); CS.respawnCoinsForOwner(0);
     expect(CS.getCoinSprites().length).toBe(4); // 2 (dono 0 renovado) + 2 (dono 1 intacto)
   });
 
   it('[Many] dono sem itens prévios → também funciona (só cria)', () => {
-    reseed(1); CS.respawnCoinsForOwner(0);
+    rng.reseed(1); CS.respawnCoinsForOwner(0);
     expect(CS.getCoinSprites().length).toBe(2);
   });
 });

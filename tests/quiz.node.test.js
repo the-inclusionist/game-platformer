@@ -7,10 +7,11 @@
 // Padrões: ZOMBIES (Zero/One/Many/Boundary/Interface/Exercise/Simple) + Right-BICEP.
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (B3).
 import { describe, it, expect, beforeEach } from 'vitest';
-import { reseed } from '@the-inclusionist/engine/core/rng.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
 import { SILABAS_WORDS, SILABA_POOL } from '../app/js/game/activity-content.js';
 import { BRAILLE } from '../app/js/game/braille.js';
 import {
+
   mkChoices, generateMath, mathGeneratorFor,
   pickWord, resetRecentWords, recentWords,
   generateSilabasOptions, generatePreChoices, generateAlfOptions, generateBrailleCells,
@@ -18,11 +19,16 @@ import {
   somasubHtml, silabaHtml, preHtml, alfHtml, brailleHtml, quizHtml,
 } from '../app/js/game/quiz.js';
 
+// A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
+// PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem
+// a sua e entrega-a ao módulo sob teste, que é o que o jogo passou a fazer.
+const rng = createRng();
+
 // --- ferramentas de teste -----------------------------------------------------------------------
 const MENU = { tabSel: [], fracNot: { v: 1, d: 1, dec: 1, pct: 1, mix: 1 } }; // menu "tudo ligado, nada escolhido"
-const menu = (over = {}) => ({ ...MENU, ...over });
+const menu = (over = {}) => ({ ...MENU, rng, ...over });
 /** Roda `fn` para as sementes 1..n (Right-BICEP "Repeatable": cada iteração é reprodutível sozinha). */
-const forSeeds = (n, fn) => { for (let s = 1; s <= n; s++) { reseed(s * 7919); fn(s); } };
+const forSeeds = (n, fn) => { for (let s = 1; s <= n; s++) { rng.reseed(s * 7919); fn(s); } };
 const keys = (g) => g.choices.map(cKey);
 /** "3 + 4 = ?" → [3, 4] (lê os números do enunciado, que é o que a criança vê). */
 const nums = (prob) => (prob.match(/-?\d+/g) || []).map(Number);
@@ -34,28 +40,28 @@ const TODAS = [...MAT_IDS, ...FRAC_IDS, 'ludico', 'atividade-que-nao-existe'];
 // =================================================================================================
 describe('game/quiz — alternativas (mkChoices)', () => {
   it('põe a resposta certa entre as alternativas', () => {
-    forSeeds(50, () => { expect(mkChoices(7, 0, 20)).toContain('7'); });
+    forSeeds(50, () => { expect(mkChoices(7, 0, 20, rng)).toContain('7'); });
   });
 
   it('não repete alternativa', () => {
-    forSeeds(50, () => { const c = mkChoices(3, 0, 20); expect(new Set(c).size).toBe(c.length); });
+    forSeeds(50, () => { const c = mkChoices(3, 0, 20, rng); expect(new Set(c).size).toBe(c.length); });
   });
 
   it('devolve 9 alternativas quando o intervalo comporta', () => {
-    forSeeds(20, () => { expect(mkChoices(5, 0, 20)).toHaveLength(9); });
+    forSeeds(20, () => { expect(mkChoices(5, 0, 20, rng)).toHaveLength(9); });
   });
 
   // ZOMBIES/Boundary: intervalo estreito não pode travar no while — a guarda de 400 desiste e devolve menos.
   it('não trava quando o intervalo tem menos de 9 números (devolve o que couber)', () => {
-    reseed(1);
-    const c = mkChoices(2, 0, 3);
+    rng.reseed(1);
+    const c = mkChoices(2, 0, 3, rng);
     expect(c).toHaveLength(4);
     expect(new Set(c)).toEqual(new Set(['0', '1', '2', '3']));
   });
 
   // ZOMBIES/Zero: intervalo de um único número.
   it('com intervalo de UM número devolve só a resposta', () => {
-    reseed(1); expect(mkChoices(5, 5, 5)).toEqual(['5']);
+    rng.reseed(1); expect(mkChoices(5, 5, 5, rng)).toEqual(['5']);
   });
 });
 
@@ -82,8 +88,8 @@ describe('game/quiz — geração de matemática (o que vale é a pedagogia)', (
 
   it('a mesma semente dá sempre a mesma pergunta (reprodutível)', () => {
     for (const id of TODAS) {
-      reseed(31337); const a = generateMath(id, menu({ tabSel: [4] }));
-      reseed(31337); const b = generateMath(id, menu({ tabSel: [4] }));
+      rng.reseed(31337); const a = generateMath(id, menu({ tabSel: [4] }));
+      rng.reseed(31337); const b = generateMath(id, menu({ tabSel: [4] }));
       expect(a).toEqual(b);
     }
   });
@@ -259,16 +265,16 @@ describe('game/quiz — geração de frações', () => {
 
   it('a fábrica devolve o gerador de fração para toda atividade com denominadores', () => {
     for (const id of FRAC_IDS) {
-      reseed(5); const a = mathGeneratorFor(id)(menu());
-      reseed(5); const b = generateMath(id, menu());
+      rng.reseed(5); const a = mathGeneratorFor(id)(menu());
+      rng.reseed(5); const b = generateMath(id, menu());
       expect(a).toEqual(b);
       expect(a.not).toBeDefined(); // só o ramo de frações carrega notação
     }
   });
 
   it('atividade desconhecida cai no gerador padrão, não estoura', () => {
-    reseed(5); const a = generateMath('nao-existe', menu());
-    reseed(5); const b = generateMath('mat3', menu());
+    rng.reseed(5); const a = generateMath('nao-existe', menu());
+    rng.reseed(5); const b = generateMath('mat3', menu());
     expect(a).toEqual(b);
   });
 });
@@ -290,20 +296,20 @@ describe('game/quiz — o NÍVEL escolhe o desafio (psicogênese)', () => {
 
 // =================================================================================================
 describe('game/quiz — sorteio da palavra (janela de não-repetição)', () => {
-  beforeEach(() => { resetRecentWords(); reseed(20260601); });
+  beforeEach(() => { resetRecentWords(); rng.reseed(20260601); });
 
   it('sempre devolve uma palavra do catálogo', () => {
-    forSeeds(30, () => { expect(SILABAS_WORDS).toContainEqual(pickWord('g')); });
+    forSeeds(30, () => { expect(SILABAS_WORDS).toContainEqual(pickWord('g', rng)); });
   });
 
   it('prefere a letra da moeda quando ainda há palavra com ela', () => {
-    resetRecentWords(); reseed(11);
-    expect(pickWord('g').w[0]).toBe('g'); // 'gato' e 'gelo' estão livres
+    resetRecentWords(); rng.reseed(11);
+    expect(pickWord('g', rng).w[0]).toBe('g'); // 'gato' e 'gelo' estão livres
   });
 
   it('NÃO repete palavra dentro dos últimos 5 rounds', () => {
     const saidas = [];
-    for (let i = 0; i < 30; i++) saidas.push(pickWord('b').w); // 'b' só tem 3 palavras → força sair da letra
+    for (let i = 0; i < 30; i++) saidas.push(pickWord('b', rng).w); // 'b' só tem 3 palavras → força sair da letra
     for (let i = 5; i < saidas.length; i++) {
       expect(saidas.slice(i - 5, i), `round ${i}`).not.toContain(saidas[i]);
     }
@@ -311,24 +317,24 @@ describe('game/quiz — sorteio da palavra (janela de não-repetição)', () => 
 
   it('a não-repetição vence a letra da moeda (é a regra mais forte)', () => {
     const saidas = [];
-    for (let i = 0; i < 8; i++) saidas.push(pickWord('b').w);
+    for (let i = 0; i < 8; i++) saidas.push(pickWord('b', rng).w);
     expect(saidas.some((w) => w[0] !== 'b')).toBe(true); // teve de sair da letra 'b'
   });
 
   it('a janela guarda no máximo 5 palavras', () => {
-    for (let i = 0; i < 12; i++) pickWord('g');
+    for (let i = 0; i < 12; i++) pickWord('g', rng);
     expect(recentWords()).toHaveLength(5);
   });
 });
 
 // =================================================================================================
 describe('game/quiz — geração do letramento', () => {
-  beforeEach(() => { resetRecentWords(); reseed(20260601); });
+  beforeEach(() => { resetRecentWords(); rng.reseed(20260601); });
 
   it('Sílabas: as duas sílabas certas estão entre as opções', () => {
     forSeeds(40, (s) => {
-      const item = pickWord('g');
-      const { correct, options } = generateSilabasOptions(item);
+      const item = pickWord('g', rng);
+      const { correct, options } = generateSilabasOptions(item, rng);
       expect(correct).toEqual(item.s);
       for (const sy of correct) expect(options, `semente ${s}`).toContain(sy);
     });
@@ -336,8 +342,8 @@ describe('game/quiz — geração do letramento', () => {
 
   it('Sílabas: 9 opções, sem repetidas, e as distratoras vêm do pool', () => {
     forSeeds(40, () => {
-      const item = pickWord('g');
-      const { correct, options } = generateSilabasOptions(item);
+      const item = pickWord('g', rng);
+      const { correct, options } = generateSilabasOptions(item, rng);
       expect(options).toHaveLength(9);
       expect(new Set(options).size).toBe(9);
       for (const sy of options) {
@@ -348,8 +354,8 @@ describe('game/quiz — geração do letramento', () => {
 
   it('Descobrindo palavras (nível 1): 4 escritas, uma só certa, sem repetidas', () => {
     forSeeds(40, (s) => {
-      const item = pickWord('g');
-      const opts = generatePreChoices(item);
+      const item = pickWord('g', rng);
+      const opts = generatePreChoices(item, rng);
       expect(opts, `semente ${s}`).toHaveLength(4);
       expect(new Set(opts).size).toBe(4);
       expect(opts).toContain(item.w);
@@ -359,8 +365,8 @@ describe('game/quiz — geração do letramento', () => {
 
   it('Escrevendo palavras (4/5): grade de 12 letras com TODAS as letras da palavra', () => {
     forSeeds(40, (s) => {
-      const item = pickWord('g');
-      const opts = generateAlfOptions(item.w);
+      const item = pickWord('g', rng);
+      const opts = generateAlfOptions(item.w, rng);
       expect(opts, `semente ${s}`).toHaveLength(12);
       expect(new Set(opts).size).toBe(12);
       for (const ch of new Set(item.w.split(''))) expect(opts, `${item.w} semente ${s}`).toContain(ch);

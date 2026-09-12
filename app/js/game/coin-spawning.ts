@@ -8,7 +8,7 @@
 // portão + textura; mantemos essa fronteira. Ver docs/5-Refactoring/plano-modularizacao-mapa.md.
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import { COIN_TARGET } from './tuning.js';
-import { shuffle } from '@the-inclusionist/engine/core/rng.js';
+import type { Rng } from '@the-inclusionist/engine/core/rng.js';
 import { vizMode } from '@the-inclusionist/engine/core/state.js';
 import { coins, setCoins } from './state.js'; // item 19: `coins`/`quizLevel` sao estado do JOGO
 import { findCoinCandidates, positionEasyCoins } from './coins.js';
@@ -45,6 +45,8 @@ export type CoinContainer = CamadaEsvaziavel;
 export type CoinTexture = unknown;
 
 export interface CoinSpawningCtx {
+  /** A corrente do cartucho (ADR-0141) — ver a mesma nota em `coins.ts`. */
+  rng: Rng;
   coinContainer: CoinContainer;                          // camada PIXI onde os sprites de moeda entram
   createSprite: CriarSprite<CoinSprite>;                   // fábrica de sprite (= `new PIXI.Sprite(tex)` na raiz)
   coinTexFor: (mode: string) => CoinTexture;              // textura padrão da moeda (varia por modo acessível)
@@ -96,10 +98,10 @@ export function rebuildCoins(): void {
 // L1: gera/renova os itens de UM dono sem tocar os dos outros (entrada/recomeço em jogo EM ANDAMENTO). Verbatim.
 export function addCoinsForOwner(owner: number): void {
   const c = need();
-  const a = shuffle(findCoinCandidates());
+  const a = c.rng.shuffle(findCoinCandidates());
   const mode = c.getMode();
-  const sh = mode === 'somasub' ? shuffle(SOMASUB_SHAPES.map((s) => s.id)) : [];
-  const lt = mode === 'silabas' ? shuffle(WORD_INITIALS) : [];
+  const sh = mode === 'somasub' ? c.rng.shuffle(SOMASUB_SHAPES.map((s) => s.id)) : [];
+  const lt = mode === 'silabas' ? c.rng.shuffle(WORD_INITIALS) : [];
   a.slice(0, Math.min(COIN_TARGET, a.length)).forEach((cand, i2) => coins.push({
     x: cand.tx * TILE + 3, y: cand.ty * TILE + 3, owner, taken: false,
     shape: sh.length ? sh[i2 % sh.length] : '', letter: lt.length ? lt[i2 % lt.length] : '',

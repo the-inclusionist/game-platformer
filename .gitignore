@@ -5,3 +5,8 @@ dev-dist/
 *.local
 .DS_Store
 .claude/launch.json
+
+# Residuo de teste de navegador: o Vitest grava a captura e o anexo de CADA caso que reprova. Sao
+# artefatos de uma execucao, nao do repositorio - e aparecem so quando algo esta vermelho.
+tests/__screenshots__/
+.vitest-attachments/

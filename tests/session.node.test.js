@@ -25,6 +25,11 @@ import * as COL from '@the-inclusionist/engine/core/collision.js';
 import { initCoins } from '../app/js/game/coins.js';
 import { initCoinSpawning, getCoinSprites } from '../app/js/game/coin-spawning.js';
 import { createRunState } from '@the-inclusionist/engine/core/run-state.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
+
+// A corrente deste arreio (ADR-0141): o módulo sob teste já não vai buscar a partilhada de `core/rng`,
+// então quem a fornece é quem monta o contexto — aqui, como no jogo.
+const rng = createRng();
 // A RODADA é local a este arquivo desde 2026-08-26 (ADR-0038, Fase B): `players`/`numPlayers` deixaram de
 // ser `let` de `core/state` e passaram a viver na instância que a raiz de composição possui. Aqui o teste
 // cria a sua, e os apelidos abaixo mantêm o corpo dos casos escrito como sempre esteve.
@@ -334,13 +339,14 @@ function montar(n = 1, over = {}) {
     world: g, W: 12, H: 8, isWheelchair: () => false, isModoCego: () => false, caneDiv: () => 1,
     wcSolid: () => new Set(), gateTiles: () => new Set(), gateOpen: () => true,
   });
-  initCoins({ world: g, W: 12, H: 8, anyEasy: () => false, isWheelchair: () => false, numJogadores: () => rodada.numPlayers });
+  initCoins({ rng, world: g, W: 12, H: 8, anyEasy: () => false, isWheelchair: () => false, numJogadores: () => rodada.numPlayers });
   players.length = 0;
   for (let i = 0; i < n; i++) players.push(makePlayer(i));
   setNumPlayersValue(n);
   setCoins([]);
   const ctx = novoCtx(over);
   initCoinSpawning({
+    rng,
     coinContainer: { removeChildren: () => [], addChild() { /* noop */ } },
     createSprite: () => ({ x: 0, y: 0, tint: 0, visible: true, destroy() { /* noop */ } }),
     coinTexFor: () => null, shapeTexFor: () => null, letterTexFor: () => null,

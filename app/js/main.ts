@@ -207,7 +207,30 @@ import { MATERIAIS, travarNaPlaca } from './game/recycling.js'; // os quatro mat
 import { createRecycling } from './game/recycling-scene.js'; // a reciclagem: lixo, lixeiras e a placa (ADR-0049 §1)
 import { createRecyclingTextures, LIXO_ART, LIXEIRA_W, LIXEIRA_H, PLACA_H } from '@the-inclusionist/engine/render/recycling-tex.js';
 import { Z } from '@the-inclusionist/engine/core/layers.js'; // #69/ADR-0020: ordem-z canônica (nomeada) do render
-import { rnd, randInt, shuffle } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
+import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
+
+/*
+ * A CORRENTE DESTE CARTUCHO (ADR-0141), e a razão de ela ser criada em vez de importada.
+ *
+ * `core/rng` exporta DUAS coisas que se parecem no sítio do import: `createRng(semente)`, que devolve uma
+ * corrente independente, e `rnd`/`randInt`/`shuffle`/`reseed`, que são atalhos ligados a uma corrente de
+ * ESCOPO DE MÓDULO partilhada por quem quer que a importe. Este ficheiro importava a segunda.
+ *
+ * Sozinho na página isso é inofensivo: um jogo, uma corrente. Dentro da plataforma são dois cartuchos a
+ * puxar da MESMA corrente, e um `reseed` num reposiciona o sorteio do outro — que é exatamente a história
+ * do motor: «quero que a engine não carregue estado de jogo, para que dois jogos numa página não colidam».
+ *
+ * ⚠️ E A REGRA É NEGATIVA, não apenas positiva: usar `ctx.rng` em quase tudo e ir buscar o `shuffle`
+ * importado uma vez só tem o defeito inteiro. Não há versão parcial disto — a lista proibida é a regra, e
+ * o defeito é invisível onde os testes correm, porque um build solto tem uma corrente e passa de qualquer
+ * maneira. Por isso o ADR pede um lint, e não só um cuidado.
+ *
+ * Sem semente explícita: `createRng()` nasce com a `SEMENTE_PADRAO` — a MESMA da corrente partilhada —,
+ * então o comportamento sorteado deste jogo fica idêntico ao de antes desta mudança. Quem escolhe a semente
+ * é o shell, e essa decisão ainda não foi tomada.
+ */
+const rng: Rng = createRng();
+const { rnd, randInt, shuffle } = rng;
 import { initCollision, tileAt, solidAt, surfTop } from '@the-inclusionist/engine/core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
@@ -251,7 +274,7 @@ initWorldTex({ world: WORLD, W: WORLD_W, H: WORLD_H }); // Estágio 4: liga o bu
 initCollision({ world: WORLD, W: WORLD_W, H: WORLD_H,
   isWheelchair: ()=>wheelchair, isModoCego: ()=>modoCego, caneDiv: ()=>caneBlockDiv,
   wcSolid: ()=>rodada.wcSolid, gateTiles: ()=>rodada.gateTiles, gateOpen: ()=>rodada.gateOpen });
-initCoins({ numJogadores: () => rodada.numPlayers, world: WORLD, W: WORLD_W, H: WORLD_H, anyEasy: ()=>anyEasy(), isWheelchair: ()=>wheelchair }); // Estágio 4: posicionamento de coletáveis (usa solidAt já ligado acima)
+initCoins({ rng, numJogadores: () => rodada.numPlayers, world: WORLD, W: WORLD_W, H: WORLD_H, anyEasy: ()=>anyEasy(), isWheelchair: ()=>wheelchair }); // Estágio 4: posicionamento de coletáveis (usa solidAt já ligado acima)
 // Itens do mapa Clarity → viram ITENS/barreira (não tiles): 7=pulo-turbo, 8=voo, 11=chave; 10=portão.
 // Removemos o tile do grid (vira ar) e o item/barreira é desenhado/colidido à parte; some ao pegar/abrir.
 const MAP_ITEMS: { tx: number; ty: number; kind: string }[] = [], MAP_GATE: { tx: number; ty: number }[] = [];
@@ -869,7 +892,7 @@ const coinContainer=new PIXI.Container(); camera.addChild(coinContainer);
 // coinSprites/rebuildCoins migraram para game/coin-spawning.ts (Onda A). rebuildCoins mantem o contrato
 // SEM argumentos: os nove chamadores (boot, novo round, quatro paineis de acessibilidade, Modo Facil,
 // silabas, restart) nao mudam — so a definicao saiu daqui.
-initCoinSpawning({ coinContainer, createSprite: (t) => new PIXI.Sprite(t as never), coinTexFor: (m) => spriteTexFor('coin', m),
+initCoinSpawning({ rng, coinContainer, createSprite: (t) => new PIXI.Sprite(t as never), coinTexFor: (m) => spriteTexFor('coin', m),
   shapeTexFor: (id) => SHAPE_TEX[id], letterTexFor: letterTexture, pcolor: PCOLOR,
   getMode: () => MODE(), getOwnerColors: () => ownerColors, invalidateSharedViz: () => { _lastSharedViz=null; },
   powerShort: POWER_SHORT, $ });
@@ -1038,7 +1061,7 @@ let _streetCols: [number, number][] | null = null; // colunas ABERTAS da rua/fac
 function streetCols(){ if(_streetCols)return _streetCols; _streetCols=[];
   for(let tx=2;tx<WORLD_W-2;tx++){ const ty=lifeSurfaceLowAt(tx); if(ty>0&&ty*TILE>WORLD_PX_H*0.55)_streetCols.push([tx,ty]); }
   return _streetCols; }
-life.initLife({ getPlayers: () => rodada.players, getNumPlayers: () => rodada.numPlayers, layer: lifeLayer, makeSprite: (t) => new PIXI.Sprite(t as never), lifeTex: CITY_TEX.lifeTex, adultTex: CITY_TEX.adultTex,
+life.initLife({ rng, getPlayers: () => rodada.players, getNumPlayers: () => rodada.numPlayers, layer: lifeLayer, makeSprite: (t) => new PIXI.Sprite(t as never), lifeTex: CITY_TEX.lifeTex, adultTex: CITY_TEX.adultTex,
   lifeSurfaceAt, lifeSurfaceLowAt, streetCols, decoSprites, rm, W: WORLD_W, pxW: WORLD_PX_W, pxH: WORLD_PX_H });
 /* ===================== L5: CARROS (camada da FRENTE) + SEMÁFORO funcional — procedural ===================== */
 // Carros cruzam a rua À FRENTE do player (carLayer re-erguido em ensureSprites); param no vermelho/amarelo
@@ -1049,7 +1072,7 @@ const carLayer=new PIXI.Container(); camera.addChild(carLayer);
 // cars/_carT/STREET_Y/SEM/drawSemaforo/initTraffic/spawnCar/setFrontDim/stepTraffic migraram para
 // game/traffic.ts (Onda A). carLayer FICA (o z-order dele e soldado aqui); a textura saiu para
 // render/city-tex.ts (D3-a), junto com a dos bichos e a dos pedestres.
-traffic.initTraffic({ carLayer, CAR_TEX: CITY_TEX.carTex,
+traffic.initTraffic({ rng, carLayer, CAR_TEX: CITY_TEX.carTex,
   criarSprite: (t) => new PIXI.Sprite(t as never), criarDesenho: () => new PIXI.Graphics(),
   WORLD_PX_W, WORLD_PX_H, WORLD_W, getRm: () => rm });
 /* ===================== L5: DECORAÇÃO POR ZONA (procedural, desenhada UMA vez) =====================
@@ -1214,6 +1237,21 @@ const pauseIcons = initPauseIcons({
   // é correto nos dois cenários — no que eu entendo e no que eu não entendo — e é por isso que está assim
   // em vez de um `as` ou de uma reordenação que eu justificaria com uma história inventada.
   setPlayerViz: (...a: Parameters<typeof setPlayerViz>) => setPlayerViz(...a),
+  //
+  // 🔴 OS DOIS ESCRITORES DE EIXO, E A FALTA DELES ERA UM CONTROLE MORTO. Medido no navegador depois da
+  // subida para a 9.0.0: os ícones 🌗 (alto contraste) e 🚥 (correção de daltonismo) apareciam na barra e
+  // NÃO FAZIAM NADA — dois cliques reais, e nem `p.visual` nem o rótulo `aria-label` mudavam.
+  //
+  // A causa é a divisão do eixo visual em dois (#104). Na 7.0.1 o ícone chamava `ctx.setPlayerViz`, que
+  // esta raiz passa desde sempre; da 8.0.0 em diante ele chama `setTemaDoJogador`/`setCorrecaoDoJogador`,
+  // e `pause-icons.js:545,552` faz `if (!ctx.setTemaDoJogador) return;` — sai em silêncio. O `tsc` não
+  // acusa nada porque os dois campos são OPCIONAIS no contexto, e nenhum teste os cobria.
+  //
+  // ⚠️ Um controle que a criança vê, aciona e não obtém resposta é PIOR que um ausente: ela desiste
+  // achando que o jogo não tem a acomodação, em vez de procurá-la noutro sítio. É o que o ADR-0106 §5
+  // proíbe, e foi esta subida de versão que o introduziu aqui.
+  setTemaDoJogador: (...a: Parameters<typeof setTemaDoJogador>) => setTemaDoJogador(...a),
+  setCorrecaoDoJogador: (...a: Parameters<typeof setCorrecaoDoJogador>) => setCorrecaoDoJogador(...a),
 });
 const reflectPauseIcons = () => pauseIcons.reflectPauseIcons();
 function reflectTitleIcons(){ pauseIcons.reflectIconsIn($('#title-icons'),0); } // icones do SPLASH (escopo do J1)
@@ -1285,6 +1323,7 @@ initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1)
    `dir` e a unica variavel local que atravessa a fronteira, e por isso stepPlayer devolve {ran, dir}:
    `ran:false` reproduz o return seco de quiz/quit/waiting, que abortava a funcao INTEIRA, animacao inclusive. */
 initPhysics({
+  rng,
   getPlayers: () => rodada.players,
   isWheelchair: ()=>wheelchair, isModoCego: ()=>modoCego, caneOn, WORLD_PX_H: ()=>WORLD_PX_H,
   sfx: (n)=>earcons.sfx(n), srSay, srAlert, hideTips, showPower, nav,
@@ -1526,6 +1565,7 @@ const { actCat, setActivity, navTitle, tabSel, fracNot } = activitiesMenu;
 // criadas no boot (audio/HUD/menu) e os efeitos de outros slices (moeda, HUD, vitoria, toque). Os
 // callbacks sao arrows de proposito: touchCtl, respawnFigure, win e updateHud nascem mais abaixo.
 const quizApi = initQuiz({
+  rng,
   $, getScreen: (i) => hud.getScreen(i),
   getNumPlayers: () => rodada.numPlayers,
   disp, isModoCego: () => modoCego,
@@ -1679,7 +1719,8 @@ const viz = initVizSetters({
 });
 // `updateVizIndicator` saiu: desestruturado e nunca lido desde que migrou para `render/viz-setters`.
 const { applySharedTextures, updateVpDots, applyVpFilters, setPlayerViz,
-        applyVizGlobal, reapplyVizAll, renderVizGroup, renderEixosVisuais } = viz;
+        applyVizGlobal, reapplyVizAll, renderVizGroup, renderEixosVisuais,
+        setTemaDoJogador, setCorrecaoDoJogador } = viz;
 // `renderVizGroup` fica: a EMPATIA ainda o usa (é um grupo de rádios de modos, e simular uma deficiência
 // continua a ser uma escolha única). O painel VISUAL é que passou a ter dois controles — tema e correção —
 // e a engine 8.0.0 trocou o campo do seu ctx por `renderEixosVisuais` (#104).

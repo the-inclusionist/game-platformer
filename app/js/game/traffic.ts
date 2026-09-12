@@ -9,7 +9,7 @@
 // See docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4).
 
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
-import { rnd, randInt } from '@the-inclusionist/engine/core/rng.js';
+import type { Rng } from '@the-inclusionist/engine/core/rng.js';
 import type { Desenho, Camada, Tingivel } from '@the-inclusionist/engine/render/port.js';
 import type { CriarSprite, CriarDesenho } from '@the-inclusionist/engine/render/port.js';
 import { cenario } from './state.js'; // GAME desde a Fase B (ADR-0038)
@@ -80,6 +80,8 @@ type Layer = Camada;
 
 
 export interface TrafficCtx {
+  /** A corrente do cartucho (ADR-0141) — ver a mesma nota em `physics.ts`. */
+  rng: Rng;
   carLayer: Layer;             // PIXI.Container — created + z-ordered in game.js, injected here
   CAR_TEX: unknown[];          // car sprite textures (already built in game.js)
   criarSprite: CriarSprite<CarSprite>;   // era `SpriteCtor`
@@ -134,8 +136,8 @@ export function initTraffic(injected: TrafficCtx): void {
 /** Spawns 1 car (cap 3) from a random side; dimmed on the spot if front-dim (HC) is currently on. */
 export function spawnCar(): boolean {
   if (!ctx || cars.length >= 3) return false;
-  const { dir, x } = planCarSpawn(rnd, ctx.WORLD_PX_W);
-  const s = ctx.criarSprite(ctx.CAR_TEX[randInt(0, ctx.CAR_TEX.length - 1)]); // texture is already 3× native
+  const { dir, x } = planCarSpawn(ctx.rng.rnd, ctx.WORLD_PX_W);
+  const s = ctx.criarSprite(ctx.CAR_TEX[ctx.rng.randInt(0, ctx.CAR_TEX.length - 1)]); // texture is already 3× native
   s.anchor.set(0.5, 1); s.scale.x = dir; s.y = _streetY; s.x = x;
   if (_frontDim) { s.tint = 0x4a5058; s.alpha = 0.55; }
   ctx.carLayer.addChild(s); _ambientes.push(s);
@@ -166,7 +168,7 @@ export function stepTraffic(dt: number): void {
   const st = lightStateAt(SEM.t);
   if (st !== SEM.state) { SEM.state = st; drawSemaforo(); }
   if (ctx.getRm().decor) { clearCars(); return; }
-  if (++_carT >= nextSpawnThreshold(randInt)) { _carT = 0; spawnCar(); }
+  if (++_carT >= nextSpawnThreshold(ctx.rng.randInt)) { _carT = 0; spawnCar(); }
   for (let i = cars.length - 1; i >= 0; i--) {
     const c = cars[i]!;
     const { x, vx } = advanceCar(c, dt, SEM.x, SEM.state); c.x = x; c.vx = vx; c.s.x = Math.round(c.x);

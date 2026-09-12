@@ -3,6 +3,10 @@
 // Puro (string/número, sem DOM). Ver docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4, frações).
 import { describe, it, expect } from 'vitest';
 import { gcd, fracStr, fmtFrac, fracSpeak, fracSpeakValue, speakChoice, fracGraphic } from '../app/js/game/fractions.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
+
+// A corrente deste arreio (ADR-0141): `fracGraphic` deixou de importar `rnd` e recebe-a por argumento.
+const rng = createRng();
 
 describe('gcd / fracStr', () => {
   it('gcd', () => { expect(gcd(12, 8)).toBe(4); expect(gcd(7, 3)).toBe(1); expect(gcd(6, 0)).toBe(6); });
@@ -41,15 +45,15 @@ describe('speakChoice (qualquer notação)', () => {
 
 describe('fracGraphic', () => {
   it('fração própria → span com data-frac + aria falado', () => {
-    const g = fracGraphic(1, 4, 'square');
+    const g = fracGraphic(1, 4, 'square', rng);
     expect(g).toContain('data-frac="1/4"');
     expect(g).toContain('aria-label="um quarto"');
     expect(g).toContain('<svg');
   });
   it('imprópria/zero/denominador fora de 2..6 → vazio (o chamador mostra número)', () => {
-    expect(fracGraphic(5, 4)).toBe(''); // imprópria
-    expect(fracGraphic(0, 4)).toBe('');
-    expect(fracGraphic(1, 7)).toBe(''); // d>6
+    expect(fracGraphic(5, 4, undefined, rng)).toBe(''); // imprópria
+    expect(fracGraphic(0, 4, undefined, rng)).toBe('');
+    expect(fracGraphic(1, 7, undefined, rng)).toBe(''); // d>6
   });
 });
 
@@ -70,17 +74,17 @@ describe('fracSpeakValue — o nome acessivel da figura', () => {
     expect(fracSpeakValue(2, 2)).toBe('1');   // e o valor que a figura mostra e outro
   });
   it('[Right] o aria-label da figura usa o VALOR', () => {
-    const html = fracGraphic(2, 2);
+    const html = fracGraphic(2, 2, undefined, rng);
     expect(html).toContain('aria-label="1"');
     expect(html).toContain('data-frac="2/2"'); // o dado cru continua la, para quem precisar dele
   });
   it('[Invariant] speakChoice concorda com o rotulo da figura que ele le', () => {
-    expect(speakChoice(fracGraphic(2, 2))).toBe('1');
-    expect(speakChoice(fracGraphic(2, 4))).toBe('um meio');
+    expect(speakChoice(fracGraphic(2, 2, undefined, rng))).toBe('1');
+    expect(speakChoice(fracGraphic(2, 4, undefined, rng))).toBe('um meio');
   });
   it('[Right] figura e texto falam a MESMA coisa para o mesmo valor — era isso que o sorteio quebrava', () => {
     for (const [n, d] of [[2, 2], [2, 4], [3, 4], [4, 4], [1, 2]]) {
-      const porFigura = speakChoice(fracGraphic(n, d));
+      const porFigura = speakChoice(fracGraphic(n, d, undefined, rng));
       const porTexto = speakChoice(fmtFrac(n, d, 'd'));
       expect(porFigura).toBe(porTexto);
     }

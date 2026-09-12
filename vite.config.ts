@@ -42,10 +42,30 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: { globPatterns: ['**/*.{js,css,html,png,svg,woff2,json}'], maximumFileSizeToCacheInBytes: 6 * 1024 * 1024 },
+      // ⚠️ OS CAMPOS ABAIXO SÃO DECLARADOS PORQUE A AUSÊNCIA NÃO ERA SILÊNCIO (ADR-0140). O bloco não
+      // dizia `lang` nem `scope`, e o plugin preenchia-os: o manifesto GERADO saía com `"lang":"en"` e
+      // `"scope":"/"`. Não declarar é deixar outra pessoa decidir, e aqui as duas decisões estavam erradas.
       manifest: {
         name: 'The Inclusionist',
         short_name: 'Inclusionist',
-        start_url: '.',
+        // O PRODUTO É EM PORTUGUÊS DO BRASIL, e este campo é o que a tecnologia assistiva lê para escolher a
+        // voz. Com `en` um leitor de tela anuncia «Colete 10 moedas» com fonemas ingleses a quem está a
+        // aprender a ler — que é exatamente a criança deste jogo.
+        lang: 'pt-BR',
+        dir: 'ltr',
+        // RELATIVO, e não `/`. O padrão do plugin reclamava a ORIGEM INTEIRA: qualquer outra coisa servida no
+        // mesmo domínio passava a cair dentro do alcance deste service worker. Sob o ADR-0117 a origem é da
+        // plataforma e não de um jogo, então reclamá-la é a afirmação errada mesmo enquanto nada mais lá
+        // está. `./` resolve-se contra o próprio manifesto e acompanha o ponto onde o build for servido.
+        scope: './',
+        // A IDENTIDADE, e ela existe para o navegador saber que uma instalação NOVA é a mesma aplicação. Sem
+        // ela a identidade é o `start_url`, e mudar o `start_url` um dia criaria uma segunda instalação ao
+        // lado da que a criança já tinha, com os dados dela do outro lado.
+        id: './',
+        // EM PORTUGUÊS PELO MESMO MOTIVO DO `lang`. Vinha do `description` do package.json — inglês, como
+        // manda a convenção para ARTEFATOS — e aparecia na loja de aplicações do aparelho, que é produto e
+        // não artefato. Inglês anunciado como pt-BR é a incoerência que o `lang` acima existe para acabar.
+        description: 'Jogo de plataforma em pixel art, pensado desde o início para quem joga com leitor de tela, com um só botão, com o teclado ou com a cadeira de rodas.',
         display: 'standalone',
         background_color: '#0b1020',
         theme_color: '#0b1020',

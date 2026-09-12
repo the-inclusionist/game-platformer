@@ -7,7 +7,7 @@
 // O render (coinTexFor/rebuildCoins/coinSprites) e os distratores (malform/ferreiroDistractors) ficam fora (quiz/render).
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import { solidAt } from '@the-inclusionist/engine/core/collision.js';
-import { shuffle } from '@the-inclusionist/engine/core/rng.js';
+import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js';
 
 import { coins } from './state.js'; // item 19: `coins`/`quizLevel` sao estado do JOGO
 
@@ -20,8 +20,12 @@ let _isWheelchair: () => boolean = () => false; // cadeirante também rebaixa as
 // mesma página carregue (D13 do `demos`, ADR-0038). O que entra aqui é o GETTER da rodada que a raiz
 // possui; o `let` que sobra guarda a função, não o número.
 let _numJogadores: () => number = () => 1;
-export function initCoins(ctx: { world: number[][]; W: number; H: number; anyEasy: () => boolean; isWheelchair: () => boolean; numJogadores: () => number }): void {
-  _world = ctx.world; _W = ctx.W; _H = ctx.H; _anyEasy = ctx.anyEasy; _isWheelchair = ctx.isWheelchair; _numJogadores = ctx.numJogadores;
+// A CORRENTE DO CARTUCHO (ADR-0141), guardada como os outros injetados acima. Era `shuffle` importado de
+// `core/rng` — um atalho ligado a uma corrente de ESCOPO DE MÓDULO que qualquer outro cartucho da mesma
+// página estaria a partilhar. A de omissão é própria e descartável, só para antes de `initCoins()`.
+let _rng: Rng = createRng();
+export function initCoins(ctx: { world: number[][]; W: number; H: number; anyEasy: () => boolean; isWheelchair: () => boolean; numJogadores: () => number; rng: Rng }): void {
+  _world = ctx.world; _W = ctx.W; _H = ctx.H; _anyEasy = ctx.anyEasy; _isWheelchair = ctx.isWheelchair; _numJogadores = ctx.numJogadores; _rng = ctx.rng;
 }
 
 // Células candidatas a receber um item: ar(1)/água(3) com chão sólido em até 10 tiles abaixo (alcançável),
@@ -64,8 +68,8 @@ export function pickCoins(n: number, pools: { shapes?: readonly string[]; letter
   const shapes = pools.shapes ?? [], letters = pools.letters ?? [];
   const out: Coin[] = [], np = Math.max(1, _numJogadores());
   for (let owner = 0; owner < np; owner++) {
-    const a = shuffle(findCoinCandidates());                 // sorteio de posições independente por jogador
-    const sh = shapes.length ? shuffle(shapes.slice()) : [], lt = letters.length ? shuffle(letters.slice()) : [];
+    const a = _rng.shuffle(findCoinCandidates());            // sorteio de posições independente por jogador
+    const sh = shapes.length ? _rng.shuffle(shapes.slice()) : [], lt = letters.length ? _rng.shuffle(letters.slice()) : [];
     a.slice(0, Math.min(n, a.length)).forEach((p, i) => out.push({
       x: p.tx * TILE + 3, y: p.ty * TILE + 3, owner, taken: false,
       shape: sh.length ? sh[i % sh.length] : '',

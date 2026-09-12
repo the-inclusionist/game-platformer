@@ -27,7 +27,7 @@ import { BOX, SPAWN_X, SPAWN_Y, jumpVel, isBouncyGroundBelow, clingSides, firstC
 import { ELEV_SPEED, elevAt } from './elevators.js';
 import { held } from '@the-inclusionist/engine/input/state.js';
 import { nextLatchedDir, latchedDrive, type LatchDir } from '@the-inclusionist/engine/input/latch.js';
-import { rnd } from '@the-inclusionist/engine/core/rng.js';
+import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js';
 
 import { setCoins } from './state.js'; // item 19: `coins`/`quizLevel` sao estado do JOGO
 import { pickCoins } from './coins.js';
@@ -84,6 +84,12 @@ export interface PhysicsNav {
 
 /** Tudo que a física precisa e que ainda mora no game.js. Sem defaults implícitos: injeção explícita. */
 export interface PhysicsCtx {
+  /**
+   * A corrente do cartucho (ADR-0141). Entra pelo contexto e não por import: `rnd` de `core/rng` é um
+   * atalho ligado a uma corrente de ESCOPO DE MÓDULO, partilhada por quem quer que a importe — e duas
+   * partidas na mesma página mexeriam uma no sorteio da outra sem que nada o dissesse.
+   */
+  rng: Rng;
   isWheelchair(): boolean;      // empatia motora: sem pulo, rampa guia o Y, trampolim vira elevador
   isModoCego(): boolean;        // empatia cegueira: imunidade à lava (ela vira chão)
   caneOn(pl: PhysicsPlayer): boolean; // visão comprometida? (bengala) — muda correr e a cadência de passos
@@ -114,6 +120,9 @@ export interface PhysicsCtx {
 
 const NOOP = (): void => { /* até initPhysics() */ };
 const DEFAULT_CTX: PhysicsCtx = {
+  // Uma corrente PRÓPRIA e descartável até `initPhysics()` chegar: o contexto de omissão não pode ir
+  // buscar a partilhada, que é precisamente o que o ADR-0141 proíbe, nem partilhá-la com a do jogo.
+  rng: createRng(),
   isWheelchair: () => false, isModoCego: () => false, caneOn: () => false, WORLD_PX_H: () => Infinity,
   sfx: NOOP, srSay: NOOP, srAlert: NOOP, hideTips: NOOP, showPower: NOOP,
   nav: { sonar: NOOP, caneTap: NOOP, waterNav: NOOP, needsAudioCues: () => false, panFor: () => 0, playerCtx: () => null },
@@ -179,7 +188,7 @@ export function triggerLava(pl: PhysicsPlayer): void {
   // (ADR-0033), e o salto por `unknown` é o preço honesto disso — a engine não pode declarar o campo, e o
   // jogo não pode fingir que ela declara. É o mesmo caso de `coins: unknown[]` no estado compartilhado.
   (C.getPlayers() as readonly PhysicsPlayer[]).forEach((p) => { p.collected = 0; }); C.updateHud();
-  C.sfx('hurt'); pl.hurtTimer = 60; pl.vy = -10; pl.vx = (rnd() < 0.5 ? -1 : 1) * 5;
+  C.sfx('hurt'); pl.hurtTimer = 60; pl.vy = -10; pl.vx = (C.rng.rnd() < 0.5 ? -1 : 1) * 5;
   C.addShake(3, 14); C.addHitstop(4); // JUICE: dano é o impacto mais forte do jogo
   C.srAlert(t('sr.physics.lava'));
 }

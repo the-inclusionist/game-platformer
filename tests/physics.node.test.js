@@ -13,12 +13,18 @@ import { TUNE } from '../app/js/game/tuning.js';
 import { keys } from '@the-inclusionist/engine/input/state.js';
 import { KB_DEFAULTS } from '@the-inclusionist/engine/input/keyboard.js';
 import * as PHY from '../app/js/game/physics.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
+
+// A corrente deste arreio (ADR-0141): o módulo sob teste já não vai buscar a partilhada de `core/rng`,
+// então quem a fornece é quem monta o contexto — aqui, como no jogo.
+const rng = createRng();
 import { t } from '@the-inclusionist/engine/core/i18n.js'; // ⚠️ o dicionário CRU (i18n/pt.js) não estava no xports da engine até a 7.0.2; 	() é público desde sempre e prova o mesmo — que a frase saiu do dicionário e não de uma cópia // a frase falada é conferida contra o DICIONÁRIO, não contra uma cópia
 
 const noop = () => { /* stub */ };
 const NAV = { sonar: noop, caneTap: noop, waterNav: noop, needsAudioCues: () => false, panFor: () => 0, playerCtx: () => null };
 // ctx padrão: modo normal (sem cadeira, sem cegueira), mundo alto o bastante para o respawn não disparar.
 const CTX = (over = {}) => ({
+  rng,
   getPlayers: () => [],
   isWheelchair: () => false, isModoCego: () => false, caneOn: () => false, WORLD_PX_H: () => 10000,
   sfx: noop, srSay: noop, srAlert: noop, hideTips: noop, showPower: noop, nav: NAV,

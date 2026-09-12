@@ -6,7 +6,7 @@
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4, game/life).
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as COL from '@the-inclusionist/engine/core/collision.js';
-import { reseed } from '@the-inclusionist/engine/core/rng.js';
+import { createRng } from '@the-inclusionist/engine/core/rng.js';
 import { createRunState } from '@the-inclusionist/engine/core/run-state.js';
 // A RODADA é local a este arquivo desde 2026-08-26 (ADR-0038, Fase B): `players`/`numPlayers` deixaram de
 // ser `let` de `core/state` e passaram a viver na instância que a raiz de composição possui. Aqui o teste
@@ -18,6 +18,12 @@ const setNumPlayersValue = (n) => rodada.setNumPlayers(n);
 import { setCenarioValue } from '../app/js/game/state.js'; // GAME desde a Fase B (ADR-0038)
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import { initLife, spawnCreature, stepLife, getCreatures } from '../app/js/game/life.js';
+
+// A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
+// PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem
+// a sua e entrega-a ao módulo sob teste, que é o que o jogo passou a fazer.
+const rng = createRng();
+
 
 const W = 200, H = 12;
 
@@ -48,6 +54,7 @@ function wireLife(overrides = {}) {
   const layer = makeLayer();
   const rm = { decor: false };
   const ctx = {
+    rng,
     getPlayers: () => rodada.players, getNumPlayers: () => rodada.numPlayers,
     layer, makeSprite, lifeTex: LIFE_TEX, adultTex: ADULT_TEX,
     lifeSurfaceAt: () => 2, lifeSurfaceLowAt: () => 8,
@@ -65,7 +72,7 @@ beforeEach(() => {
   setNumPlayersValue(1);
   setCenarioValue('cidade');
   getCreatures().length = 0; // drena o pool (estado do módulo é singleton entre testes)
-  reseed(20260601);
+  rng.reseed(20260601);
 });
 
 describe('spawnCreature — cap do pool', () => {
