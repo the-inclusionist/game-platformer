@@ -44,11 +44,6 @@
     "note does not make it. When it happens, it is one line in `main.ts` and one line here — not a new version",
     "of the engine for everybody."
   ],
-  "dependencies": {
-    "@mintplex-labs/piper-tts-web": "^1.0.4",
-    "@the-inclusionist/engine": "^9.0.0",
-    "pixi.js": "7.4.2"
-  },
   "engines": {
     "node": ">=24"
   },
@@ -65,9 +60,12 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@mintplex-labs/piper-tts-web": "^1.0.4",
+    "@the-inclusionist/engine": "^9.0.0",
     "@types/node": "^22.0.0",
     "@vitest/browser": "^4.0.0",
     "@vitest/browser-playwright": "^4.0.0",
+    "pixi.js": "7.4.2",
     "playwright": "^1.49.0",
     "typescript": "^5.7.0",
     "vite": "^8.0.0",
@@ -78,5 +76,11 @@
     "vite-plugin-pwa": {
       "vite": "$vite"
     }
+  },
+  "comment:peer-and-dev": "ADR-0140 §4: the engine and the shared render libraries are declared TWICE, and that is not redundancy. `peerDependencies` INSTALLS NOTHING - it is a requirement addressed to whoever consumes this package, and it is what makes the platform install exactly ONE engine instead of quietly nesting a second. Without a `devDependency` beside it a clean clone of this repository has no engine and does not build; with both, the consumer gets the requirement and the repository gets its copy. It also makes version skew LOUD: as plain dependencies a game a major behind ships two engines in silence, and as peers the platform's install fails and names the conflict.",
+  "comment:piper-is-not-ours": "ADR-0117: `A CARTRIDGE DECLARES NO DELIVERY - no font file, no voice, no runtime in a game's own package`. The neural voice arrives through the host-owned `carregarVozNeural` port (ADR-0139's split), so the runtime belongs to whoever fills that port - the platform, once, for every cartridge. It stays a devDependency because this repository's own standalone build still passes it, and that build is a development, test and demonstration route rather than a delivery route.",
+  "peerDependencies": {
+    "@the-inclusionist/engine": "^9.0.0",
+    "pixi.js": "7.4.2"
   }
 }
