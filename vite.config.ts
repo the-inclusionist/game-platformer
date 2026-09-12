@@ -34,7 +34,36 @@ const BUILD = {
   env: process.env.CF_PAGES ? 'prod' : 'local',
 };
 
-export default defineConfig({
+/* ===================== DOIS ALVOS, DE UMA FONTE SO (ADR-0140 §1) =====================
+ *
+ * APP (o padrao) — entrada `app/index.html`, que carrega `src/standalone.ts`. A engine vai EMBUTIDA e o
+ * `vite-plugin-pwa` fica ligado. A saida e' um PWA solto, e ele e' a rota de DESENVOLVIMENTO, TESTE,
+ * AUDITORIA e DEMONSTRACAO deste repositorio — nunca de entrega (ADR-0140 §3).
+ *
+ * LIB (`--mode lib`) — entrada `src/index.ts`, o cartucho. A engine, o PixiJS e o runtime de voz ficam
+ * EXTERNOS; sem HTML, sem service worker. E' isto que a plataforma consome, e e' o que faz UMA engine viajar
+ * em vez de seis: um motor instalado ainda viaja N vezes se N pacotes o embutirem.
+ *
+ * ⚠️ OS DOIS PODEM DIVERGIR, e o proprio registro chama isso de risco: «a gate that builds BOTH in CI is not
+ * optional; without it the lib build breaks and nobody learns until the platform installs it».
+ */
+export default defineConfig(({ mode }) => mode === 'lib' ? {
+  // ⚠️ SEM `root: 'app'` AQUI. O alvo app tem a raiz no `app/` porque a entrada e' o HTML de la; o cartucho
+  // nao tem HTML nenhum, e a sua entrada e' `src/index.ts` a partir da raiz do repositorio.
+  define: { __BUILD__: JSON.stringify(BUILD) },
+  plugins: [atlasDeSprites({ raizSprites: RAIZ_SPRITES })],
+  build: {
+    outDir: 'dist-lib',
+    emptyOutDir: true,
+    lib: { entry: 'src/index.ts', formats: ['es'], fileName: 'index' },
+    rollupOptions: {
+      // ⚠️ EXTERNO E NAO EMBUTIDO, e e' esta a linha que cumpre o ADR-0140. O `@mintplex-labs/piper-tts-web`
+      // entra na lista pelo ADR-0117: «a cartridge declares no delivery — no font file, no voice, no runtime
+      // in a game's own package». Quem preenche a porta `carregarVozNeural` e' o host.
+      external: [/^@the-inclusionist\/engine/, 'pixi.js', '@mintplex-labs/piper-tts-web'],
+    },
+  },
+} : {
   root: 'app',
   define: { __BUILD__: JSON.stringify(BUILD) },
   plugins: [

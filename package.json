@@ -56,7 +56,8 @@
     "test:node": "vitest run --project node",
     "test:browser": "vitest run --project browser",
     "test:a11y": "node scripts/axe-check.mjs",
-    "validate": "npm run typecheck && vitest run && vite build"
+    "validate": "npm run typecheck && vitest run && vite build && npm run build:lib",
+    "build:lib": "vite build --mode lib"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -82,5 +83,6 @@
   "peerDependencies": {
     "@the-inclusionist/engine": "^9.0.0",
     "pixi.js": "7.4.2"
-  }
+  },
+  "comment:two-targets": "ADR-0140 §1: one source, two builds. `build` is the standalone PWA (engine bundled, service worker on) and is the development, test, audit and demonstration route -- never a delivery route (§3). `build:lib` is the cartridge: `src/index.ts`, ES only, with the engine, Pixi and the voice runtime EXTERNAL, no HTML and no service worker. Measured 2026-09-11: the app build is 16 MB and the lib build is 180 KB, because the lib emits 86 bare imports of the engine instead of inlining it -- which is what makes ONE engine travel rather than six. ⚠️ `validate` builds BOTH because the record names the divergence as the risk: without a gate that builds both, the lib build breaks and nobody learns until the platform installs it."
 }

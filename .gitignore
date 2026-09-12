@@ -10,3 +10,6 @@ dev-dist/
 # artefatos de uma execucao, nao do repositorio - e aparecem so quando algo esta vermelho.
 tests/__screenshots__/
 .vitest-attachments/
+
+# A saida do alvo LIB (o cartucho). Artefato de build, como o `dist/` do alvo app.
+dist-lib/
