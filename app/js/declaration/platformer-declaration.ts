@@ -143,7 +143,9 @@ export function createPlatformerDeclaration(deps: DeclarationDeps): GameDeclarat
 
     objectiveOf(playerIndex: number): Objective {
       const { tem, precisa } = deps.progressoDe(playerIndex);
-      return { name: { text: deps.t('hud.nome.moeda'), gender: 'f', plural: true }, have: tem, need: precisa };
+      // PLURAL, e a chave e' a mesma que o HUD ja usa (`hud.nome.moedas`): duas chaves para o mesmo nome
+      // divergiriam na traducao seguinte. O singular fica para o `nameAt`, que nomeia UM item.
+      return { name: { text: deps.t('hud.nome.moedas'), gender: 'f', plural: true }, have: tem, need: precisa };
     },
 
     /**

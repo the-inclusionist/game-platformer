@@ -434,7 +434,10 @@
   <!-- main.js é ES Module (type=module). PIXI vem do npm via `import * as PIXI from 'pixi.js'` (o Vite empacota;
        o antigo <script src=vendor/pixi.min.js> global foi aposentado). Módulo é `defer` por natureza: o DOM já
        está parseado (script no fim do body), então o comportamento de init é idêntico. -->
-  <script type="module" src="js/main.ts"></script>
+  <!-- ⚠️ O SHELL, E JA NAO O `main.ts` (ADR-0140 §2). `app/js/main.ts` deixou de bootar no import e virou a
+       fabrica do cartucho; quem a instancia, constroi o `ctx` e corre o laco e' `src/standalone.ts`. A
+       plataforma sera outro shell a volta da MESMA fabrica, e nada dentro do jogo sabe qual o carregou. -->
+  <script type="module" src="../src/standalone.ts"></script>
 
   <!-- VLibras — tradução para Libras (interina; online). Futuro: motor próprio em zdog (P2/P5). -->
   <div vw class="enabled">

@@ -104,6 +104,9 @@ describe('foco, alvos e objetivo', () => {
 
   it('[Right] o objetivo diz quantos tem e quantos precisa', () => {
     const o = arreio().objectiveOf(0);
+    // A chave e' a plural, e e' a MESMA que o HUD usa — uma segunda chave para o mesmo nome divergiria
+    // na traducao seguinte.
+    expect(o.name.text).toBe('hud.nome.moedas');
     expect(o.have).toBe(3);
     expect(o.need).toBe(10);
   });

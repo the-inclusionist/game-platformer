@@ -56,8 +56,10 @@ import type { RenderTextureLike, SpriteLike, GraphicsLike } from '@the-inclusion
 import type { MotionSceneKey, MotionSceneFlags, MotionCharDef } from '@the-inclusionist/engine/ui/settings-motion.js'; // as quatro chaves de movimento reduzido
 import type { HcRoleKey } from '@the-inclusionist/engine/render/hc-role-data.js'; // HC_ROLE é Record<HcRoleKey, …>: a chave não é `string`
 import { quizLevel, setQuizLevelValue, coins, setCoins } from './game/state.js'; // item 19: o estado DESTE jogo
-import { startLoop } from '@the-inclusionist/engine/core/loop.js'; // driver do loop
-import { criarAvisoDeQueda } from '@the-inclusionist/engine/ui/loop-crash.js'; // ADR-0054: o laco que para tem de DIZER que parou
+import type { GameCtx, CartuchoMontado } from '../../src/contract.js'; // o contrato do cartucho, deste lado
+import type { GanchosDoCartucho } from '@the-inclusionist/engine';
+import { createPlatformerDeclaration } from './declaration/platformer-declaration.js'; // o contrato do cartucho, deste lado
+// `startLoop` e `criarAvisoDeQueda` sairam daqui com o laco: sao do SHELL (ADR-0139), e vivem em src/standalone.ts
 import { initDebugPanel, type AmostraDoPersonagem } from '@the-inclusionist/engine/ui/debug-panel.js'; // painel ?debug (Tier 1)
 import { createAttract } from './game/attract.js'; // modo demonstração (Tier 1)
 import { isValidActivityId, DEFAULT_ACTIVITY_ID, modeForActivity, type GameMode }
@@ -152,7 +154,7 @@ import { MATERIAIS, travarNaPlaca } from './game/recycling.js'; // os quatro mat
 import { createRecycling } from './game/recycling-scene.js'; // a reciclagem: lixo, lixeiras e a placa (ADR-0049 §1)
 import { createRecyclingTextures, LIXO_ART, LIXEIRA_W, LIXEIRA_H, PLACA_H } from '@the-inclusionist/engine/render/recycling-tex.js';
 import { Z } from '@the-inclusionist/engine/core/layers.js'; // #69/ADR-0020: ordem-z canônica (nomeada) do render
-import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
+import type { Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
 import { initCollision, tileAt, solidAt, surfTop } from '@the-inclusionist/engine/core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
@@ -167,6 +169,32 @@ import { buildWorldFromText } from '@the-inclusionist/engine/core/world.js';
 // SFX (definicoes de som) extraido p/ platform/audio.js (Fase 2), e de la para game/earcons.js (item 19):
 // sete dos dez earcons sao deste jogo, e as legendas eram pt-BR cru dentro da engine.
 import { SFX } from './game/earcons.js';
+
+/* ===================== A FABRICA DO CARTUCHO (ADR-0139, D14) =====================
+ *
+ * ⚠️ ESTE FICHEIRO DEIXOU DE BOOTAR NO IMPORT. Era um modulo com efeito de topo: importa-lo arrancava o
+ * jogo. Um cartucho e' INSTANCIADO, e estado no escopo do modulo sobrevive ao `teardown()` e vaza para o
+ * jogo seguinte na mesma pagina — que e' a decisao D14 e tambem a historia de utilizador da propria engine:
+ * «quero que a engine nao carregue estado de jogo, para que dois jogos numa pagina nao colidam».
+ *
+ * 📌 O CORPO NAO FOI REINDENTADO, DE PROPOSITO. Deslocar 1900 linhas duas colunas faria o `git diff` deste
+ * commit dizer que tudo mudou, e esconderia as poucas linhas que mudaram mesmo. A reindentacao cabe num
+ * commit proprio, que nao muda mais nada e por isso se le sem esforco.
+ *
+ * ⚠️ O LACO NAO MORA MAIS AQUI. Um cartucho nunca chama `startLoop`: em modo solto quem o chama e' o shell,
+ * e na plataforma e' UM laco a chamar o `update(dt)` de cada cartucho montado. Seis cartuchos a abrir cada
+ * um o seu `requestAnimationFrame` seriam seis lacos a disputar o mesmo quadro.
+ *
+ * 📌 `dt` continua em QUADROS, e nao em segundos. E' a convencao herdada que mais se quebra.
+ */
+export async function create(ctx: GameCtx): Promise<CartuchoMontado> {
+
+// A ficha de cancelamento dos ouvintes GLOBAIS. Seis deles vivem na `window` e nao morrem com o DOM da
+// regiao: um `signal` em cada registro e um `abort()` solta os seis de uma vez, o que e' a unica forma
+// honesta de um `teardown()` existir num ficheiro que nunca teve um `removeEventListener`.
+const CANCELAR = new AbortController();
+const SOLTAR = { signal: CANCELAR.signal } as const;
+
 
 const rodada = createRunState<Powerup>({ aoTrocarJogadores: (n) => emit('numPlayers', n) });
 // `players` é um APELIDO, não uma cópia: a lista da rodada nunca é reatribuída (só mutada no lugar), então
@@ -256,7 +284,10 @@ const INCL_VERSION = String((typeof __BUILD__ !== 'undefined' && __BUILD__.versi
  * então o comportamento sorteado deste jogo fica idêntico ao de antes desta mudança. Quem escolhe a semente
  * é o shell, e essa decisão ainda não foi tomada.
  */
-const rng: Rng = createRng();
+// ⚠️ A CORRENTE VEM DO `ctx` E JA NAO E' CRIADA AQUI (ADR-0141 §1): quem a constroi e' o shell, um
+// `createRng(semente)` por cartucho. Era `createRng()` nesta linha — correto enquanto este ficheiro era o
+// unico dono da pagina, e errado no instante em que ele passou a ser um de varios.
+const rng: Rng = ctx.rng;
 const { rnd, randInt, shuffle } = rng;
 // Empatia MOTORA (global, muda a jogabilidade): `oneButton`/`wheelchair` migraram para core/state.js (#50) —
 // bindings vivos, escrita pelos setEfeito abaixo. isSolidType os usa, e continua vendo sempre o valor atual.
@@ -611,7 +642,7 @@ const keydownApi = initKeydown({
   win: window,
 });
 keydownApi.attach();
-addEventListener('blur',()=>keys.clear());
+addEventListener('blur',()=>keys.clear(), SOLTAR);
 // held(pl,act) movido p/ input/state.js (Fase 2.22) // teclado OU gamepad do jogador
 
 /* ===================== a11y ===================== */
@@ -1630,7 +1661,7 @@ const gamepadApi = initGamepad({
 // Desconectar NÃO abandona o jogo: o teclado é sempre fallback. Só solta a associação do pad.
 addEventListener('gamepaddisconnected',(e)=>{ try{ const owner=players.findIndex(p=>p.pad===e.gamepad.index);
   if(owner>=0){ players[owner].pad=-1; srAlert(t('sr.pad.disconnected',{n:owner+1})); }
-  delete padCur[e.gamepad.index]; }catch(err){} });
+  delete padCur[e.gamepad.index]; }catch(err){} }, SOLTAR);
 
 /* ===== L1: wizard de mapeamento de gamepad (DirectInput e controles fora do padrão) =====
    Captura botões por índice; analógicos como limiar por eixo/sinal ({ax,s}); D-pad "POV hat" do
@@ -1921,7 +1952,7 @@ function renderPauseLegend(){ const g=simNaoGlyphs();
 //  deslocamento 4,5mm. Faixa criança↔adulto estreita: crianças NÃO devem ir a alvos minúsculos.
 // Geometria fisica do pad (mm -> px), presets, direcional e o mapa de toque migraram para input/touch.ts
 // (Onda A). As dimensoes de tela entram INJETADAS: o modulo nunca le window.innerWidth.
-addEventListener('gamepadconnected', (e)=>{ try{ const d=touchCtl.applyPadDesign(padLayoutFromId(e.gamepad.id)); const sel=$<HTMLSelectElement>('#pad-design'); if(sel)sel.value=d; srSay(t('sr.pad.connected',{v:d})); }catch(err){} }); // A2: layout pelo id do controle
+addEventListener('gamepadconnected', (e)=>{ try{ const d=touchCtl.applyPadDesign(padLayoutFromId(e.gamepad.id)); const sel=$<HTMLSelectElement>('#pad-design'); if(sel)sel.value=d; srSay(t('sr.pad.connected',{v:d})); }catch(err){} }, SOLTAR); // A2: layout pelo id do controle
 const padDesignSel=$<HTMLSelectElement>('#pad-design'); if(padDesignSel){ padDesignSel.value=touchCtl.getPadDesign(); padDesignSel.addEventListener('change',()=>{ touchCtl.applyPadDesign(padDesignSel.value); srSay(t('sr.pad.design',{v:padDesignSel.value})); }); } // A4: escolha manual
 // JOGAR COM OS OLHOS: eyeMode/eyeSet/onGaze/startEyeControl/stopEyeControl/loadWebGazer → ui/webcam.js (Estágio 4, Tier 1).
 const eyesBtn=$('#opt-eyes'); if(eyesBtn)eyesBtn.addEventListener('click',()=>{ setEyeMode(!eyeMode); toggleBtn(eyesBtn,eyeMode); eyesBtn.textContent=toggleLabel(eyeMode);
@@ -1996,18 +2027,22 @@ function fpsTick(){ const fps=app.ticker.FPS; fpsWarm++; fpsAccum+=fps; fpsFrame
 }
 
 /* ===================== loop ===================== */
-startLoop(app.ticker, (dt)=>{ gamepadApi.pollPads(); update(dt); draw();
+// O QUADRO DESTE CARTUCHO. Era o corpo do `startLoop`; agora e' o `update(dt)` que a instancia devolve, e
+// quem o chama e' o shell — ver a nota no topo da fabrica.
+function quadro(dt: number): void { gamepadApi.pollPads(); update(dt); draw();
   titleG.visible=fatosDaCena().telaDeTitulo; if(titleG.visible)titleScene.draw(); // cena do título da v3 cobre o mundo
   attractCtl.titleIdleTick(titleG.visible); // attract após 60s parado no menu (José)
   setMinimapVisible(!titleG.visible&&rodada.numPlayers<=1); document.body.classList.toggle('at-title',titleG.visible); // HUD/minimapa não vazam no menu
   fpsTick();
-  if(fatosDaCena().mundoRodando){ weather.updateWeather(); ambient.updateAmbient(); nav.updateGuide(); } }, // F4: clima + ambiente + guia auditivo (só durante o jogo)
+  if(fatosDaCena().mundoRodando){ weather.updateWeather(); ambient.updateAmbient(); nav.updateGuide(); } } // F4: clima + ambiente + guia auditivo (só durante o jogo)
   // ⚠️ O 2 E O `aoFalhar` FALTAVAM AQUI: a chamada tinha DOIS argumentos (ADR-0054, issue #109). O laço já
   // parava quando um quadro lançava — isso o `core/loop` sempre fez —, mas parava EM SILÊNCIO. Tela congelada
   // é sintoma VISUAL: no modo cego, um jogo parado e um jogo pensando produzem a mesma coisa, e a criança
   // fica a esperar por um jogo que já morreu. O `2` é o `maxDt` que já era o padrão, e vai escrito porque um
   // argumento posicional omitido no meio é exatamente como o `aoFalhar` ficou de fora sem ninguém reparar.
-  2, { aoFalhar: criarAvisoDeQueda({ procurar: (sel) => $<HTMLElement>(sel), criar: (tag) => document.createElement(tag), narrar: (texto) => tts.narrate(texto) }) });
+// ⚠️ O `maxDt` E O `aoFalhar` SAIRAM COM O LACO, e nao foram perdidos: o ADR-0054 poe o aviso de queda no
+// shell, que e' quem sabe que o laco parou. Um cartucho que rebenta tem de parar a si proprio sem parar a
+// plataforma, e isso so quem corre o laco pode garantir.
 window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,pollPads:()=>gamepadApi.pollPads(),update,openPadWiz:()=>gamepadApi.openPadWiz(),padWizTick:()=>gamepadApi.padWizTick(),padMapFor:(id: Parameters<typeof gamepadApi.padMapFor>[0])=>gamepadApi.padMapFor(id),get padWiz(){return gamepadApi.getPadWiz();},get phase(){return cenas.fase();},get padPrev(){return padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[vizMode]||{}).kind==='hcnew';} /* derivado de vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return _footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return nav.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
   get mmSeen(){return minimapSeenCount();},get MODE(){return MODE();},get letterCase(){return letterCase;},brailleText,tileAt,WORLD_W,WORLD_H,TUNE,
   JUICE,addShake,addHitstop,burstSparkle,puffDust,draw,get particles(){return getParticles();},get hitstopT(){return getHitstopT();},get shakeT(){return getShakeT();},CRT,applyCrt,setLq,get lqT(){return getLqT();},
@@ -2035,7 +2070,7 @@ function hideTips(){} // dicas de início REMOVIDAS (José 2026-07-04); stub man
    por polling e, ao abrir, reserva o slot 5:9 (jogo desloca à esquerda, conjunto 21:9 centraliza)
    e encaixa+escala o painel no slot. */
 // layout() extraído p/ ui/layout.js (Estágio 4, Tier 1). O acoplamento com ui/vlibras acabou: o intérprete não empurra.
-addEventListener('resize', layout);
+addEventListener('resize', layout, SOLTAR);
 setOnLibrasChange(layout); // ui/vlibras: reflui o layout ao abrir/fechar o intérprete (callback injetado)
 setInterval(vlTick, 250);
 layout(); requestAnimationFrame(layout); setTimeout(layout, 1500);
@@ -2154,8 +2189,8 @@ menuNav.attach(); // addEventListener('keydown', menuNavKey, true) — MESMA fas
 // updateTitleLegend migrou para ui/shell.ts (C3) — e legenda da TELA de titulo, nao navegacao de menu; o
 // envelope icado fica la em cima, junto do resto da casca. padKind() foi APAGADO: input/touch.ts ja exporta
 // a mesma funcao desde a Onda A e a copia daqui nao tinha chamador nenhum (codigo morto duplicado).
-addEventListener('gamepadconnected',()=>{ if(fatosDaCena().telaDeTitulo)updateTitleLegend(); });
-addEventListener('gamepaddisconnected',()=>{ if(fatosDaCena().telaDeTitulo)updateTitleLegend(); });
+addEventListener('gamepadconnected',()=>{ if(fatosDaCena().telaDeTitulo)updateTitleLegend(); }, SOLTAR);
+addEventListener('gamepaddisconnected',()=>{ if(fatosDaCena().telaDeTitulo)updateTitleLegend(); }, SOLTAR);
 // O despachante do menu do titulo (teclado do #np-btn, rodape de descricao e o click) migrou para
 // ui/activities-menu.ts, que liga os proprios ouvintes no #title-overlay. Sobrou aqui a barra de
 // icones de a11y do splash, que e do slice de pausa.
@@ -2293,3 +2328,62 @@ initDebugPanel({
 
 /* ===================== PWA ===================== */
 // PWA/SW agora gerados pelo vite-plugin-pwa (Estágio 1); registro injetado no build. Ver vite.config.ts.
+
+/* ===================== O QUE A FABRICA DEVOLVE =====================
+ *
+ * ⚠️ O `teardown` E' HONESTO SOBRE O QUE AINDA NAO SOLTA, e a lista importa mais que o codigo:
+ *
+ *  · SOLTA os seis ouvintes globais (`window`), por `AbortController` — antes desta mudanca este ficheiro
+ *    nao tinha um unico `removeEventListener`, entao nao havia sobre o que construir.
+ *  · SOLTA o PixiJS, com `destroy` a alcancar os filhos: e' ele que segura a tela, as texturas e o ticker.
+ *  · NAO SOLTA os ouvintes dos paineis, e a razao nao e' esquecimento: 36 overlays deste jogo vivem FORA do
+ *    `#game-region` — a regiao e' 1% do documento —, entao o shell esvaziar a regiao nao os alcanca. Eles so
+ *    desaparecem quando os paineis passarem a ser da plataforma, que e' o achado nº 1 entregue a engine.
+ *  · NAO LIMPA o estado de escopo de modulo dos vizinhos (`coins`, `life`, `traffic`, `quiz`…): cada `initX`
+ *    reescreve o seu na montagem seguinte, mas `_recentWords` do quiz e a lista de itens atravessariam um
+ *    `unmount`. Enquanto a engine monta UM cartucho de cada vez isso nao colide; no dia em que montar dois,
+ *    colide — e e' por isso que esta lista esta escrita e nao suposta.
+ */
+function teardown(): void {
+  CANCELAR.abort();
+  try { app.destroy(true, { children: true }); } catch (e) { /* ja destruido */ }
+  try { delete (window as unknown as Record<string, unknown>).__incl; } catch (e) { /* nao enumeravel */ }
+}
+
+/* ===================== A DECLARACAO, LIGADA AO JOGO DE VERDADE =====================
+ *
+ * ⚠️ ELA NASCE AQUI DENTRO, e nao no escopo do modulo, porque le o estado da RODADA — as moedas, os
+ * jogadores, o tamanho do mundo. No escopo do modulo seria a declaracao de um jogo, partilhada por dois.
+ *
+ * 📌 `tipoDoTile` poe os limites a MAO em vez de confiar no `tileAt`: aquele devolve `2` — um tile SOLIDO —
+ * para fora da grade (`core/collision.js:38`), e a declaracao precisa de distinguir `fora` de `pedra`. As
+ * duas respostas dao 'structure' hoje, mas por motivos diferentes, e confundi-las esconderia o dia em que
+ * uma delas mudasse.
+ */
+const declaration = createPlatformerDeclaration({
+  mundo: () => ({ larguraPx: WORLD_PX_W, alturaPx: WORLD_PX_H, tile: TILE }),
+  tipoDoTile: (tx, ty) => (tx < 0 || ty < 0 || tx >= WORLD_W || ty >= WORLD_H) ? null : tileAt(tx, ty),
+  ehSolido: (tx, ty) => solidAt(tx, ty),
+  alvosDe: (i) => coins.filter((cn) => !cn.taken && cn.owner === i).map((cn) => ({ x: cn.x, y: cn.y })),
+  jogadorEm: (i) => { const p = players[i]; return p ? { x: p.x, y: p.y, facing: p.facing } : null; },
+  progressoDe: (i) => ({ tem: (players[i] && players[i].collected) || 0, precisa: COIN_TARGET }),
+  t,
+  seletorDoMundo: '#game-region',
+});
+
+// A METADE DO JOGO das opcoes de `createGame` (ADR-0139), no tipo que a engine 9.0.0 publica. O shell
+// entrega-a ao `engine.mount()` assim que este cartucho existe — e' para isso que o ADR-0142 a criou.
+const hooks: GanchosDoCartucho = {
+  isNavigable: () => true,
+  sonarPlayers: () => controlados().map((p, i) => ({ i, x: p.x, y: p.y })),
+  setPhase: (f) => { if (f === 'playing' || f === 'title' || f === 'paused') setPhase(f); },
+  isBlindMode: () => modoCego,
+  preset: platformerPreset(),
+  getPauseActs: () => pauseActs,
+  setPauseActor: (i: number) => rodada.setPauseActor(i),
+  setTemaDoJogador: (...a: Parameters<typeof setTemaDoJogador>) => setTemaDoJogador(...a),
+  setCorrecaoDoJogador: (...a: Parameters<typeof setCorrecaoDoJogador>) => setCorrecaoDoJogador(...a),
+};
+
+return { update: quadro, teardown, declaration, hooks };
+}

@@ -61,10 +61,21 @@ describe('ADR-0141 — o cartucho nao toca a corrente partilhada', () => {
     expect(culpados).toEqual([]);
   });
 
-  // O outro lado da mesma regra, porque a ausencia sozinha tambem seria satisfeita por um cartucho que nao
-  // sorteia nada: a raiz TEM de criar a sua corrente, e e' dela que tudo desce.
-  it('[Right] e a raiz cria a sua propria corrente', () => {
+  // O OUTRO LADO DA MESMA REGRA, porque a ausencia sozinha tambem seria satisfeita por um cartucho que nao
+  // sorteia nada. E ele mudou de sitio quando o `main.ts` virou fabrica: a corrente ja nao NASCE na raiz do
+  // jogo — nasce no SHELL, um `createRng` por cartucho (ADR-0141 §1), e a raiz recebe-a pelo `ctx`. Afrouxar
+  // este caso para "algures ha um createRng" teria escondido exatamente a mudanca que ele devia registar.
+  it('[Right] a raiz recebe a corrente do `ctx`, e nao a cria', () => {
     const main = readFileSync(join(RAIZ, 'main.ts'), 'utf8');
-    expect(main).toMatch(/const rng: Rng = createRng\(\)/);
+    expect(main).toMatch(/const rng: Rng = ctx\.rng/);
+    // ⚠️ NAO se afere aqui a AUSENCIA de `createRng(`: o primeiro caso deste ficheiro ja prova que
+    // `core/rng` nao e' importado na raiz, e sem import chamar a funcao e' impossivel. Uma asserçao
+    // literal sobre o texto reprovava com a palavra dentro de um COMENTARIO que explica a mudanca —
+    // um portao que proibe falar do que protege.
+  });
+
+  it('[Right] e quem a cria e o shell, uma por cartucho', () => {
+    const shell = readFileSync(join(process.cwd(), 'src', 'standalone.ts'), 'utf8');
+    expect(shell).toMatch(/const rng = createRng\(\)/);
   });
 });
