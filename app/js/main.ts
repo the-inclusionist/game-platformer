@@ -1,3 +1,28 @@
+
+// ⚠️ A POSIÇÃO É O CONTRATO. A primeira versão declarou isto 380 linhas abaixo, e o boot morreu com
+// `Cannot read properties of undefined (reading 'gateOpen')`: o `initCollision` da linha ~162 já lê a
+// instância. Sem minificar seria um erro de TDZ com nome; minificado, `const` de topo vira `var` e o erro
+// vira um `undefined` silencioso. Terceira vez que esta armadilha morde este arquivo — as outras foram o
+// `setPlayerViz` e os auxiliares `jogadores()`/`controlados()`.
+
+/**
+ * A RODADA (ADR-0038, Fase B). A raiz de composição POSSUI a instância; ninguém mais a alcança por
+ * import. O genérico é `Powerup` porque o tipo do power-up é do JOGO — a engine declara a forma da lista
+ * e quem cria diz de quê ela é. Era `readonly unknown[]` em `core/state`, e o `unknown` custava três
+ * erros de tipo aqui embaixo.
+ */
+
+/* ===================== OS IMPORTS, TODOS AQUI EM CIMA =====================
+ *
+ * ⚠️ ESTAVAM INTERCALADOS COM O CODIGO — 125 declaracoes espalhadas ate a linha 608 —, e isso tinha de
+ * acabar antes de este ficheiro poder virar a fabrica do cartucho: um `import` e' declaracao de MODULO e
+ * nao pode viver dentro de uma funcao. Icar nao muda comportamento nenhum, porque o ES ja os iça; o que
+ * muda e' tornar o passo seguinte possivel.
+ *
+ * 📌 Cada um veio com o bloco de comentario que estava colado a ele. Deixar as explicacoes para tras teria
+ * sido a parte cara deste movimento, e e' a unica perda que um `git diff` nao mostraria como perda.
+ */
+
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // The Inclusionist v4 — port do Lúdico real sobre PixiJS.
 // ESTE ARQUIVO CHAMAVA-SE game.js ate a etapa D2 da modularizacao. O nome mudou porque o conteudo mudou: o
@@ -24,51 +49,6 @@ import { createRunState } from '@the-inclusionist/engine/core/run-state.js'; // 
 import { criarCenasDoJogo, type Fase } from './game/cenas.js'; // as três cenas DESTE jogo (ADR-0030 C3)
 import type { FatosDaCena } from '@the-inclusionist/engine/core/scenes.js';
 import type { Powerup } from './game/level-geometry.js'; // o tipo do power-up é do JOGO
-
-// ⚠️ A POSIÇÃO É O CONTRATO. A primeira versão declarou isto 380 linhas abaixo, e o boot morreu com
-// `Cannot read properties of undefined (reading 'gateOpen')`: o `initCollision` da linha ~162 já lê a
-// instância. Sem minificar seria um erro de TDZ com nome; minificado, `const` de topo vira `var` e o erro
-// vira um `undefined` silencioso. Terceira vez que esta armadilha morde este arquivo — as outras foram o
-// `setPlayerViz` e os auxiliares `jogadores()`/`controlados()`.
-
-/**
- * A RODADA (ADR-0038, Fase B). A raiz de composição POSSUI a instância; ninguém mais a alcança por
- * import. O genérico é `Powerup` porque o tipo do power-up é do JOGO — a engine declara a forma da lista
- * e quem cria diz de quê ela é. Era `readonly unknown[]` em `core/state`, e o `unknown` custava três
- * erros de tipo aqui embaixo.
- */
-const rodada = createRunState<Powerup>({ aoTrocarJogadores: (n) => emit('numPlayers', n) });
-// `players` é um APELIDO, não uma cópia: a lista da rodada nunca é reatribuída (só mutada no lugar), então
-// um `const` aponta para o mesmo array para sempre — e as 44 leituras deste arquivo seguem escritas igual.
-// Ver a nota do campo em `core/run-state`, que é onde essa garantia está declarada.
-const players = rodada.players;
-// Os dois módulos que leem a contagem sem ter ctx: a escala das telas e a ancoragem da scanline. Ligados
-// AQUI, junto da criação da rodada, e não lá embaixo — um `initLayout` esquecido não dá erro nenhum, só
-// devolve 1 para sempre, e o multi-tela nasceria com a grade de um jogador.
-/* ===================== AS CENAS (ADR-0030 C3, passo 3 da Fase B) =====================
-   `phase: 'title'|'playing'|'paused'` SAIU de `core/state`. As três cenas e as regras de ir de uma para a
-   outra moram em `game/cenas` — do lado do JOGO, porque o vocabulário é dele —, e o que atravessa de volta
-   para a engine são três BOOLEANOS (`FatosDaCena`). É a mesma correção que o `consumer-quiz` obrigou a
-   fazer no `menu-nav` (`getPhase()` → `isNavigable()`), registrada em `core/constants` como o erro a não
-   repetir.
-
-   ⚠️ O QUE ESTE PASSO NÃO FAZ: as cenas ainda não têm CORPO. As três regras do `core/scenes` — update só no
-   topo, draw de baixo para cima, input só no topo — continuam sendo os `if (!mundoRodando) return`
-   espalhados. Encaminhar o quadro pela pilha muda o laço principal, e misturar isso com "quem pergunta o
-   quê" tornaria qualquer regressão inatribuível. Fica para a fatia seguinte. */
-// O `aoTrocar` é ARROW e não valor, e isso é o que o torna válido aqui: `shell` é um `const` declarado
-// ~1.500 linhas abaixo, e só a resolução na hora da chamada o tira da TDZ. A primeira troca de cena é o
-// `setPhase('title')` do boot, lá embaixo, depois de a casca existir. (Mesmo padrão do ctx da pausa.)
-const cenas = criarCenasDoJogo(() => shell.aplicarCena());
-const fatosDaCena = (): FatosDaCena => cenas.fatos();
-initLayout({ numJogadores: () => rodada.numPlayers });
-// `a11yVisualAtiva`: ALGUM jogador fora do modo `normal`. O CRT é decoração GLOBAL — uma só para a tela
-// inteira —, então não há como escurecer as bordas de meia tela; se decoração e acessibilidade de qualquer
-// criança se contradizem, quem cede é a decoração (ADR-0020, "precedência a11y > estética").
-initCrt({
-  numJogadores: () => rodada.numPlayers,
-  a11yVisualAtiva: () => players.some((p) => { const m = VIZ_BY_KEY[p.viz]; return !!m && m.kind !== 'normal'; }),
-});
 import type { Player, PlayerView } from '@the-inclusionist/engine/core/entity.js'; // a entidade da ENGINE, e a vista mínima dela
 import type { GamePlayer, ControlledGamePlayer } from './game/entity.js'; // as deste JOGO — ver `jogadores`/`controlados`
 import type { ModalIntent, ControlsSnapshot } from '@the-inclusionist/engine/input/keydown.js'; // a intenção direcional do ADR-0033
@@ -82,7 +62,6 @@ import { initDebugPanel, type AmostraDoPersonagem } from '@the-inclusionist/engi
 import { createAttract } from './game/attract.js'; // modo demonstração (Tier 1)
 import { isValidActivityId, DEFAULT_ACTIVITY_ID, modeForActivity, type GameMode }
   from '@the-inclusionist/engine/educational/activities-registry.js'; // ADR-0040: o MODE deriva daqui, e a derivação mora no currículo
-
 import { buildElevators, elevAt, getElevShafts, initElevators } from './game/elevators.js'; // Estágio 4 (Tier 2): geometria de elevador (cadeirante)
 import { fmtFrac, fracGraphic, speakChoice } from './game/fractions.js'; // Estágio 4 (Tier 2): matemática/render de frações
 import { brailleText } from './game/braille.js'; // Estágio 4 (Tier 2): cela braille + fala (atividade cego)
@@ -109,28 +88,6 @@ import { initTitle } from '@the-inclusionist/engine/ui/title.js';
 import { createTitleScene } from '@the-inclusionist/engine/render/title-scene.js'; // Fase 2.27: atalho de querySelector (Tier 1)
 import { labellerFrom, shortLabellerFrom, presetActions, type Action } from '@the-inclusionist/engine/core/actions.js';
 import { platformerPreset } from './game/platformer-preset.js';
-
-/**
- * As posições que ESTE jogo usa, com a palavra dele, no idioma de agora.
- *
- * ⚠️ Vive na raiz de composição e não no preset porque derivar a lista é trabalho de COMPOSIÇÃO: o preset
- * declara o vocabulário, e quem o transforma no que uma tela precisa é quem monta a tela. Pô-lo no preset
- * obrigaria os trezentos jogos a repetir a mesma derivação.
- */
-function rotuloCurto(acao: string): string | null {
-  return shortLabellerFrom(platformerPreset())(acao as Action);
-}
-
-// ⚠️ `Action` E JÁ NÃO `string`: a engine 8.0.0 estreitou `SettingsControlsCtx.acoesDoJogo`, e o conserto
-// foi APAGAR o `as string` que alargava de volta o que `presetActions` já devolvia certo. O alargamento
-// era antigo e custava a recusa de tecla duplicada, que casa a posição pela PALAVRA da ação.
-function acoesDoJogo(): readonly { readonly acao: Action; readonly rotulo: string }[] {
-  const preset = platformerPreset();
-  const rotulo = labellerFrom(preset);
-  return presetActions(preset)
-    .map((a) => ({ acao: a, rotulo: rotulo(a) || '' }))
-    .filter((x) => x.rotulo !== '');
-}
 import { ehCego, ehBaixaVisao, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js'; // os dois eixos (8.0.0): quem responde ao sonar
 import { VIZ_MODES, VIZ_BY_KEY, VIZ_CYCLE, simulatesDisability } from '@the-inclusionist/engine/render/viz-modes.js'; // Fase 2: modos visuais de a11y (dados)
 import { PAD_DESIGNS } from '@the-inclusionist/engine/input/devices.js'; // Fase 2: rótulos de gamepad/toque (dados)
@@ -186,6 +143,86 @@ import { initDraw } from '@the-inclusionist/engine/render/draw.js'; // C1: camer
 import { initVizSetters } from '@the-inclusionist/engine/render/viz-setters.js'; // Onda A: aplicacao dos modos de visao acessivel
 import { roleOf } from './game/tile-roles.js'; // Passo 7: a tabela tile->papel e' do JOGO, nao do alto contraste
 import { initLevelGeometry, buildRamps, buildRopes, drawElevators, buildDarkRegions, buildWcGeom as lgBuildWcGeom, rebuildExtras as lgRebuildExtras, setupExtras as lgSetupExtras } from './game/level-geometry.js'; // Onda A: rampas/cordas/elevador/escuridao/extras
+// Constantes puras extraídas para core/constants.js (modularização Fase B).
+import { LOGICAL_W, LOGICAL_H, TILE, ANIM } from '@the-inclusionist/engine/core/constants.js';
+import { COIN_TARGET, TUNE } from './game/tuning.js';
+import { TILE_TYPES } from '@the-inclusionist/engine/core/constants.js'; // a tabela do que cada tile É — a reciclagem pergunta "isto é água?"
+import { acaoDeCarga } from './game/carry.js'; // qual botão pega, solta e arremessa (ADR-0045)
+import { MATERIAIS, travarNaPlaca } from './game/recycling.js'; // os quatro materiais, e a trava da placa
+import { createRecycling } from './game/recycling-scene.js'; // a reciclagem: lixo, lixeiras e a placa (ADR-0049 §1)
+import { createRecyclingTextures, LIXO_ART, LIXEIRA_W, LIXEIRA_H, PLACA_H } from '@the-inclusionist/engine/render/recycling-tex.js';
+import { Z } from '@the-inclusionist/engine/core/layers.js'; // #69/ADR-0020: ordem-z canônica (nomeada) do render
+import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
+import { initCollision, tileAt, solidAt, surfTop } from '@the-inclusionist/engine/core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
+import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
+import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
+import { srSay, srAlert, setVlibrasSay } from '@the-inclusionist/engine/core/a11y-sr.js'; // Estágio 4 (Tier 1): anúncios p/ leitor de tela (+ Libras injetado)
+import { CRT, applyCrt, initCrt } from '@the-inclusionist/engine/render/crt.js'; // Estágio 4 (Tier 1): estética CRT (scanlines/vinheta/cantos)
+import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount } from '@the-inclusionist/engine/render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
+import { vlibrasSay, vlibrasOpen, toggleLibras, vlTick, librasOpen, setOnLibrasChange } from '@the-inclusionist/engine/ui/vlibras.js'; // Estágio 4 (Tier 1): intérprete VLibras (modo pessoa surda)
+import { layout, initLayout } from '@the-inclusionist/engine/ui/layout.js'; // Estágio 4 (Tier 1): escala do jogo (múltiplo inteiro de 320×180 em px reais)
+import { eyeMode, setEyeMode, startEyeControl, stopEyeControl, loadWebGazer } from '@the-inclusionist/engine/ui/webcam.js'; // Estágio 4 (Tier 1): jogar com os olhos (WebGazer)
+// Mundo carregado do texto-glifo assets/levels/clarity.map.txt (Fase 1.2). Construtor em core/world.js.
+import { buildWorldFromText } from '@the-inclusionist/engine/core/world.js';
+// SFX (definicoes de som) extraido p/ platform/audio.js (Fase 2), e de la para game/earcons.js (item 19):
+// sete dos dez earcons sao deste jogo, e as legendas eram pt-BR cru dentro da engine.
+import { SFX } from './game/earcons.js';
+
+const rodada = createRunState<Powerup>({ aoTrocarJogadores: (n) => emit('numPlayers', n) });
+// `players` é um APELIDO, não uma cópia: a lista da rodada nunca é reatribuída (só mutada no lugar), então
+// um `const` aponta para o mesmo array para sempre — e as 44 leituras deste arquivo seguem escritas igual.
+// Ver a nota do campo em `core/run-state`, que é onde essa garantia está declarada.
+const players = rodada.players;
+// Os dois módulos que leem a contagem sem ter ctx: a escala das telas e a ancoragem da scanline. Ligados
+// AQUI, junto da criação da rodada, e não lá embaixo — um `initLayout` esquecido não dá erro nenhum, só
+// devolve 1 para sempre, e o multi-tela nasceria com a grade de um jogador.
+/* ===================== AS CENAS (ADR-0030 C3, passo 3 da Fase B) =====================
+   `phase: 'title'|'playing'|'paused'` SAIU de `core/state`. As três cenas e as regras de ir de uma para a
+   outra moram em `game/cenas` — do lado do JOGO, porque o vocabulário é dele —, e o que atravessa de volta
+   para a engine são três BOOLEANOS (`FatosDaCena`). É a mesma correção que o `consumer-quiz` obrigou a
+   fazer no `menu-nav` (`getPhase()` → `isNavigable()`), registrada em `core/constants` como o erro a não
+   repetir.
+
+   ⚠️ O QUE ESTE PASSO NÃO FAZ: as cenas ainda não têm CORPO. As três regras do `core/scenes` — update só no
+   topo, draw de baixo para cima, input só no topo — continuam sendo os `if (!mundoRodando) return`
+   espalhados. Encaminhar o quadro pela pilha muda o laço principal, e misturar isso com "quem pergunta o
+   quê" tornaria qualquer regressão inatribuível. Fica para a fatia seguinte. */
+// O `aoTrocar` é ARROW e não valor, e isso é o que o torna válido aqui: `shell` é um `const` declarado
+// ~1.500 linhas abaixo, e só a resolução na hora da chamada o tira da TDZ. A primeira troca de cena é o
+// `setPhase('title')` do boot, lá embaixo, depois de a casca existir. (Mesmo padrão do ctx da pausa.)
+const cenas = criarCenasDoJogo(() => shell.aplicarCena());
+const fatosDaCena = (): FatosDaCena => cenas.fatos();
+initLayout({ numJogadores: () => rodada.numPlayers });
+// `a11yVisualAtiva`: ALGUM jogador fora do modo `normal`. O CRT é decoração GLOBAL — uma só para a tela
+// inteira —, então não há como escurecer as bordas de meia tela; se decoração e acessibilidade de qualquer
+// criança se contradizem, quem cede é a decoração (ADR-0020, "precedência a11y > estética").
+initCrt({
+  numJogadores: () => rodada.numPlayers,
+  a11yVisualAtiva: () => players.some((p) => { const m = VIZ_BY_KEY[p.viz]; return !!m && m.kind !== 'normal'; }),
+});
+
+
+/**
+ * As posições que ESTE jogo usa, com a palavra dele, no idioma de agora.
+ *
+ * ⚠️ Vive na raiz de composição e não no preset porque derivar a lista é trabalho de COMPOSIÇÃO: o preset
+ * declara o vocabulário, e quem o transforma no que uma tela precisa é quem monta a tela. Pô-lo no preset
+ * obrigaria os trezentos jogos a repetir a mesma derivação.
+ */
+function rotuloCurto(acao: string): string | null {
+  return shortLabellerFrom(platformerPreset())(acao as Action);
+}
+
+// ⚠️ `Action` E JÁ NÃO `string`: a engine 8.0.0 estreitou `SettingsControlsCtx.acoesDoJogo`, e o conserto
+// foi APAGAR o `as string` que alargava de volta o que `presetActions` já devolvia certo. O alargamento
+// era antigo e custava a recusa de tecla duplicada, que casa a posição pela PALAVRA da ação.
+function acoesDoJogo(): readonly { readonly acao: Action; readonly rotulo: string }[] {
+  const preset = platformerPreset();
+  const rotulo = labellerFrom(preset);
+  return presetActions(preset)
+    .map((a) => ({ acao: a, rotulo: rotulo(a) || '' }))
+    .filter((x) => x.rotulo !== '');
+}
 if(typeof window!=='undefined') window.__tiles = tiles; // hook de teste (Preview); world.js passa a usar na etapa 2
 initCharacterSprites(); // cria as texturas do personagem no boot — o import de sprites.js é PURO (sem I/O). Fase 2.24
 initAudioMixer();        // carrega o estado do mixer no boot — o import de audio.js é PURO (não lê localStorage). Fase 2.25
@@ -198,16 +235,6 @@ const INCL_VERSION = String((typeof __BUILD__ !== 'undefined' && __BUILD__.versi
 'use strict';
 
 /* ===================== constantes ===================== */
-// Constantes puras extraídas para core/constants.js (modularização Fase B).
-import { LOGICAL_W, LOGICAL_H, TILE, ANIM } from '@the-inclusionist/engine/core/constants.js';
-import { COIN_TARGET, TUNE } from './game/tuning.js';
-import { TILE_TYPES } from '@the-inclusionist/engine/core/constants.js'; // a tabela do que cada tile É — a reciclagem pergunta "isto é água?"
-import { acaoDeCarga } from './game/carry.js'; // qual botão pega, solta e arremessa (ADR-0045)
-import { MATERIAIS, travarNaPlaca } from './game/recycling.js'; // os quatro materiais, e a trava da placa
-import { createRecycling } from './game/recycling-scene.js'; // a reciclagem: lixo, lixeiras e a placa (ADR-0049 §1)
-import { createRecyclingTextures, LIXO_ART, LIXEIRA_W, LIXEIRA_H, PLACA_H } from '@the-inclusionist/engine/render/recycling-tex.js';
-import { Z } from '@the-inclusionist/engine/core/layers.js'; // #69/ADR-0020: ordem-z canônica (nomeada) do render
-import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
 
 /*
  * A CORRENTE DESTE CARTUCHO (ADR-0141), e a razão de ela ser criada em vez de importada.
@@ -231,15 +258,6 @@ import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js'; // F
  */
 const rng: Rng = createRng();
 const { rnd, randInt, shuffle } = rng;
-import { initCollision, tileAt, solidAt, surfTop } from '@the-inclusionist/engine/core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
-import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
-import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
-import { srSay, srAlert, setVlibrasSay } from '@the-inclusionist/engine/core/a11y-sr.js'; // Estágio 4 (Tier 1): anúncios p/ leitor de tela (+ Libras injetado)
-import { CRT, applyCrt, initCrt } from '@the-inclusionist/engine/render/crt.js'; // Estágio 4 (Tier 1): estética CRT (scanlines/vinheta/cantos)
-import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount } from '@the-inclusionist/engine/render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
-import { vlibrasSay, vlibrasOpen, toggleLibras, vlTick, librasOpen, setOnLibrasChange } from '@the-inclusionist/engine/ui/vlibras.js'; // Estágio 4 (Tier 1): intérprete VLibras (modo pessoa surda)
-import { layout, initLayout } from '@the-inclusionist/engine/ui/layout.js'; // Estágio 4 (Tier 1): escala do jogo (múltiplo inteiro de 320×180 em px reais)
-import { eyeMode, setEyeMode, startEyeControl, stopEyeControl, loadWebGazer } from '@the-inclusionist/engine/ui/webcam.js'; // Estágio 4 (Tier 1): jogar com os olhos (WebGazer)
 // Empatia MOTORA (global, muda a jogabilidade): `oneButton`/`wheelchair` migraram para core/state.js (#50) —
 // bindings vivos, escrita pelos setEfeito abaixo. isSolidType os usa, e continua vendo sempre o valor atual.
 // Modo cego (A12e auditiva) migrou para core/state.js (#50): `modoCego` é binding vivo, escrita por setModoCego() abaixo.
@@ -250,8 +268,6 @@ import { eyeMode, setEyeMode, startEyeControl, stopEyeControl, loadWebGazer } fr
 // TILE_COLOR agora vem de core/constants.js (importado acima).
 
 /* ===================== mundo ===================== */
-// Mundo carregado do texto-glifo assets/levels/clarity.map.txt (Fase 1.2). Construtor em core/world.js.
-import { buildWorldFromText } from '@the-inclusionist/engine/core/world.js';
 // top-level await: main.js é módulo → o corpo abaixo só roda após o mapa carregar (pré-cacheado no SW).
 /* ===================== O IDIOMA VEM ANTES DE QUALQUER COISA SER MONTADA =====================
    `initI18n()` era a ULTIMA linha do boot, e para pt isso nao custava nada. Para en/es custava metade da
@@ -603,9 +619,6 @@ addEventListener('blur',()=>keys.clear());
 setVlibrasSay(vlibrasSay); // registra a fala em Libras (ui/vlibras) no core/a11y-sr
 
 /* ===== E9: áudio (WebAudio) + legendas (C1) + assistência (C2) ===== */
-// SFX (definicoes de som) extraido p/ platform/audio.js (Fase 2), e de la para game/earcons.js (item 19):
-// sete dos dez earcons sao deste jogo, e as legendas eram pt-BR cru dentro da engine.
-import { SFX } from './game/earcons.js';
 let capTimer: ReturnType<typeof setTimeout> | null = null; // `captionsOn` migrou para core/state.js (#50); soundOn/volume/audioCtx vêm de platform/audio.js
 const anyEasy=()=>players.some(p=>p.easy); // efeitos de MUNDO do Fácil (moedas no chão) ligam se QUALQUER jogador usa Fácil
 // Modo Fácil (deficiência motora): gravidade ×2/3, pulo ×8/7, andar ×0.7, sem perigos, sem correr,
