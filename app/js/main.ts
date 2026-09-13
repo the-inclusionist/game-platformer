@@ -125,7 +125,9 @@ import { initTouchBindings } from '@the-inclusionist/engine/input/touch-bindings
 import { initKeydown } from '@the-inclusionist/engine/input/keydown.js'; // D2-a: o roteador de teclado (a cadeia de precedencia) // Onda A: esquema de teclas por jogador
 import { initTouch, padLayoutFromId } from '@the-inclusionist/engine/input/touch.js'; // Onda A: geometria fisica do pad + config de toque
 import { initGamepad } from '@the-inclusionist/engine/input/gamepad.js'; // Onda A: leitura da Gamepad API + assistente de mapeamento
-import { initActivitiesMenu, attachAbbr, QL_NAME, PM_BTNS, PM_OPTIONS_BTNS } from '@the-inclusionist/engine/ui/activities-menu.js'; // Onda A: menus do titulo + inicio de partida
+import { initActivitiesMenu, attachAbbr, QL_NAME } from './ui/activities-menu.js'; // the title menu is this game's (engine ADR-0174)
+import { PM_BTNS, PM_OPTIONS_BTNS } from '@the-inclusionist/engine/ui/activities-menu.js'; // the pause card's buttons stay the engine's
+import { registrarChavesDoJogo } from './i18n/game-keys.js'; // Onda A: menus do titulo + inicio de partida
 import { initPauseIcons, iconsMarkup } from '@the-inclusionist/engine/ui/pause-icons.js';
 import { initShell, pauseLegendHtml } from '@the-inclusionist/engine/ui/shell.js'; // C3: a casca — em que TELA o jogo esta (fase, pausa, legenda do titulo)
 import { initMenuNav } from '@the-inclusionist/engine/ui/menu-nav.js'; // C3: navegacao universal de menus (teclado/controle/olhos/fala) // Onda A: menu de pausa por tela + barra de icones de a11y
@@ -188,6 +190,7 @@ import { SFX } from './game/earcons.js';
  * 📌 `dt` continua em QUADROS, e nao em segundos. E' a convencao herdada que mais se quebra.
  */
 export async function create(ctx: GameCtx): Promise<CartuchoMontado> {
+  registrarChavesDoJogo(); // before any sentence of this game is drawn or spoken (engine ADR-0174)
 
 // A ficha de cancelamento dos ouvintes GLOBAIS. Seis deles vivem na `window` e nao morrem com o DOM da
 // regiao: um `signal` em cada registro e um `abort()` solta os seis de uma vez, o que e' a unica forma
