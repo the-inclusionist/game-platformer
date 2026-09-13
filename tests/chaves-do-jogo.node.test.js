@@ -44,6 +44,15 @@ describe('the game\'s own dictionary keys (engine ADR-0174)', () => {
     }
   });
 
+  it('🔴 [Interface] a sentence about screens or rounds carries the number by parameter (the rule moved from the engine\'s i18n-dicts)', () => {
+    // With the number inside the sentence there would be one key per number, and each translation would redo the arithmetic.
+    const ini = FONTE.indexOf('const pt: Record<string, string> = {');
+    const pt = Object.fromEntries([...FONTE.slice(ini, FONTE.indexOf('};', ini)).matchAll(/^\s*'([\w.-]+)'\s*:\s*'((?:[^'\\]|\\.)*)'/gm)].map((m) => [m[1], m[2]]));
+    const comNumero = Object.keys(pt).filter((k) => /screens\.(alreadyN|activeN|newRoundN|wontFitN)|round\.multi/.test(k));
+    expect(comNumero.length, 'the case needs the screen and round sentences').toBeGreaterThanOrEqual(4);
+    for (const k of comNumero) expect(pt[k], k).toContain('{n}');
+  });
+
   it('🔴 [Right] the game registers them first thing in create()', () => {
     const corpo = MAIN.slice(MAIN.indexOf('export async function create('));
     expect(corpo.split('\n').slice(1, 3).join('\n'), 'create() does not start by registering the game\'s keys').toMatch(/registrarChavesDoJogo\(\);/);
