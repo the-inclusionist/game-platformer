@@ -165,7 +165,6 @@ import { CRT, applyCrt, initCrt } from '@the-inclusionist/engine/render/crt.js';
 import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount } from '@the-inclusionist/engine/render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
 import { vlibrasSay, vlibrasOpen, toggleLibras, vlTick, librasOpen, setOnLibrasChange } from '@the-inclusionist/engine/ui/vlibras.js'; // Estágio 4 (Tier 1): intérprete VLibras (modo pessoa surda)
 import { layout, initLayout } from '@the-inclusionist/engine/ui/layout.js'; // Estágio 4 (Tier 1): escala do jogo (múltiplo inteiro de 320×180 em px reais)
-import { eyeMode, setEyeMode, startEyeControl, stopEyeControl, loadWebGazer } from '@the-inclusionist/engine/ui/webcam.js'; // Estágio 4 (Tier 1): jogar com os olhos (WebGazer)
 // Mundo carregado do texto-glifo assets/levels/clarity.map.txt (Fase 1.2). Construtor em core/world.js.
 import { buildWorldFromText } from '@the-inclusionist/engine/core/world.js';
 // SFX (definicoes de som) extraido p/ platform/audio.js (Fase 2), e de la para game/earcons.js (item 19):
@@ -1840,7 +1839,7 @@ function reflectVizButtons(){ const help=players.some(p=>{const m=VIZ_BY_KEY[p.v
   const camada=document.getElementById('dom-layer')||gr;
   document.querySelectorAll('.overlay').forEach(el=>{ if(!camada.contains(el))camada.appendChild(el); });
   // Botões puramente on/off viram TOGGLE (switch) — o texto "Ligado/Desligado" fica oculto (font-size:0).
-  ['opt-facil','opt-altmove','opt-togglerun','opt-hearing','opt-onebtn','opt-wheelchair','opt-modocego','opt-tts','opt-eyes','audio-master','opt-captions','motion-master'].forEach(id=>{ const b=document.getElementById(id); if(b)b.classList.add('switch'); });
+  ['opt-facil','opt-altmove','opt-togglerun','opt-hearing','opt-onebtn','opt-wheelchair','opt-modocego','opt-tts','audio-master','opt-captions','motion-master'].forEach(id=>{ const b=document.getElementById(id); if(b)b.classList.add('switch'); });
 })();
 function openVisual(){ const ov=$('#visual'); if(!ov)return; visual.render(); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector<HTMLElement>('button[data-viz]')||ov.querySelector('button'); if(f)f.focus(); }
 // Foco de volta para QUEM ABRIU (WCAG 2.4.3), pelo registro de ui/settings-panel. Antes cada um focava um
@@ -1957,9 +1956,7 @@ function renderPauseLegend(){ const g=simNaoGlyphs();
 // (Onda A). As dimensoes de tela entram INJETADAS: o modulo nunca le window.innerWidth.
 addEventListener('gamepadconnected', (e)=>{ try{ const d=touchCtl.applyPadDesign(padLayoutFromId(e.gamepad.id)); const sel=$<HTMLSelectElement>('#pad-design'); if(sel)sel.value=d; srSay(t('sr.pad.connected',{v:d})); }catch(err){} }, SOLTAR); // A2: layout pelo id do controle
 const padDesignSel=$<HTMLSelectElement>('#pad-design'); if(padDesignSel){ padDesignSel.value=touchCtl.getPadDesign(); padDesignSel.addEventListener('change',()=>{ touchCtl.applyPadDesign(padDesignSel.value); srSay(t('sr.pad.design',{v:padDesignSel.value})); }); } // A4: escolha manual
-// JOGAR COM OS OLHOS: eyeMode/eyeSet/onGaze/startEyeControl/stopEyeControl/loadWebGazer → ui/webcam.js (Estágio 4, Tier 1).
-const eyesBtn=$('#opt-eyes'); if(eyesBtn)eyesBtn.addEventListener('click',()=>{ setEyeMode(!eyeMode); toggleBtn(eyesBtn,eyeMode); eyesBtn.textContent=toggleLabel(eyeMode);
-  if(eyeMode){ loadWebGazer(startEyeControl); srSay(t('sr.eyes.loading')); } else { stopEyeControl(); srSay(t('sr.eyes.off')); } });
+// PLAYING WITH THE EYES is the engine's now: the 👀 on its quick bar (engine ADR-0213); WebGazer left the engine (ADR-0214).
 const audioCloseBtn=$('#audio-close'); if(audioCloseBtn)audioCloseBtn.addEventListener('click',closeAudio);
 const audioPanel = initSettingsAudio({ $, srSay, store, audioCats: AUDIO_CATS, toggleBtn, getNumPlayers: () => rodada.numPlayers, getPlayers: () => players, getSoundOn: () => soundOn, setSoundOn, getVolume: () => volume, setVolume, getAudioCat: () => audioCat, setCatGain, tts, getModoCego: () => modoCego, setModoCego, getCaneBlockDiv: () => caneBlockDiv, setCaneBlockDiv: setCaneBlockDivValue }); // painel de audio: ui/settings-audio.ts
 // REFLETE O MODO CEGO PERSISTIDO no boot. `incl_modocego` sobrevive à sessão desde sempre, mas nada refletia o

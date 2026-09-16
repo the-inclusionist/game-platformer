@@ -25,7 +25,8 @@ function chavesDe(lingua) {
 
 describe('the game\'s own dictionary keys (engine ADR-0174)', () => {
   it('🎯 [Zero] the list is the measured one, not an empty file', () => {
-    expect(chavesDe('pt').length).toBe(176);
+    // 176 measured when the menu moved here; three left with WebGazer's eye button on 2026-09-16 (engine ADR-0214)
+    expect(chavesDe('pt').length).toBe(173);
   });
 
   it('🔴 [Right] every key is in pt, en and es', () => {
