@@ -31,7 +31,7 @@
 // seria chutar. Fica declarado em vez de adivinhado.
 
 import type { PaintableRole } from '@the-inclusionist/engine/render/hc-role-data.js';
-import { ehPerigo, ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
+import { ehPerigo, ehTrampolim } from '../core/tiles.js';
 import { ehAgua, ehEscada, ehPortao } from './tile-flags.js';
 
 /**

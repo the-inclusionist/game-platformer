@@ -21,7 +21,7 @@
 // `secreto` que nenhum módulo de engine lê. Estes predicados são, por enquanto, perguntas deste jogo sobre
 // uma tabela que a engine publica. O fim honesto é a tabela mudar de casa e o jogo declarar os papéis pelo
 // `core/contract` (`roleOf`) — que é o mecanismo que a engine já tem para isso. Fica registado, não feito.
-import { TILE_TYPES } from '@the-inclusionist/engine/core/constants.js';
+import { TILE_TYPES } from '../core/tiles.js';
 
 /** Uma propriedade da tabela de tiles. Cópia da forma que a engine usava — uma função, não um `?.` espalhado. */
 const prop = (t: number, k: 'water' | 'ladder' | 'gate' | 'secreto'): boolean => !!TILE_TYPES[t]?.[k];

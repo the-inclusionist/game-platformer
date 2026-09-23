@@ -12,7 +12,7 @@
 // docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4, game/life).
 
 import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js';
-import { ehPerigo } from '@the-inclusionist/engine/core/constants.js';
+import { ehPerigo } from '../core/tiles.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 
 import { cenario as CENARIO } from './state.js'; // GAME desde a Fase B (ADR-0038)

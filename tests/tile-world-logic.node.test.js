@@ -73,7 +73,7 @@ describe('core/world — buildWorldFromText', () => {
 describe('registro de tiles — consistência cross-módulo (smell: 4 objetos em 2 módulos)', () => {
   it('[Cross-check] todo tipo 0..14 existe em TILE_TYPES, TILE_COLOR (constants) e TYPE_GLYPH, TILE_NAME (tiles)', () => {
     for (let t = 0; t <= 14; t++) {
-      expect(C.TILE_TYPES[t], `TILE_TYPES[${t}]`).toBeDefined();
+      expect(T.TILE_TYPES[t], `TILE_TYPES[${t}]`).toBeDefined();
       expect(C.TILE_COLOR[t], `TILE_COLOR[${t}]`).toBeDefined();
       expect(T.TYPE_GLYPH[t], `TYPE_GLYPH[${t}]`).toBeDefined();
       expect(T.TILE_NAME[t], `TILE_NAME[${t}]`).toBeDefined();

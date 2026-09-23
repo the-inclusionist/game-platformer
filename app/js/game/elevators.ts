@@ -6,10 +6,11 @@
 // See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
 import { tileAt, surfTop } from '../core/collision.js';
-import { ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
+import { ehTrampolim } from '../core/tiles.js';
 import { ehEscada } from './tile-flags.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
-import { TILE, TILE_TYPES } from '@the-inclusionist/engine/core/constants.js';
+import { TILE } from '@the-inclusionist/engine/core/constants.js';
+import { TILE_TYPES } from '../core/tiles.js';
 import { BOX } from './player.js';
 
 /** Elevator ride speed (px/frame); the physics ride reads it. */

@@ -5,16 +5,18 @@
 // por engano medido duas vezes: o que ela publica parecia ACESSIBILIDADE — a bengala, o perigo sólido no modo cego,
 // a rampa da cadeira — mas as três regras estão escritas inteiramente no vocabulário de uma GRADE DE TILES, e uma
 // grade é deste jogo. Ficar com elas na engine era ficar com a grade na engine.
-// 📌 A engine continua a decidir o que É perigo e o que É trampolim — `ehPerigo` e `ehTrampolim` moram no
-// `core/constants` dela. O que mudou de casa é a GEOMETRIA que as consulta.
+// 📌 O que um tile É mora ao lado, em `core/tiles`: a tabela veio da engine no mesmo passo, porque o que a
+// segurava lá era esta geometria. A engine pergunta o PAPEL ao contrato (`roleOf`), e nunca um número de tile.
 // Design testável: o módulo NÃO guarda cópias do estado mutável — recebe CLOSURES em initCollision() que leem o
 // estado VIVO do game.js (wheelchair/modoCego/caneBlockDiv/wcSolid/gateTiles/gateOpen). Assim a colisão sempre
 // enxerga o valor atual (sem risco de dessincronização) e os testes passam um ctx falso → funções 100% puras.
-// TILE/TILE_TYPES são constantes (import direto). Consumido pela física (resolveX/resolveY/stepPlayer) no game.js.
-import { TILE, TILE_TYPES, ehPerigo as isHazard, ehTrampolim as isTrampoline } from '@the-inclusionist/engine/core/constants.js';
+// Consumido pela física (resolveX/resolveY/stepPlayer). TILE continua a vir da engine: é a grade de pixels.
+import { TILE } from '@the-inclusionist/engine/core/constants.js';
+import { TILE_TYPES, ehPerigo as isHazard, ehTrampolim as isTrampoline } from './tiles.js';
 
-// (`TileType` era declarado AQUI, privado, e era por isso que a tabela semântica não era usável de fora.
-//  Mudou de casa para `core/constants`, junto da tabela que ele descreve.)
+
+// (`TileType` era declarado AQUI, privado, e era por isso que a tabela semântica não era usável de fora. Hoje
+//  mora em `core/tiles`, junto das outras três tabelas sobre os mesmos catorze tipos.)
 const TYPES = TILE_TYPES;
 
 export type CollisionCtx = {
