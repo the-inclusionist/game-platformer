@@ -1,0 +1,71 @@
+---
+metadata:
+  status: "accepted"
+  confirmed-by:
+    - engine:tests/dependencies-point-downward.node.test.js
+  errata:
+    - date: 2026-09-13
+      what: "✅ CONFIRMED, pushed (issue #171 closed): no engine module imports `educational` (`engine:371017d`, the
+             dependency gate); 161 keys left the engine's dictionaries and 15 stay because pages, tests or key prefixes name
+             them. The platformer carries the menu and its 176 keys (`game-platformer:636aa5b`, `e327b6e`; its gates
+             `tests/chaves-do-jogo.node.test.js` and `tests/activities-menu.node.test.js`, named here because the validator
+             admits no `game-platformer` prefix)."
+  date: 2026-09-13
+  decision-makers: [Dev]
+  consulted:
+    - "ADR-0036 — the cartridge leaves the engine: what only the platformer asks belongs to the platformer"
+    - "ADR-0170 — dictionary keys a cartridge reads are public surface; removing one writes a migration note"
+    - "ADR-0173 — `ui/activities-menu` imports `educational/activities-registry`, the last debt that is the engine
+       describing a game (issue #167)"
+  informed: []
+
+title: The platformer's title menu and the dictionary keys only it uses leave the engine
+
+context-and-problem-statement: |
+  📏 Measured on 2026-09-13 across the seven sibling game repositories: 120 keys of the engine's pt/en/es dictionaries
+  are used by `game-platformer` alone (`sr.physics.lava`, `hud.objective.silabas`, `sr.quiz.buildWord`…), and
+  `ui/activities-menu` — the title menu of Lúdico, Alfabetização and Matemática — is imported by the platformer alone, and
+  is the one module of the engine that imports curriculum (`educational/activities-registry`).
+
+  Asked whether the keys leave: «Sim.» Asked whether the catalogue is injected or the menu leaves: «Leve o menu e as chaves
+  para o platformer.»
+
+decision-drivers:
+  - "D1 — THE ENGINE DOES NOT DESCRIBE A GAME (ADR-0036): a menu of one game's activities and one game's sentences are that game's"
+  - "D2 — NO LAYER OF THE ENGINE IMPORTS CURRICULUM (ADR-0173 §2)"
+
+considered-options:
+  - "A — inject the catalogue into `ui/activities-menu`, keep the keys"
+  - "B — the menu and the keys move to `game-platformer`"
+
+pros-and-cons-of-the-options: |
+  **A.** ✅ No module leaves the package. ❌ The engine keeps a menu and 120 sentences no other game can use.
+  **B.** ✅ The engine stops describing the platformer; the last curriculum import goes with the menu. ❌ A break for the
+  platformer, which copies the module and the keys before it takes the engine version that drops them.
+
+decision-outcome:
+  chosen-option:
+    link: "B — the menu and the keys move to the platformer"
+    justification: |
+      1. **`ui/activities-menu` leaves the engine** and lives in `game-platformer`; the engine's dependency-direction debt
+         loses its entry.
+      2. **The dictionary keys used only by `game-platformer` leave the engine's pt/en/es dictionaries** and are registered
+         by the platformer (`core/i18n` registration, whose three-language check already exists). A key the engine's own code
+         still reads stays.
+      3. **The platformer copies first, the engine removes after**: the platformer carries its own module and keys while it
+         still installs the engine version that has them, so no version in between shows a missing sentence.
+      4. Both removals are a `BREAKING CHANGE` of the package, with the migration note naming the platformer's files.
+
+  consequences:
+    positive:
+      - "The engine's dictionaries and modules say nothing only one game needs"
+      - "No engine layer imports curriculum"
+    negative:
+      - "The platformer edits its code to take the next major version"
+
+  confirmation: |
+    The gates in `confirmed-by` (issue #171, closed). Gates: no engine module imports `educational`; no key of
+    the engine's dictionaries is used by one sibling game alone and by no engine code (measured against the catalogue).
+
+more-information: |
+  The keys are listed by `git grep` against the sibling repositories; the script and the list travel with the issue.
