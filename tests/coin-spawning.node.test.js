@@ -5,7 +5,7 @@
 // falso do teste de game/coins (findCoinCandidates é IMPORTADO de lá, não reimplementado aqui).
 // Ver docs/plano-modularizacao-mapa.md (Estágio 4, game/coin-spawning).
 import { describe, it, expect, beforeEach } from 'vitest';
-import * as COL from '../app/js/core/collision.js';
+import * as COL from '@the-inclusionist/engine/core/collision.js';
 import * as COINS from '../app/js/game/coins.js';
 import * as CS from '../app/js/game/coin-spawning.js';
 import { setCoins, coins } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`

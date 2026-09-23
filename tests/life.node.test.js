@@ -5,7 +5,7 @@
 // deste módulo). solidAt/tileAt vêm ligados via core/collision.initCollision, como em elevators.node.test.js.
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4, game/life).
 import { describe, it, expect, beforeEach } from 'vitest';
-import * as COL from '../app/js/core/collision.js';
+import * as COL from '@the-inclusionist/engine/core/collision.js';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
 import { createRunState } from '../app/js/core/run-state.js';
 // A RODADA é local a este arquivo desde 2026-08-26 (ADR-0038, Fase B): `players`/`numPlayers` deixaram de

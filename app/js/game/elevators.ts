@@ -5,7 +5,7 @@
 // stays in game.js. The level dims + wheelchair flag are injected; tileAt/surfTop/BOX are imported.
 // See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
-import { tileAt, surfTop } from '../core/collision.js';
+import { tileAt, surfTop } from '@the-inclusionist/engine/core/collision.js';
 import { ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
 import { ehEscada } from './tile-flags.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';

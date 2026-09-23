@@ -7,7 +7,7 @@
 // discipline as render/sprites.ts (Fase 2.24). See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
 import { makeCanvas, tex } from '@the-inclusionist/engine/render/canvas.js';
-import { spriteToCanvas } from './sprite-fx.js';
+import { spriteToCanvas } from '@the-inclusionist/engine/render/sprite-fx.js';
 
 type Tex = ReturnType<typeof tex>;
 

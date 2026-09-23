@@ -10,7 +10,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { buildWorldFromText } from '../app/js/core/world.js';
-import * as COL from '../app/js/core/collision.js';
+import * as COL from '@the-inclusionist/engine/core/collision.js';
 import { initElevators, buildElevators } from '../app/js/game/elevators.js';
 import { makePlayer } from '../app/js/game/player.js';
 import { keys } from '@the-inclusionist/engine/input/state.js';

@@ -3,7 +3,7 @@
 // buildElevators varre o mapa (tile 4=escada / 5=trampolim) via tileAt/surfTop (colisão) → ligamos ambos a
 // um mundo FALSO. Ver docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4, game/elevators).
 import { describe, it, expect, beforeEach } from 'vitest';
-import * as COL from '../app/js/core/collision.js';
+import * as COL from '@the-inclusionist/engine/core/collision.js';
 import { buildElevators, elevAt, getElevShafts, initElevators } from '../app/js/game/elevators.js';
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 

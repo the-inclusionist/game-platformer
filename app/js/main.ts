@@ -141,7 +141,7 @@ import { initSettingsPanel } from '@the-inclusionist/engine/ui/settings-panel.js
 import { initFocusTrap, focaveisNoDom } from '@the-inclusionist/engine/ui/focus-trap.js'; // #109: Tab nao sai de um dialogo aberto
 import { mostrarAvisoDeAlcance } from '@the-inclusionist/engine/ui/reach-notice.js'; // #112: diz ANTES quando o controle nao alcanca
 import { alcance, transportesPadrao } from '@the-inclusionist/engine/input/transports.js';
-import { initViewports } from './render/viewports.js'; // B2: fabrica de imagem dos modos de visao
+import { initViewports } from '@the-inclusionist/engine/render/viewports.js'; // B2: fabrica de imagem dos modos de visao
 import { initSession } from './game/session.js'; // C2: o ciclo de vida da RODADA (MODE_LABELS/MODES saíram com o #opt-mode)
 import { initDraw } from './render/draw.js'; // C1: camera + o quadro + a escolha de quadro do personagem
 import { initVizSetters } from '@the-inclusionist/engine/render/viz-setters.js'; // Onda A: aplicacao dos modos de visao acessivel
@@ -157,7 +157,7 @@ import { createRecycling } from './game/recycling-scene.js'; // a reciclagem: li
 import { createRecyclingTextures, LIXO_ART, LIXEIRA_W, LIXEIRA_H, PLACA_H } from './render/recycling-tex.js';
 import { Z } from './core/layers.js'; // #69/ADR-0020: ordem-z canônica (nomeada) do render
 import type { Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
-import { initCollision, tileAt, solidAt, surfTop } from './core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
+import { initCollision, tileAt, solidAt, surfTop } from '@the-inclusionist/engine/core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
 import { srSay, srAlert, setVlibrasSay } from '@the-inclusionist/engine/core/a11y-sr.js'; // Estágio 4 (Tier 1): anúncios p/ leitor de tela (+ Libras injetado)

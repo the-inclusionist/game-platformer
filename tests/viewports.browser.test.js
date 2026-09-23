@@ -12,7 +12,7 @@
 // ZOMBIES + Right-BICEP. Ver ADR-0011-visual-accessibility.yaml e docs/research/PESQUISA-DALTONIZACAO.md.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CVD_KEYS, CVD_MATRIX, CVD_SVG_ID, installCvdFilters } from '@the-inclusionist/engine/render/cvd-matrices.js';
-import { initViewports } from '../app/js/render/viewports.js';
+import { initViewports } from '@the-inclusionist/engine/render/viewports.js';
 import { initHighContrast } from '@the-inclusionist/engine/render/high-contrast.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

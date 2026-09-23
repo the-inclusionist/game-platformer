@@ -3,7 +3,7 @@
 // A colisão recebe um ctx com CLOSURES (estado vivo). Aqui passamos um ctx FALSO controlável → funções puras.
 // Ver docs/plano-testes.md + docs/plano-modularizacao-mapa.md (Estágio 4, core/collision).
 import { describe, it, expect } from 'vitest';
-import * as COL from '../app/js/core/collision.js';
+import * as COL from '@the-inclusionist/engine/core/collision.js';
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 
 // ctx falso: closures leem `flags` VIVO (mutar flags após initCollision reflete na hora — como no game.js real).

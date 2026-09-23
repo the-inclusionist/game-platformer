@@ -21,7 +21,7 @@ import { TUNE, COIN_TARGET } from './tuning.js';
 import { ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
 import { t } from '@the-inclusionist/engine/core/i18n.js';
 import type { ControlledGamePlayer } from './entity.js'; // ADR-0033: a fatia do JOGO — `quiz` mora aqui
-import { tileAt, solidAt, surfTop, isWcRampRiser, rampSurfaceY, caneBlockPx } from '../core/collision.js';
+import { tileAt, solidAt, surfTop, isWcRampRiser, rampSurfaceY, caneBlockPx } from '@the-inclusionist/engine/core/collision.js';
 import { correndoAgora, usaTravaDeCorrer, botaoDeCorrerEngatado } from './run-toggle.js';
 import { BOX, SPAWN_X, SPAWN_Y, jumpVel, isBouncyGroundBelow, clingSides, firstClingSide, spiderReattach } from './player.js';
 import { ELEV_SPEED, elevAt } from './elevators.js';

@@ -6,7 +6,7 @@
 // vem de core/collision (tileAt/isSolidType). Deps: PIXI (npm), constants (TILE/LOGICAL_*), collision.
 import * as PIXI from 'pixi.js';
 import { LOGICAL_W, LOGICAL_H, TILE } from '@the-inclusionist/engine/core/constants.js';
-import { tileAt, isSolidType } from '../core/collision.js';
+import { tileAt, isSolidType } from '@the-inclusionist/engine/core/collision.js';
 
 const MM_SCALE = 0.8, MM_PAD = 4;
 let _minimap: PIXI.Container | null = null;
