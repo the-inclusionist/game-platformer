@@ -3,7 +3,7 @@
 // As queries leem o mundo via core/collision → inicializamos a colisão com um mundo FALSO e sondamos o jogador
 // em coordenadas calculadas (BOX 10×30, TILE 16; pl.y = pés, pl.x = centro). Ver docs/plano-modularizacao-mapa.md.
 import { describe, it, expect } from 'vitest';
-import * as COL from '@the-inclusionist/engine/core/collision.js';
+import * as COL from '../app/js/core/collision.js';
 import * as P from '../app/js/game/player.js';
 import { TUNE } from '../app/js/game/tuning.js';
 

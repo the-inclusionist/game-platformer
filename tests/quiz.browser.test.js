@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { initQuiz, generateBrailleCells, cKey } from '../app/js/game/quiz.js';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
-import { createRunState } from '@the-inclusionist/engine/core/run-state.js';
+import { createRunState } from '../app/js/core/run-state.js';
 
 // A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
 // PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem

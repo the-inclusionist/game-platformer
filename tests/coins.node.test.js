@@ -3,9 +3,9 @@
 // coins lê o mundo via initCoins(ctx) e a colisão via solidAt → inicializamos ambos com um mundo FALSO.
 // Ver docs/plano-modularizacao-mapa.md (Estágio 4, game/coins — só posicionamento).
 import { describe, it, expect } from 'vitest';
-import * as COL from '@the-inclusionist/engine/core/collision.js';
+import * as COL from '../app/js/core/collision.js';
 import * as COINS from '../app/js/game/coins.js';
-import { createRunState } from '@the-inclusionist/engine/core/run-state.js';
+import { createRunState } from '../app/js/core/run-state.js';
 // A RODADA é local a este arquivo desde 2026-08-26 (ADR-0038, Fase B): `players`/`numPlayers` deixaram de
 // ser `let` de `core/state` e passaram a viver na instância que a raiz de composição possui. Aqui o teste
 // cria a sua, e os apelidos abaixo mantêm o corpo dos casos escrito como sempre esteve.

@@ -26,7 +26,7 @@ const {
   LIXO_ART, COR_DA_LIXEIRA, LIXEIRA_W, LIXEIRA_H, PLACA_W, PLACA_H,
   paintLatinha, paintGarrafaPet, paintPoteDeVidro, paintCaixaDePapelao, paintLixeira, paintPlaca,
   createRecyclingTextures,
-} = await import('@the-inclusionist/engine/render/recycling-tex.js');
+} = await import('../app/js/render/recycling-tex.js');
 // O teste importa OS DOIS LADOS — é ele o lugar onde arte e regra se encontram, justamente para que o produto
 // não precise que se encontrem. Ver o cabeçalho de `render/recycling-tex`.
 const { MATERIAIS, LIXEIRAS, LIXEIRA_DE } = await import('../app/js/game/recycling.js');

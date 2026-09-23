@@ -20,7 +20,7 @@ import {
   initActivitiesMenu,
 } from '../app/js/ui/activities-menu.js';
 import { DEFAULT_ACTIVITY_ID, listActivityIds, modeForActivity } from '@the-inclusionist/engine/educational/activities-registry.js';
-import { createRunState } from '@the-inclusionist/engine/core/run-state.js';
+import { createRunState } from '../app/js/core/run-state.js';
 // A RODADA é local a este arquivo desde 2026-08-26 (ADR-0038, Fase B): `players`/`numPlayers` deixaram de
 // ser `let` de `core/state` e passaram a viver na instância que a raiz de composição possui. Aqui o teste
 // cria a sua, e os apelidos abaixo mantêm o corpo dos casos escrito como sempre esteve.

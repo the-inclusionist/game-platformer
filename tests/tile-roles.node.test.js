@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import { roleOf } from '../app/js/game/tile-roles.js';
 import { HC_ROLE_KEYS } from '@the-inclusionist/engine/render/hc-role-data.js';
-import { TYPE_GLYPH } from '@the-inclusionist/engine/core/tiles.js';
+import { TYPE_GLYPH } from '../app/js/core/tiles.js';
 
 describe('roleOf — tile → papel semântico', () => {
   it('[Right] lava(9)=hazard · escada(4)/trampolim(5)=climb · água(3)=water', () => {

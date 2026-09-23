@@ -17,7 +17,7 @@ import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 
 import { cenario as CENARIO } from './state.js'; // GAME desde a Fase B (ADR-0038)
 import { LOGICAL_W, LOGICAL_H, TILE } from '@the-inclusionist/engine/core/constants.js';
-import { tileAt, solidAt } from '@the-inclusionist/engine/core/collision.js';
+import { tileAt, solidAt } from '../core/collision.js';
 import type { Camada, CriarSprite } from '@the-inclusionist/engine/render/port.js';
 
 /** A fauna só precisa saber ONDE o jogador está (fugir/aproximar). */

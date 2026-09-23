@@ -6,7 +6,7 @@
 // conhece MODE nem os dados de quiz — o game.js calcula os pools e os passa; anyEasy/wheelchair entram por ctx.
 // O render (coinTexFor/rebuildCoins/coinSprites) e os distratores (malform/ferreiroDistractors) ficam fora (quiz/render).
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
-import { solidAt } from '@the-inclusionist/engine/core/collision.js';
+import { solidAt } from '../core/collision.js';
 import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js';
 
 import { coins } from './state.js'; // item 19: `coins`/`quizLevel` sao estado do JOGO

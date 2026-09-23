@@ -21,10 +21,10 @@ import {
 import { BOX, SPAWN_X, SPAWN_Y, makePlayer } from '../app/js/game/player.js';
 import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';
 import { COIN_TARGET } from '../app/js/game/tuning.js';
-import * as COL from '@the-inclusionist/engine/core/collision.js';
+import * as COL from '../app/js/core/collision.js';
 import { initCoins } from '../app/js/game/coins.js';
 import { initCoinSpawning, getCoinSprites } from '../app/js/game/coin-spawning.js';
-import { createRunState } from '@the-inclusionist/engine/core/run-state.js';
+import { createRunState } from '../app/js/core/run-state.js';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
 
 // A corrente deste arreio (ADR-0141): o módulo sob teste já não vai buscar a partilhada de `core/rng`,

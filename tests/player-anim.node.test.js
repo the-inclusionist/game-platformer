@@ -11,7 +11,7 @@
 // As texturas são etiquetas de string (não PIXI): o contrato é "qual quadro", não "qual pixel".
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (C1).
 import { describe, it, expect } from 'vitest';
-import { choosePlayerFrame, COYOTE } from '@the-inclusionist/engine/render/player-anim.js';
+import { choosePlayerFrame, COYOTE } from '../app/js/render/player-anim.js';
 import { makePlayer } from '../app/js/game/player.js';
 import { ANIM } from '@the-inclusionist/engine/core/constants.js';
 

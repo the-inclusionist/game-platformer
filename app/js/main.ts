@@ -40,12 +40,12 @@
 import '@the-inclusionist/engine/style.css';
 import * as PIXI from 'pixi.js'; // PixiJS 7.4.2 via npm (Vite empacota; aposenta o <script> global vendor/pixi.min.js)
 import i18n, { t } from '@the-inclusionist/engine/core/i18n.js'; // internacionalização
-import * as tiles from '@the-inclusionist/engine/core/tiles.js'; // legend + parser do mapa em glifo
+import * as tiles from './core/tiles.js'; // legend + parser do mapa em glifo
 import * as store from '@the-inclusionist/engine/platform/storage.js'; // camada de persistência
 import { emit, vizMode, initVizMode, modoCego, setModoCegoValue, caneBlockDiv, setCaneBlockDivValue, wheelchair, setWheelchairValue, oneButton, setOneButtonValue, cbSafe, setCbSafeValue, ownerColors, setOwnerColorsValue, hcOutlineFg, setOutlineFgValue, hcOutlineBg, setOutlineBgValue, letterCase, setLetterCaseValue, captionsOn, setCaptionsOnValue, menuIndexOn, defaultReducedMotion } from '@the-inclusionist/engine/core/state.js'; // estado compartilhado
 import { cenario as CENARIO, setCenarioValue, activity as ACTIVITY, setActivityValue } from './game/state.js'; // GAME (ADR-0038, Fase B)
 import { JOGO } from './game/save-id.js'; // ADR-0080: o id deste jogo, que a engine deixou de guardar
-import { createRunState } from '@the-inclusionist/engine/core/run-state.js'; // ADR-0038 Fase B: a RODADA como fábrica
+import { createRunState } from './core/run-state.js'; // ADR-0038 Fase B: a RODADA como fábrica
 import { criarCenasDoJogo, type Fase } from './game/cenas.js'; // as três cenas DESTE jogo (ADR-0030 C3)
 import type { FatosDaCena } from '@the-inclusionist/engine/core/scenes.js';
 import type { Powerup } from './game/level-geometry.js'; // o tipo do power-up é do JOGO
@@ -68,9 +68,9 @@ import { buildElevators, elevAt, getElevShafts, initElevators } from './game/ele
 import { fmtFrac, fracGraphic, speakChoice } from './game/fractions.js'; // Estágio 4 (Tier 2): matemática/render de frações
 import { brailleText } from './game/braille.js'; // Estágio 4 (Tier 2): cela braille + fala (atividade cego)
 import { SOMASUB_SHAPES, WORD_INITIALS } from './game/activity-content.js'; // Estágio 4 (Tier 2): dados das atividades (formas + sílabas)
-import { JUICE, saveJuice, puffDust, burstSparkle, addShake, addHitstop, setSquash, stepFx, initFx, tickHitstop, getParticles, getHitstopT, getShakeT } from '@the-inclusionist/engine/render/fx.js'; // Estágio 4 (Tier 2): juice (partículas/shake/hitstop/squash)
-import { parallaxPlaceholder, themeSkyTexture, themeHillsTexture, themeCitySkyTexture, themeSkylineTexture } from '@the-inclusionist/engine/render/scene-parallax.js'; // Estágio 4 (Tier 2): geradores de textura do parallax
-import { worldCanvas, initWorldTex } from '@the-inclusionist/engine/render/world-tex.js'; // Estágio 4 (Tier 2): builder da textura NORMAL do mundo
+import { JUICE, saveJuice, puffDust, burstSparkle, addShake, addHitstop, setSquash, stepFx, initFx, tickHitstop, getParticles, getHitstopT, getShakeT } from './render/fx.js'; // Estágio 4 (Tier 2): juice (partículas/shake/hitstop/squash)
+import { parallaxPlaceholder, themeSkyTexture, themeHillsTexture, themeCitySkyTexture, themeSkylineTexture } from './render/scene-parallax.js'; // Estágio 4 (Tier 2): geradores de textura do parallax
+import { worldCanvas, initWorldTex } from './render/world-tex.js'; // Estágio 4 (Tier 2): builder da textura NORMAL do mundo
 import { kb, initKB, setKB, saveKB, resetKB, fabricaComOJogo } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
 import { AUDIO_CATS } from '@the-inclusionist/engine/platform/audio-mixer.js'; // Fase 2: categorias do mixer (dados); audioCat/catNode/setCatGain vêm de audio.js
 import { FONT_GROUPS } from '@the-inclusionist/engine/ui/fonts.js'; // Fase 2: tipografia (catálogo + persistência)
@@ -81,13 +81,13 @@ import { escaparHtml } from '@the-inclusionist/engine/core/escape-html.js';
 import { linhasDaAjuda } from './game/help-lines.js'; // a tela de ajuda deixou de ler o ACT_LABEL (#125)
 import { initSettingsVisual, ROLE_LABELS } from '@the-inclusionist/engine/ui/settings-visual.js';
 import { initSettingsCaa } from '@the-inclusionist/engine/ui/settings-caa.js';
-import { cityTiles } from '@the-inclusionist/engine/render/city-tiles.js'; // #16: os tiles da Cidade como dados, não como PNG // 7º menu: Comunicação Aumentada e Alternativa (ADR-0028)
+import { cityTiles } from './render/city-tiles.js'; // #16: os tiles da Cidade como dados, não como PNG // 7º menu: Comunicação Aumentada e Alternativa (ADR-0028)
 import { initSettingsEmpathy } from '@the-inclusionist/engine/ui/settings-empathy.js';
 import { initSettingsMotor, playerPrefix } from '@the-inclusionist/engine/ui/settings-motor.js';
 import { initSettingsMotion, setSelectedPlayer as setSelectedMotionPlayer } from '@the-inclusionist/engine/ui/settings-motion.js';
 import { initSettingsTypo } from '@the-inclusionist/engine/ui/settings-typo.js';
 import { initTitle } from '@the-inclusionist/engine/ui/title.js';
-import { createTitleScene } from '@the-inclusionist/engine/render/title-scene.js'; // Fase 2.27: atalho de querySelector (Tier 1)
+import { createTitleScene } from './render/title-scene.js'; // Fase 2.27: atalho de querySelector (Tier 1)
 import { labellerFrom, shortLabellerFrom, presetActions, type Action } from '@the-inclusionist/engine/core/actions.js';
 import { platformerPreset } from './game/platformer-preset.js';
 import { ehCego, ehBaixaVisao, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js'; // os dois eixos (8.0.0): quem responde ao sonar
@@ -105,18 +105,18 @@ import { createAudioAmbient } from '@the-inclusionist/engine/platform/audio-ambi
 import { createTts } from '@the-inclusionist/engine/platform/tts.js'; // Tier 2 (#38): narração por voz (Piper neural lazy + fallback Web Speech)
 import { SPR, TEX_IDLE, TEX_WALK, TEX_RUN, FLAVORS, TEX_JUMP_UP, TEX_JUMP_DOWN, TEX_CLIMB, TEX_FLY, TEX_CLING_WALL, TEX_CLING_CEIL, TEX_SWIM, TEX_SWIMIDLE, initCharacterSprites } from './render/sprites.js';
 import { tex, pixelTexture } from '@the-inclusionist/engine/render/canvas.js'; // `makeCanvas` saiu junto: o painter é quem o chama agora
-import { CENARIOS, THEME_FLORA, hexN } from '@the-inclusionist/engine/render/cenario-data.js'; // D2-b: catalogo dos cenarios (folha: dado puro, zero deps)
-import { PARALLAX, createParallax } from '@the-inclusionist/engine/render/parallax.js'; // D2-b: as 3 camadas de fundo — fatores, rolagem e troca de tema
-import { createSetCenario } from '@the-inclusionist/engine/render/set-cenario.js'; // D2-b: a troca de cenario (orquestracao; leva o loadTileImages)
-import { createSceneSky } from '@the-inclusionist/engine/render/scene-sky.js'; // Tier 2 (#43): céu — nuvens (#21) + decor viva da v3
+import { CENARIOS, THEME_FLORA, hexN } from './render/cenario-data.js'; // D2-b: catalogo dos cenarios (folha: dado puro, zero deps)
+import { PARALLAX, createParallax } from './render/parallax.js'; // D2-b: as 3 camadas de fundo — fatores, rolagem e troca de tema
+import { createSetCenario } from './render/set-cenario.js'; // D2-b: a troca de cenario (orquestracao; leva o loadTileImages)
+import { createSceneSky } from './render/scene-sky.js'; // Tier 2 (#43): céu — nuvens (#21) + decor viva da v3
 import { coinCanvas, treeCanvas, powerupCanvas } from './game/props.js'; // item 19: a arte dos props e do JOGO, nao da engine
-import { createCityTextures } from '@the-inclusionist/engine/render/city-tex.js'; // D3-a: arte procedural da rua (bichos, pedestres, carros)
-import * as weather from '@the-inclusionist/engine/render/weather.js'; // Onda A: clima visual (chuva/trovao/clarao)
+import { createCityTextures } from './render/city-tex.js'; // D3-a: arte procedural da rua (bichos, pedestres, carros)
+import * as weather from './render/weather.js'; // Onda A: clima visual (chuva/trovao/clarao)
 import { lqFilter, setLq, getLqT, initLqFilter } from '@the-inclusionist/engine/render/lq-filter.js'; // Onda A: realce de contraste L->Q
 import * as traffic from './game/traffic.js'; // Onda A: carros + semaforo da rua da frente
 import * as life from './game/life.js'; // Onda A: vida ambiente (pombos/gatos/caes/adultos)
-import { initSceneCity } from '@the-inclusionist/engine/render/scene-city.js'; // Onda A: deco da Cidade + fx de tiles vivos
-import { initTextures, SHAPE_TEX, letterTexture, pupTexFor } from '@the-inclusionist/engine/render/textures.js'; // Onda A: texturas de moeda/forma/letra + power-up
+import { initSceneCity } from './render/scene-city.js'; // Onda A: deco da Cidade + fx de tiles vivos
+import { initTextures, SHAPE_TEX, letterTexture, pupTexFor } from './render/textures.js'; // Onda A: texturas de moeda/forma/letra + power-up
 import { DIRECT_CFG, HC_ROLE, HC_ROLE_DEF, saveHcRole, spriteTexFor, directSpriteCanvas, clearWorldTexCache, initHighContrast } from '@the-inclusionist/engine/render/high-contrast.js'; // Onda A: Renderizacao Direta (alto contraste)
 import { initCoinSpawning, rebuildCoins, showPower, getCoinSprites } from './game/coin-spawning.js'; // Onda A: materializacao dos sprites de moeda
 import { puTaken } from './game/powerups.js'; // item 19: a regra "chave e global, o resto e por jogador" saiu do render/draw
@@ -134,16 +134,16 @@ import { initMenuNav } from '@the-inclusionist/engine/ui/menu-nav.js'; // C3: na
 import { initHud } from '@the-inclusionist/engine/ui/hud.js'; // Onda A: HUD por tela (moedas/poder/abandono/selo de espera)
 import { initScreenPipeline } from '@the-inclusionist/engine/render/screen-pipeline.js'; // D3-c: topologia do render por tela (grade, render-textures, molduras, bolinhas)
 import { initSecretAreas } from './game/secret-areas.js'; // D3-c: area secreta revelada por presenca + anuncio ao leitor de tela
-import { initMapHub } from '@the-inclusionist/engine/ui/map-hub.js'; // D3-c: painel "Mapear controles" do menu de Movimento
+import { initMapHub } from './ui/map-hub.js'; // D3-c: painel "Mapear controles" do menu de Movimento
 import { initPhysics, stepPlayer as stepPhysics } from './game/physics.js'; // B1: fisica do jogador (ancorada nas trajetorias-ouro)
 import { initQuiz } from './game/quiz.js'; // B3: o desafio educativo (geracao + markup + efeito)
 import { initSettingsPanel } from '@the-inclusionist/engine/ui/settings-panel.js'; // B4: o que as cascas dos paineis realmente compartilham
 import { initFocusTrap, focaveisNoDom } from '@the-inclusionist/engine/ui/focus-trap.js'; // #109: Tab nao sai de um dialogo aberto
 import { mostrarAvisoDeAlcance } from '@the-inclusionist/engine/ui/reach-notice.js'; // #112: diz ANTES quando o controle nao alcanca
 import { alcance, transportesPadrao } from '@the-inclusionist/engine/input/transports.js';
-import { initViewports } from '@the-inclusionist/engine/render/viewports.js'; // B2: fabrica de imagem dos modos de visao
+import { initViewports } from './render/viewports.js'; // B2: fabrica de imagem dos modos de visao
 import { initSession } from './game/session.js'; // C2: o ciclo de vida da RODADA (MODE_LABELS/MODES saíram com o #opt-mode)
-import { initDraw } from '@the-inclusionist/engine/render/draw.js'; // C1: camera + o quadro + a escolha de quadro do personagem
+import { initDraw } from './render/draw.js'; // C1: camera + o quadro + a escolha de quadro do personagem
 import { initVizSetters } from '@the-inclusionist/engine/render/viz-setters.js'; // Onda A: aplicacao dos modos de visao acessivel
 import { roleOf } from './game/tile-roles.js'; // Passo 7: a tabela tile->papel e' do JOGO, nao do alto contraste
 import { initLevelGeometry, buildRamps, buildRopes, drawElevators, buildDarkRegions, buildWcGeom as lgBuildWcGeom, rebuildExtras as lgRebuildExtras, setupExtras as lgSetupExtras } from './game/level-geometry.js'; // Onda A: rampas/cordas/elevador/escuridao/extras
@@ -154,19 +154,19 @@ import { TILE_TYPES } from '@the-inclusionist/engine/core/constants.js'; // a ta
 import { acaoDeCarga } from './game/carry.js'; // qual botão pega, solta e arremessa (ADR-0045)
 import { MATERIAIS, travarNaPlaca } from './game/recycling.js'; // os quatro materiais, e a trava da placa
 import { createRecycling } from './game/recycling-scene.js'; // a reciclagem: lixo, lixeiras e a placa (ADR-0049 §1)
-import { createRecyclingTextures, LIXO_ART, LIXEIRA_W, LIXEIRA_H, PLACA_H } from '@the-inclusionist/engine/render/recycling-tex.js';
-import { Z } from '@the-inclusionist/engine/core/layers.js'; // #69/ADR-0020: ordem-z canônica (nomeada) do render
+import { createRecyclingTextures, LIXO_ART, LIXEIRA_W, LIXEIRA_H, PLACA_H } from './render/recycling-tex.js';
+import { Z } from './core/layers.js'; // #69/ADR-0020: ordem-z canônica (nomeada) do render
 import type { Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
-import { initCollision, tileAt, solidAt, surfTop } from '@the-inclusionist/engine/core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
+import { initCollision, tileAt, solidAt, surfTop } from './core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
 import { srSay, srAlert, setVlibrasSay } from '@the-inclusionist/engine/core/a11y-sr.js'; // Estágio 4 (Tier 1): anúncios p/ leitor de tela (+ Libras injetado)
 import { CRT, applyCrt, initCrt } from '@the-inclusionist/engine/render/crt.js'; // Estágio 4 (Tier 1): estética CRT (scanlines/vinheta/cantos)
-import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount } from '@the-inclusionist/engine/render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
+import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount } from './render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
 import { vlibrasSay, vlibrasOpen, toggleLibras, vlTick, librasOpen, setOnLibrasChange } from '@the-inclusionist/engine/ui/vlibras.js'; // Estágio 4 (Tier 1): intérprete VLibras (modo pessoa surda)
 import { layout, initLayout } from '@the-inclusionist/engine/ui/layout.js'; // Estágio 4 (Tier 1): escala do jogo (múltiplo inteiro de 320×180 em px reais)
 // Mundo carregado do texto-glifo assets/levels/clarity.map.txt (Fase 1.2). Construtor em core/world.js.
-import { buildWorldFromText } from '@the-inclusionist/engine/core/world.js';
+import { buildWorldFromText } from './core/world.js';
 // SFX (definicoes de som) extraido p/ platform/audio.js (Fase 2), e de la para game/earcons.js (item 19):
 // sete dos dez earcons sao deste jogo, e as legendas eram pt-BR cru dentro da engine.
 import { SFX } from './game/earcons.js';
