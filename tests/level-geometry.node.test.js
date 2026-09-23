@@ -4,7 +4,7 @@
 // e a lista de power-ups + portão. tileAt/solidTile vêm de core/collision (ligado a um mundo FALSO por teste).
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (Estágio 4, game/level-geometry).
 import { describe, it, expect } from 'vitest';
-import * as COL from '@the-inclusionist/engine/core/collision.js';
+import * as COL from '../app/js/core/collision.js';
 import {
   computeRampSteps, computeFloorOverlay, buildWcGeom, computeRopeAnchors, buildDarkRegions,
   buildPowerupList, computeGateTiles, computeGate, isGateInitiallyOpen, setupExtras,

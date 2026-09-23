@@ -157,7 +157,7 @@ import { createRecycling } from './game/recycling-scene.js'; // a reciclagem: li
 import { createRecyclingTextures, LIXO_ART, LIXEIRA_W, LIXEIRA_H, PLACA_H } from './render/recycling-tex.js';
 import { Z } from './core/layers.js'; // #69/ADR-0020: ordem-z canônica (nomeada) do render
 import type { Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: RNG semeado (Tier 1)
-import { initCollision, tileAt, solidAt, surfTop } from '@the-inclusionist/engine/core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
+import { initCollision, tileAt, solidAt, surfTop } from './core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
 import { srSay, srAlert, setVlibrasSay } from '@the-inclusionist/engine/core/a11y-sr.js'; // Estágio 4 (Tier 1): anúncios p/ leitor de tela (+ Libras injetado)

@@ -7,7 +7,7 @@
 
 import { makeCanvas, tex } from '@the-inclusionist/engine/render/canvas.js';
 import { TILE, TILE_COLOR } from '@the-inclusionist/engine/core/constants.js';
-import { isSolidType } from '@the-inclusionist/engine/core/collision.js';
+import { isSolidType } from '../core/collision.js';
 
 let WORLD: number[][] = [];
 let W = 0, H = 0, PXW = 0, PXH = 0;

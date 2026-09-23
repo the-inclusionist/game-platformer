@@ -5,7 +5,7 @@
 // todo no-op (initPhysics) — som/sprite/HUD não movem ninguém. O REPLAY das trajetórias reais mora em
 // tests/physics-golden.node.test.js; aqui isolamos regra a regra, com números vindos de core/constants.
 import { describe, it, expect, beforeEach } from 'vitest';
-import * as COL from '@the-inclusionist/engine/core/collision.js';
+import * as COL from '../app/js/core/collision.js';
 import { initElevators, buildElevators } from '../app/js/game/elevators.js';
 import { makePlayer, BOX, SPAWN_X, SPAWN_Y, jumpVel } from '../app/js/game/player.js';
 import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';

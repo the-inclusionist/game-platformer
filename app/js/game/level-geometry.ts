@@ -11,7 +11,7 @@ import * as PIXI from 'pixi.js';
 import { ehPerigo, ehTrampolim } from '@the-inclusionist/engine/core/constants.js';
 import { ehAgua, ehEscada, ehSecreto } from './tile-flags.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
-import { tileAt, solidTile } from '@the-inclusionist/engine/core/collision.js';
+import { tileAt, solidTile } from '../core/collision.js';
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import { getElevShafts, elevAt } from './elevators.js';
 import { vizMode } from '@the-inclusionist/engine/core/state.js';
