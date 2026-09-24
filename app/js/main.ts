@@ -100,7 +100,7 @@ import { gameSay } from '@the-inclusionist/engine/platform/speech.js';
 import { createAudioJingles } from '@the-inclusionist/engine/platform/audio-jingles.js'; // Tier 2 (áudio r1): jingles de vitória/enigma/fogos
 import { createAudioEarcons } from '@the-inclusionist/engine/platform/audio-earcons.js'; // Tier 2 (áudio r2): earcons (sfx) + porta + legendas
 import { createAudioSonar } from '@the-inclusionist/engine/platform/audio-sonar.js'; // item 19: navegacao sonora, a metade que serve a QUALQUER genero
-import { createAudioNav } from '@the-inclusionist/engine/platform/audio-nav.js'; // Tier 2 (áudio r3): bengala e nado cego (a metade que le o mundo)
+import { createAudioNav } from './platform/audio-nav.js'; // Tier 2 (áudio r3): bengala e nado cego (a metade que le o mundo)
 import { createAudioAmbient } from '@the-inclusionist/engine/platform/audio-ambient.js'; // Tier 2 (áudio r4): trilha de ambiente + trovão
 import { createTts } from '@the-inclusionist/engine/platform/tts.js'; // Tier 2 (#38): narração por voz (Piper neural lazy + fallback Web Speech)
 import { SPR, TEX_IDLE, TEX_WALK, TEX_RUN, FLAVORS, TEX_JUMP_UP, TEX_JUMP_DOWN, TEX_CLIMB, TEX_FLY, TEX_CLING_WALL, TEX_CLING_CEIL, TEX_SWIM, TEX_SWIMIDLE, initCharacterSprites } from './render/sprites.js';
