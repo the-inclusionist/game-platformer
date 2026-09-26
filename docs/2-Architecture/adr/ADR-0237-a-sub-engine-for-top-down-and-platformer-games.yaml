@@ -1,0 +1,77 @@
+---
+metadata:
+  status: "accepted"
+  errata:
+    - date: 2026-09-25
+      what: >-
+        THE SPLIT WAS WRONG, and the Dev said so the same day, reading the line that kept parallax, gravity, slopes
+        and ladders outside the folder: «NÃO FAZ O MENOR SENTIDO! Eu pretendo fazer 4 plataformers, você está
+        deixando elementos comuns em um, elementos que poderiam ser compartilhados.» The record drew the line by what
+        the two GENRES share and left the platformer genre's own mechanics inside one game; with four platformers
+        planned, those mechanics are shared by four games, and keeping them in one is the duplication the sub-engine
+        exists to prevent. So the folder holds TWO layers: a world core both genres share (tile map, camera, basic
+        collision, ADR-0049's points and powers, the objects the player interacts with) and a platformer layer every
+        platformer shares (parallax, gravity, slopes, ladders, platformer movement and physics). The platformer layer
+        may import the core and never the reverse, and neither imports a game's content; what stays in
+        game-platformer is that game alone — its levels, its scenery and art, the numbering of its own map. And the
+        extraction trigger follows: a second PLATFORMER is a consumer as much as a first top-down game, so the package
+        is extracted when the second game of either genre starts, and its API is settled against both.
+  date: 2026-09-25
+  decision-makers: [Dev]
+  consulted:
+    - "The Dev, 2026-09-25, verbatim, on ADR-0049's points and powers: «Isso só funciona em jogos top-down e plataforma. Creio ser melhor desenvolver uma \"subengine\" que funciona especificamente para estes dois gêneros.»"
+    - "The Dev, the same day, on the recommendation to keep the world as a separable folder inside the platformer and extract the package only when a top-down game uses it: «Aceito a ideia. Obrigrado!»"
+    - "ADR-0049 — points as a flat record of behaviour, powers as keys lying in the level, growth as the only celebration"
+    - "ADR-0228 — the tile world (tiles, collision, camera, parallax, scenery, player animation) left the engine for game-platformer, because the engine must not describe one game"
+  informed: []
+
+title: A sub-engine for top-down and platformer games — born as a separable folder in the platformer
+
+context-and-problem-statement: |
+  ADR-0049's points and powers assume a world the player walks through: good deeds in a place, powers lying in a level.
+  That fits the top-down and platformer genres and not a quiz, a board or a puzzle. The engine must not describe one
+  game (ADR-0228), and the tile world already left it for game-platformer. The Dev proposes a layer between the two: a
+  sub-engine for these two genres, shared by the games that are one or the other.
+
+decision-drivers:
+  - "The engine stays genre-neutral"
+  - "Two genres share a world, points and powers; writing them twice would be the duplication the engine exists to avoid"
+  - "A shared layer designed from one game describes that game — the lesson ADR-0228 paid for; nothing is built for a consumer that does not exist"
+
+considered-options:
+  - "A · Its own repository and package now"
+  - "B · A folder inside the engine"
+  - "C · A separable folder inside game-platformer, extracted into a package when a top-down game uses it"
+
+pros-and-cons-of-the-options: |
+  **A.** ✅ A clear boundary from day one. ❌ A third package to version and publish, with engine majors cascading into
+  it; its API would be drawn from the platformer alone and be wrong where top-down differs; more moving parts, the
+  complaint already made about the engine.
+  **B.** ❌ Undoes ADR-0228: the engine would describe genres again.
+  **C.** ✅ No publishing cost today; a boundary gate keeps the folder from importing platformer content, so extraction
+  is mechanical; the final API is drawn by two real consumers. ❌ Not shared until a top-down game exists.
+
+decision-outcome:
+  chosen-option:
+    link: "C — a separable folder inside game-platformer, extracted into a package when a top-down game uses it"
+    justification: |
+      The Dev accepted the recommendation. What the two genres truly share goes into the folder: the tile map, the
+      camera, basic collision, ADR-0049's points and powers, and the objects the player interacts with. What is the
+      platformer's alone stays outside it: parallax, gravity, slopes and ladders. A gate in game-platformer forbids the
+      folder from importing the platformer's own content. The package is extracted when the first top-down game needs
+      it, and its API is then settled against both games.
+
+  consequences:
+    positive:
+      - "The engine keeps describing no game"
+      - "No new package until a second consumer exists"
+    negative:
+      - "The sub-engine is not shared until a second game of either genre exists (errata: not only a top-down one)"
+      - "The work happens in game-platformer's repository, which needs the Dev's order (games are other work)"
+
+  confirmation: |
+    ⏳ Not built. The work is in game-platformer: the folder, its boundary gate, and moving the shared pieces into it.
+    It waits for the Dev's order to touch that repository.
+
+more-information: |
+  Issue #93 (rewards) closed as the engine's share done; the rest of ADR-0049 lives in this folder.
