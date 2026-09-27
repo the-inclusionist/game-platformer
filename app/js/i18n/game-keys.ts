@@ -7,6 +7,21 @@
 
 
 const pt: Record<string, string> = {
+  // AS PALAVRAS DAS ACOMODACOES que este jogo responde (CreateGameOptions.acomodacoes). Sao CHAVES e
+  // nao palavras na resposta, para a linha do menu seguir a troca de idioma (ADR-0232 D3).
+  'accom.caneSpacing': 'Espaçamento da bengala',
+  'accom.caneSpacing.hint': 'De quanto em quanto a bengala bate ao andar. Mais junto avisa antes; mais espaçado incomoda menos.',
+  'accom.characterMotion': 'Movimento do personagem',
+  'accom.characterMotion.hint': 'A respiração, a caminhada e os trejeitos do boneco. É à parte das animações do cenário.',
+  'accom.contrastOutlines.hint': 'Espessura do contorno que separa o que é perigo, o que se escala e o que é chão.',
+  'accom.easyMode': 'Modo fácil',
+  'accom.easyMode.hint': 'Gravidade mais leve, salto mais alto e passo mais calmo — o mundo é o mesmo, a exigência é menor.',
+  'accom.ownerColors': 'Cores por jogador',
+  'accom.ownerColors.hint': 'Cada criança vê os seus itens na sua cor, para não disputar os da outra.',
+  'accom.readingLevel': 'Nível da leitura',
+  'accom.readingLevel.hint': 'De reconhecer a letra a montar a palavra inteira, em cinco degraus.',
+  'accom.wheelchair': 'Cadeira de rodas',
+  'accom.wheelchair.hint': 'Sem pulo: a rampa leva para cima e o trampolim vira elevador. O nível inteiro continua a dar-se a percorrer.',
   'a11y.actionButtons': 'Botões de ação',
   'a11y.animations': 'Animações',
   'a11y.audioCategories': 'Categorias de áudio',
@@ -29,7 +44,7 @@ const pt: Record<string, string> = {
   'a11y.outlineBg': 'Contorno de segundo plano',
   'a11y.outlineFg': 'Contorno de primeiro plano',
   'a11y.outlines': 'Contornos do alto contraste',
-  'a11y.padDesign': 'Drawing dos botões',
+  'a11y.padDesign': 'Desenho dos botões',
   'a11y.screenButtons': 'Botões de tela (toque)',
   'a11y.shortcuts': 'Atalhos de acessibilidade',
   'a11y.simActive': 'Modo de simulação ativo. Toque duas vezes para voltar às cores normais.',
@@ -130,7 +145,7 @@ const pt: Record<string, string> = {
   'sr.motor.wheelchairOff': 'Modo cadeirante desligado.',
   'sr.motor.wheelchairOn': 'Modo cadeirante ligado: sem pulo; rampas e elevadores no lugar de degraus e escada; moedas no chão; só voo e super-corrida.',
   'sr.pad.connected': 'Controle conectado: layout {v}.',
-  'sr.pad.design': 'Drawing dos botões: {v}.',
+  'sr.pad.design': 'Desenho dos botões: {v}.',
   'sr.pad.disconnected': 'Controle do Jogador {n} desconectado — o teclado continua funcionando. Aperte START para reassociar.',
   'sr.physics.lava': 'Cuidado! Tocou na lava. As moedas voltaram para posições aleatórias.',
   'sr.physics.runLatchOff': 'Andando.',
@@ -183,6 +198,21 @@ const pt: Record<string, string> = {
 };
 
 const en: Record<string, string> = {
+  // AS PALAVRAS DAS ACOMODACOES que este jogo responde (CreateGameOptions.acomodacoes). Sao CHAVES e
+  // nao palavras na resposta, para a linha do menu seguir a troca de idioma (ADR-0232 D3).
+  'accom.caneSpacing': 'Cane spacing',
+  'accom.caneSpacing.hint': 'How far apart the cane taps as you walk. Closer warns sooner; wider disturbs less.',
+  'accom.characterMotion': 'Character motion',
+  'accom.characterMotion.hint': 'The breathing, the walk and the idle gestures of the character. Separate from the scenery.',
+  'accom.contrastOutlines.hint': 'How thick the outline is that tells hazard from climbable from ground.',
+  'accom.easyMode': 'Easy mode',
+  'accom.easyMode.hint': 'Lighter gravity, a higher jump and a calmer pace — the same world, asking less of you.',
+  'accom.ownerColors': 'Colour per player',
+  'accom.ownerColors.hint': 'Each child sees their own items in their own colour, so nobody chases another’s.',
+  'accom.readingLevel': 'Reading level',
+  'accom.readingLevel.hint': 'From recognising the letter to building the whole word, in five steps.',
+  'accom.wheelchair': 'Wheelchair',
+  'accom.wheelchair.hint': 'No jumping: the ramp takes you up and the trampoline becomes a lift. The whole level stays walkable.',
   'a11y.actionButtons': 'Action buttons',
   'a11y.animations': 'Animations',
   'a11y.audioCategories': 'Audio categories',
@@ -359,6 +389,21 @@ const en: Record<string, string> = {
 };
 
 const es: Record<string, string> = {
+  // AS PALAVRAS DAS ACOMODACOES que este jogo responde (CreateGameOptions.acomodacoes). Sao CHAVES e
+  // nao palavras na resposta, para a linha do menu seguir a troca de idioma (ADR-0232 D3).
+  'accom.caneSpacing': 'Separación del bastón',
+  'accom.caneSpacing.hint': 'Cada cuánto golpea el bastón al andar. Más junto avisa antes; más separado molesta menos.',
+  'accom.characterMotion': 'Movimiento del personaje',
+  'accom.characterMotion.hint': 'La respiración, el andar y los gestos del personaje. Aparte de las animaciones del escenario.',
+  'accom.contrastOutlines.hint': 'Grosor del contorno que separa el peligro, lo escalable y el suelo.',
+  'accom.easyMode': 'Modo fácil',
+  'accom.easyMode.hint': 'Gravedad más ligera, salto más alto y paso más calmado: el mismo mundo, exigiendo menos.',
+  'accom.ownerColors': 'Color por jugador',
+  'accom.ownerColors.hint': 'Cada niño ve sus objetos en su color, para no disputar los del otro.',
+  'accom.readingLevel': 'Nivel de lectura',
+  'accom.readingLevel.hint': 'De reconocer la letra a formar la palabra entera, en cinco escalones.',
+  'accom.wheelchair': 'Silla de ruedas',
+  'accom.wheelchair.hint': 'Sin salto: la rampa sube y el trampolín pasa a ser ascensor. El nivel entero sigue recorrible.',
   'a11y.actionButtons': 'Botones de acción',
   'a11y.animations': 'Animaciones',
   'a11y.audioCategories': 'Categorías de audio',
