@@ -8,7 +8,7 @@
 // Com o cartucho fora da engine, nenhuma das duas era aferivel la', e falsificar o preset teria apagado
 // exatamente o que elas provam. O TEXTO do aviso continua a ser gate da engine, onde sempre foi.
 import { describe, it, expect } from 'vitest';
-import { alcance, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
+import { reach, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { presetActions } from '@the-inclusionist/engine/core/actions.js';
 import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
 import { platformerPreset } from '../app/js/game/platformer-preset.js';

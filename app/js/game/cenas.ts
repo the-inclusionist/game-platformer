@@ -52,10 +52,10 @@ export interface CenasDoJogo {
  */
 export function criarCenasDoJogo(aoTrocar?: () => void): CenasDoJogo {
   const pilha = createSceneStack();
-  pilha.push({ nome: NOME.title });
+  pilha.push({ name: NOME.title });
 
   const fatos = (): SceneFacts => {
-    const topo = pilha.top()?.nome;
+    const topo = pilha.top()?.name;
     return {
       telaDeTitulo: topo === NOME.title,
       mundoRodando: topo === NOME.playing,
@@ -70,15 +70,17 @@ export function criarCenasDoJogo(aoTrocar?: () => void): CenasDoJogo {
       const f = fatos();
       return f.mundoRodando ? 'playing' : f.menuDePausa ? 'paused' : 'title';
     },
-    nomes: () => pilha.nomes(),
+    // A pilha da engine fala ingles desde a 11 (`names`); o `nomes()` que ESTE modulo expoe fica,
+    // porque e' a API deste jogo — e os seus testes leem por ela.
+    nomes: () => pilha.names(),
 
     irPara(p: Fase): void {
-      const topo = pilha.top()?.nome;
+      const topo = pilha.top()?.name;
       if (p === 'paused') {
-        if (topo !== NOME.paused) pilha.push({ nome: NOME.paused }); // EMPILHA: o jogo continua embaixo
+        if (topo !== NOME.paused) pilha.push({ name: NOME.paused }); // EMPILHA: o jogo continua embaixo
       } else {
         if (topo === NOME.paused) pilha.pop();                        // sair da pausa DESEMPILHA
-        if (pilha.top()?.nome !== NOME[p]) pilha.replace({ nome: NOME[p] });
+        if (pilha.top()?.name !== NOME[p]) pilha.replace({ name: NOME[p] });
       }
       aoTrocar?.();
     },

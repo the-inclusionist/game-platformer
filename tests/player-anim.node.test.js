@@ -13,7 +13,8 @@
 import { describe, it, expect } from 'vitest';
 import { choosePlayerFrame, COYOTE } from '../app/js/render/player-anim.js';
 import { makePlayer } from '../app/js/game/player.js';
-import { ANIM } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR sao deste jogo desde a engine 11 — ver `app/js/core/game-constants.ts`.
+import { ANIM } from '../app/js/core/game-constants.js';
 
 // Conjunto de quadros FALSO, com a mesma CARDINALIDADE do real (render/sprites.SPRITE_MANIFEST):
 // idle 4 · andar 8 · correr 4 · escada 2 · parede 4 · teto 4 · nadar 2 · nadar-parado 2.

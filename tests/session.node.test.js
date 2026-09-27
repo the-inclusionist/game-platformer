@@ -19,7 +19,9 @@ import {
   SCREEN_LABELS,
 } from '../app/js/game/session.js';
 import { BOX, SPAWN_X, SPAWN_Y, makePlayer } from '../app/js/game/player.js';
-import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { TILE } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR sao deste jogo desde a engine 11 — ver `app/js/core/game-constants.ts`.
+import { EASY } from '../app/js/core/game-constants.js';
 import { COIN_TARGET } from '../app/js/game/tuning.js';
 import * as COL from '../app/js/core/collision.js';
 import { initCoins } from '../app/js/game/coins.js';

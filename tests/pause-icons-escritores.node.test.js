@@ -15,7 +15,7 @@
 // nada. Um controle que a crianca ve, aciona e nao obtem resposta e' PIOR que um ausente: ela desiste
 // achando que o jogo nao tem a acomodacao. E' o que o ADR-0106 §5 proibe.
 import { describe, it, expect } from 'vitest';
-import { iconesQueAccionam } from '@the-inclusionist/engine/ui/pause-icons.js';
+import { iconsThatAct } from '@the-inclusionist/engine/ui/pause-icons.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -38,7 +38,7 @@ describe('a barra de acessibilidade deste jogo aciona os dois eixos visuais', ()
   // `setTemaDoJogador`/`setCorrecaoDoJogador` do ctx (`pause-icons.js:426-433`, `Boolean(ctx.setTema...)`).
   // Sem este caso, os dois de cima pareceriam zelo com um nome de campo.
   it('[Interface] os dois icones so existem quando ha quem os accione', () => {
-    const chaves = (o) => iconesQueAccionam(o).map((i) => i.k);
+    const chaves = (o) => iconsThatAct(o).map((i) => i.k);
     const sem = chaves({ tema: false, correcao: false, seguraTeclas: () => true });
     const com = chaves({ tema: true, correcao: true, seguraTeclas: () => true });
     // Os nomes das duas chaves estao escritos aqui como LITERAIS: le-los da propria engine faria a asserçao
@@ -54,7 +54,7 @@ describe('a barra de acessibilidade deste jogo aciona os dois eixos visuais', ()
   // resposta e' `true`, medida na fisica deste jogo (direcao, correr e pular sao segurados), e este caso e' o
   // que impede que ela seja mudada por distracao.
   it('[Interface] `seguraTeclas` decide o icone da trava pelo mesmo mecanismo', () => {
-    const chaves = (v) => iconesQueAccionam({ tema: true, correcao: true, seguraTeclas: () => v }).map((i) => i.k);
+    const chaves = (v) => iconsThatAct({ tema: true, correcao: true, seguraTeclas: () => v }).map((i) => i.k);
     expect(chaves(true)).toContain('altmove');
     expect(chaves(false)).not.toContain('altmove');
   });

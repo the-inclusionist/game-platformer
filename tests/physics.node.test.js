@@ -8,7 +8,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as COL from '../app/js/core/collision.js';
 import { initElevators, buildElevators } from '../app/js/game/elevators.js';
 import { makePlayer, BOX, SPAWN_X, SPAWN_Y, jumpVel } from '../app/js/game/player.js';
-import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { TILE } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR sao deste jogo desde a engine 11 — ver `app/js/core/game-constants.ts`.
+import { EASY } from '../app/js/core/game-constants.js';
 import { TUNE } from '../app/js/game/tuning.js';
 import { keys } from '@the-inclusionist/engine/input/state.js';
 import { KB_DEFAULTS } from '@the-inclusionist/engine/input/keyboard.js';

@@ -105,7 +105,7 @@ describe('game/cenas — alternarPausa', () => {
     // virar "pausa" por acidente só porque alguém apertou Escape.
     const c = criarCenasDoJogo();
     c.irPara('playing');
-    c.pilha.push({ nome: 'mapa' });
+    c.pilha.push({ name: 'mapa' });
     c.alternarPausa();
     expect(c.nomes()).toEqual(['jogo', 'mapa']);
     expect(c.fatos()).toEqual({ telaDeTitulo: false, mundoRodando: false, menuDePausa: false });

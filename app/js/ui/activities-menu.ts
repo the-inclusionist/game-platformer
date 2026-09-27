@@ -63,9 +63,9 @@ export type FracNot = Record<FracNotKey, number>;
 
 /** The 6 directional/confirm flags the title menu reacts to. Single definition in input/edges. */
 import type { NavKeys } from '@the-inclusionist/engine/input/edges.js';
-import { passoNoAnel } from '@the-inclusionist/engine/core/anel.js';
+import { passoNoAnel } from '@the-inclusionist/engine/core/ring.js';
 import { announceItem } from '@the-inclusionist/engine/ui/item-announcement.js';
-import { rotuloAcessivel } from '@the-inclusionist/engine/core/rotulo-acessivel.js';
+import { rotuloAcessivel } from '@the-inclusionist/engine/core/accessible-label.js';
 // LIGAÇÃO VIVA (ESM), e não cópia: `menuIndexOn` muda quando a criança desliga o índice no menu, e o valor
 // aqui acompanha sem precisar de assinatura nem de um campo a mais no `ctx`.
 import { menuIndexOn } from '@the-inclusionist/engine/core/state.js';
