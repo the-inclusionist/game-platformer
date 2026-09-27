@@ -85,6 +85,31 @@ justamente porque a página ainda era do jogo.
 
 ---
 
+## O que a execução de 27/09 descobriu, e o plano não sabia
+
+🔴 **O contrato FOI renomeado, e eu disse o contrário ao ler a engine.** O pacote **instalado** declara
+`holdsKeys()`, `keyboardMapping?` e `padMapping?`. Eu tinha lido o `dist-pkg` do repositório da engine, que
+discordava do pacote — e estado de outro repositório não é premissa. Quem apanhou não foi o `tsc`, foi o
+`conformanceProblems` da engine dentro do portão deste repositório. A resposta (`true`) não mudou; mudou o
+nome da pergunta. Corrigido em `518fdc2`.
+
+**O `Engine` que o `createGame` devolve já entrega quase tudo**: `settings: SettingsStore`, `t: Translate`,
+`audio`, `crt`, `lq`, `input`, `keyboardConfig`, `say`, `alert`, `deafMode`, `overlays`, `tts`, `reading`,
+`pause`, `mapSlot`. Então a onda da injeção é um **intermediário**, e não o destino: os 104 pontos que
+passaram de nome solto para `settingsStore.X` ficam idênticos, e o que muda é a linha que os origina —
+`createSettingsStore(store)` na raiz vira `ctx.engine.settings`. O mesmo para o tradutor.
+
+**`createGame({ dictionaries })` é «THE ONE PLACE A GAME'S WORDS LIVE»**, e não o `registerDict` do shell:
+todo termo que o jogo declara — `preset`, `accommodations`, `gameOptions`, `howToPlay`, `hud` — é chave
+desse mapa. A fiação de dicionários do terceiro commit entra por esta porta quando o `createGame` for
+adotado.
+
+### Estado em 27/09, 21h
+
+Sete commits locais, nenhum empurrado. **294 erros de tipo** (eram 383) e **736 de 783 testes** a passar,
+com 25 ficheiros de teste vermelhos. O passo 4 (as acomodações) está **feito**. O que falta é o passo 5–8,
+que é uma peça só: adotar o `createGame`, apagar as 21 raízes e os 36 overlays, e ligar o build do cartucho.
+
 ## Passos
 
 1. **Subir e deixar o compilador enumerar.** `peerDependencies`/`devDependencies` para `^11.0.0`; `npm ci`
