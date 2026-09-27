@@ -354,8 +354,8 @@ export function quizWho(pl: QuizPlayer, numJogadores: number): string {
  * que a issue #111 leva para outro repositorio. Um utilitario de seguranca do lado errado da fronteira e um
  * utilitario que o proximo consumidor reescreve.
  */
-import { escaparHtml } from '@the-inclusionist/engine/core/escape-html.js';
-export const escAtividade = escaparHtml;
+import { escapeHtml } from '@the-inclusionist/engine/core/escape-html.js';
+export const escAtividade = escapeHtml;
 
 export function somasubHtml(q: MathQuiz): string {
   const choices = q.choices.map((c, i) => `<button class="quiz-choice${i === q.sel ? ' sel' : ''}${q.revealed && cKey(c) === q.answer ? ' reveal' : ''}" data-i="${i}" type="button">${escAtividade(cDisp(c))}</button>`).join('');

@@ -8,7 +8,7 @@
 // Com o cartucho fora da engine, nenhuma das duas era aferivel la', e falsificar o preset teria apagado
 // exatamente o que elas provam. O TEXTO do aviso continua a ser gate da engine, onde sempre foi.
 import { describe, it, expect } from 'vitest';
-import { alcance, transportesPadrao } from '@the-inclusionist/engine/input/transports.js';
+import { alcance, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { presetActions } from '@the-inclusionist/engine/core/actions.js';
 import { platformerPreset } from '../app/js/game/platformer-preset.js';
 import { readFileSync } from 'node:fs';
@@ -18,7 +18,7 @@ const nunca = () => false;
 const sempre = () => true;
 // So o toque disponivel: e' o aparelho da crianca que este ficheiro afere, e `rato` entrou como quarta
 // pergunta da `Disponibilidade` na engine 8.0.0 (ADR-0112) — um rato sozinho nao carrega as catorze posicoes.
-const soToque = () => transportesPadrao({ gamepad: nunca, teclado: nunca, toque: sempre, rato: nunca });
+const soToque = () => defaultTransports({ gamepad: nunca, teclado: nunca, toque: sempre, rato: nunca });
 
 describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', () => {
   // Ler o fonte pelo mesmo motivo do `loop-crash`: `main.ts` arranca PixiJS, audio e o documento inteiro, e
@@ -27,7 +27,7 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
   const FONTE = readFileSync(join(process.cwd(), 'app', 'js', 'main.ts'), 'utf8');
 
   it('[Right] a raiz chama o aviso com as acoes do PROPRIO preset', () => {
-    expect(FONTE).toContain('mostrarAvisoDeAlcance');
+    expect(FONTE).toContain('showReachNotice');
     expect(FONTE).toContain('presetActions(platformerPreset())');
   });
 
@@ -38,7 +38,7 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
     // a crianca consegue segura-las ao mesmo tempo.
     const acoes = presetActions(platformerPreset());
     expect(acoes).toHaveLength(9);
-    expect(alcance(soToque(), acoes, 1).curtos).toEqual([]);
+    expect(reach(soToque(), acoes, 1).curtos).toEqual([]);
   });
 
   it('[Wrong] com as TRES posicoes da rota padrao, o toque nao alcanca — e diz qual e', () => {
@@ -48,7 +48,7 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
     // ⚠️ O `2` esta escrito aqui como LITERAL de proposito. Le-lo de `SEGURA_TOQUE` faria a asserçao andar
     // junto com a engine: no dia em que o toque passasse a segurar tres, este caso continuaria verde a
     // dizer que reprova, e ninguem saberia que a barreira tinha desaparecido.
-    const r = alcance(soToque(), presetActions(platformerPreset()), 3);
+    const r = reach(soToque(), presetActions(platformerPreset()), 3);
     expect(r.ok).toBe(false);
     expect(r.naoSeguram).toEqual([{ id: 'toque', holds: 2 }]);
   });
@@ -56,7 +56,7 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
   it('[Right] com a trava do botao de correr, a exigencia cai para duas e o toque alcanca', () => {
     // E o que torna `#opt-togglerun` a RESPOSTA ao aviso, e nao um ajuste qualquer: com a corrida engatada
     // sobram direcao e pulo. Quem liga a trava sozinha no toque e' o `onTouchControlsShown` de `main.ts`.
-    expect(alcance(soToque(), presetActions(platformerPreset()), 2).ok).toBe(true);
+    expect(reach(soToque(), presetActions(platformerPreset()), 2).ok).toBe(true);
   });
 
   it('[Interface] a raiz declara TRES, e nao um numero qualquer', () => {

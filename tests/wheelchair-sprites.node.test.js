@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { caneColor } from '../app/js/render/wheelchair-sprites.js';
 import { VIZ_BY_KEY } from '@the-inclusionist/engine/render/viz-modes.js';
-import { migrarVisual, PADRAO } from '@the-inclusionist/engine/render/viz-axes.js';
+import { migrarVisual, DEFAULT_VISUAL } from '@the-inclusionist/engine/render/viz-axes.js';
 
 describe('caneColor', () => {
   it('baixa visão → bengala VERDE (0x35d06a)', () => {
@@ -23,7 +23,7 @@ describe('caneColor', () => {
     const blindKey = Object.keys(VIZ_BY_KEY).find((k) => VIZ_BY_KEY[k].kind === 'blind');
     if (blindKey) expect(caneColor({ visual: migrarVisual(blindKey) })).toBe(0xf2f2f2);
     expect(caneColor({ visual: migrarVisual('__inexistente__') })).toBe(0xf2f2f2); // desconhecida cai no branco
-    expect(caneColor({ visual: PADRAO })).toBe(0xf2f2f2);
+    expect(caneColor({ visual: DEFAULT_VISUAL })).toBe(0xf2f2f2);
   });
 
   it('⚠️ [Right] alto contraste COM baixa visão continua verde — o estado que a chave única não sabia dizer', () => {

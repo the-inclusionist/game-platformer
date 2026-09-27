@@ -6,7 +6,7 @@
 // transformada dos sprites, a escolha ENTRE os dois caminhos de câmera (tela única × multi-tela) e a
 // visibilidade por dono no multi-tela. Ver docs/5-Refactoring/plano-modularizacao-mapa.md (C1).
 import { describe, it, expect, beforeEach } from 'vitest';
-import { migrarVisual, PADRAO } from '@the-inclusionist/engine/render/viz-axes.js';
+import { migrarVisual, DEFAULT_VISUAL } from '@the-inclusionist/engine/render/viz-axes.js';
 import { initDraw } from '../app/js/render/draw.js';
 import { LOGICAL_W, LOGICAL_H } from '@the-inclusionist/engine/core/constants.js';
 import { BOX_FALSO as BOX, jogadorFalso as makePlayer } from './fixtures/cartucho-falso.js';
@@ -91,7 +91,7 @@ const TEX = {
 function setPlayers(n, over = () => ({})) {
   players.length = 0;
   for (let i = 0; i < n; i++) {
-    players.push(Object.assign(makePlayer(i), { airTime: 0, onGround: true, sprite: spr(), visual: PADRAO }, over(i)));
+    players.push(Object.assign(makePlayer(i), { airTime: 0, onGround: true, sprite: spr(), visual: DEFAULT_VISUAL }, over(i)));
   }
   setNumPlayersValue(n);
   return players;
@@ -295,7 +295,7 @@ describe('render/draw — tela única × multi-tela', () => {
     expect(log.minimap).toEqual([]);       // minimapa é exclusivo da tela única
   });
   it('multi-tela com TODOS no mesmo modo: troca as texturas UMA vez só (a otimização do caso comum)', () => {
-    setPlayers(2, () => ({ visual: PADRAO }));
+    setPlayers(2, () => ({ visual: DEFAULT_VISUAL }));
     const { api, log } = makeCtx();
     api.drawFrame();
     expect(log.shared).toEqual(['normal']);
@@ -323,7 +323,7 @@ describe('render/draw — tela única × multi-tela', () => {
       .toEqual(['normal']);
   });
   it('o overlay de baixa visão só roda se ALGUÉM está em baixa visão — e aí em TODOS os viewports', () => {
-    setPlayers(2, () => ({ visual: PADRAO }));
+    setPlayers(2, () => ({ visual: DEFAULT_VISUAL }));
     const semLv = makeCtx(); semLv.api.drawFrame();
     expect(semLv.log.overlay).toEqual([]);
 

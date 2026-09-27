@@ -47,7 +47,7 @@ import { cenario as CENARIO, setCenarioValue, activity as ACTIVITY, setActivityV
 import { JOGO } from './game/save-id.js'; // ADR-0080: o id deste jogo, que a engine deixou de guardar
 import { createRunState } from './core/run-state.js'; // ADR-0038 Fase B: a RODADA como fábrica
 import { criarCenasDoJogo, type Fase } from './game/cenas.js'; // as três cenas DESTE jogo (ADR-0030 C3)
-import type { FatosDaCena } from '@the-inclusionist/engine/core/scenes.js';
+import type { SceneFacts } from '@the-inclusionist/engine/core/scenes.js';
 import type { Powerup } from './game/level-geometry.js'; // o tipo do power-up é do JOGO
 import type { Player, PlayerView } from '@the-inclusionist/engine/core/entity.js'; // a entidade da ENGINE, e a vista mínima dela
 import type { GamePlayer, ControlledGamePlayer } from './game/entity.js'; // as deste JOGO — ver `jogadores`/`controlados`
@@ -60,7 +60,7 @@ import type { GameCtx, CartuchoMontado } from '../../src/contract.js'; // o cont
 import type { GanchosDoCartucho } from '@the-inclusionist/engine';
 import { createPlatformerDeclaration } from './declaration/platformer-declaration.js'; // o contrato do cartucho, deste lado
 // `startLoop` e `criarAvisoDeQueda` sairam daqui com o laco: sao do SHELL (ADR-0139), e vivem em src/standalone.ts
-import { initDebugPanel, type AmostraDoPersonagem } from '@the-inclusionist/engine/ui/debug-panel.js'; // painel ?debug (Tier 1)
+import { initDebugPanel, type CharacterSample } from '@the-inclusionist/engine/ui/debug-panel.js'; // painel ?debug (Tier 1)
 import { createAttract } from './game/attract.js'; // modo demonstração (Tier 1)
 import { isValidActivityId, DEFAULT_ACTIVITY_ID, modeForActivity, type GameMode }
   from '@the-inclusionist/engine/educational/activities-registry.js'; // ADR-0040: o MODE deriva daqui, e a derivação mora no currículo
@@ -71,13 +71,13 @@ import { SOMASUB_SHAPES, WORD_INITIALS } from './game/activity-content.js'; // E
 import { JUICE, saveJuice, puffDust, burstSparkle, addShake, addHitstop, setSquash, stepFx, initFx, tickHitstop, getParticles, getHitstopT, getShakeT } from './render/fx.js'; // Estágio 4 (Tier 2): juice (partículas/shake/hitstop/squash)
 import { parallaxPlaceholder, themeSkyTexture, themeHillsTexture, themeCitySkyTexture, themeSkylineTexture } from './render/scene-parallax.js'; // Estágio 4 (Tier 2): geradores de textura do parallax
 import { worldCanvas, initWorldTex } from './render/world-tex.js'; // Estágio 4 (Tier 2): builder da textura NORMAL do mundo
-import { kb, initKB, setKB, saveKB, resetKB, fabricaComOJogo } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
+import { kb, initKB, setKB, saveKB, resetKB, factoryWithGame } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
 import { AUDIO_CATS } from '@the-inclusionist/engine/platform/audio-mixer.js'; // Fase 2: categorias do mixer (dados); audioCat/catNode/setCatGain vêm de audio.js
 import { FONT_GROUPS } from '@the-inclusionist/engine/ui/fonts.js'; // Fase 2: tipografia (catálogo + persistência)
 import { $, $$, toggleBtn, toggleLabel } from '@the-inclusionist/engine/ui/dom.js';
 import { initSettingsAudio } from '@the-inclusionist/engine/ui/settings-audio.js';
 import { initSettingsControls, keyName } from '@the-inclusionist/engine/ui/settings-controls.js';
-import { escaparHtml } from '@the-inclusionist/engine/core/escape-html.js';
+import { escapeHtml } from '@the-inclusionist/engine/core/escape-html.js';
 import { linhasDaAjuda } from './game/help-lines.js'; // a tela de ajuda deixou de ler o ACT_LABEL (#125)
 import { initSettingsVisual, ROLE_LABELS } from '@the-inclusionist/engine/ui/settings-visual.js';
 import { initSettingsCaa } from '@the-inclusionist/engine/ui/settings-caa.js';
@@ -90,11 +90,11 @@ import { initTitle } from '@the-inclusionist/engine/ui/title.js';
 import { createTitleScene } from './render/title-scene.js'; // Fase 2.27: atalho de querySelector (Tier 1)
 import { labellerFrom, shortLabellerFrom, presetActions, type Action } from '@the-inclusionist/engine/core/actions.js';
 import { platformerPreset } from './game/platformer-preset.js';
-import { ehCego, ehBaixaVisao, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js'; // os dois eixos (8.0.0): quem responde ao sonar
+import { isBlind, isLowVision, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js'; // os dois eixos (8.0.0): quem responde ao sonar
 import { VIZ_MODES, VIZ_BY_KEY, VIZ_CYCLE, simulatesDisability } from '@the-inclusionist/engine/render/viz-modes.js'; // Fase 2: modos visuais de a11y (dados)
 import { PAD_DESIGNS } from '@the-inclusionist/engine/input/devices.js'; // Fase 2: rótulos de gamepad/toque (dados)
 import { keys, padCur, padPrevAct, held, marcarTecla, marcarTeclaSemOrigem, soltarTecla } from '@the-inclusionist/engine/input/state.js'; // Fase 2.22: estado de input + held
-import { criarArestaComAlternancia } from '@the-inclusionist/engine/input/latch-edge.js';
+import { createLatchedEdge } from '@the-inclusionist/engine/input/latch-edge.js';
 import { audioCtx, ensureAC, soundOn, volume, setSoundOn, setVolume, audioOut, hearingLoss, setHearingLossGraph, setMasterMuted, audioCat, initAudioMixer, catNode, setCatGain, tone, tonePan, noiseBuffer, noiseHit, _footCount } from '@the-inclusionist/engine/platform/audio.js'; // Fase 2: base + mestre + mixer + sínteses (oscilador + ruído)
 import { gameSay } from '@the-inclusionist/engine/platform/speech.js';
 import { createAudioJingles } from '@the-inclusionist/engine/platform/audio-jingles.js'; // Tier 2 (áudio r1): jingles de vitória/enigma/fogos
@@ -140,9 +140,9 @@ import { initMapHub } from './ui/map-hub.js'; // D3-c: painel "Mapear controles"
 import { initPhysics, stepPlayer as stepPhysics } from './game/physics.js'; // B1: fisica do jogador (ancorada nas trajetorias-ouro)
 import { initQuiz } from './game/quiz.js'; // B3: o desafio educativo (geracao + markup + efeito)
 import { initSettingsPanel } from '@the-inclusionist/engine/ui/settings-panel.js'; // B4: o que as cascas dos paineis realmente compartilham
-import { initFocusTrap, focaveisNoDom } from '@the-inclusionist/engine/ui/focus-trap.js'; // #109: Tab nao sai de um dialogo aberto
-import { mostrarAvisoDeAlcance } from '@the-inclusionist/engine/ui/reach-notice.js'; // #112: diz ANTES quando o controle nao alcanca
-import { alcance, transportesPadrao } from '@the-inclusionist/engine/input/transports.js';
+import { initFocusTrap, focusablesInDom } from '@the-inclusionist/engine/ui/focus-trap.js'; // #109: Tab nao sai de um dialogo aberto
+import { showReachNotice } from '@the-inclusionist/engine/ui/reach-notice.js'; // #112: diz ANTES quando o controle nao alcanca
+import { alcance, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { initViewports } from '@the-inclusionist/engine/render/viewports.js'; // B2: fabrica de imagem dos modos de visao
 import { initSession } from './game/session.js'; // C2: o ciclo de vida da RODADA (MODE_LABELS/MODES saíram com o #opt-mode)
 import { initDraw } from './render/draw.js'; // C1: camera + o quadro + a escolha de quadro do personagem
@@ -211,7 +211,7 @@ const players = rodada.players;
 /* ===================== AS CENAS (ADR-0030 C3, passo 3 da Fase B) =====================
    `phase: 'title'|'playing'|'paused'` SAIU de `core/state`. As três cenas e as regras de ir de uma para a
    outra moram em `game/cenas` — do lado do JOGO, porque o vocabulário é dele —, e o que atravessa de volta
-   para a engine são três BOOLEANOS (`FatosDaCena`). É a mesma correção que o `consumer-quiz` obrigou a
+   para a engine são três BOOLEANOS (`SceneFacts`). É a mesma correção que o `consumer-quiz` obrigou a
    fazer no `menu-nav` (`getPhase()` → `isNavigable()`), registrada em `core/constants` como o erro a não
    repetir.
 
@@ -223,7 +223,7 @@ const players = rodada.players;
 // ~1.500 linhas abaixo, e só a resolução na hora da chamada o tira da TDZ. A primeira troca de cena é o
 // `setPhase('title')` do boot, lá embaixo, depois de a casca existir. (Mesmo padrão do ctx da pausa.)
 const cenas = criarCenasDoJogo(() => shell.aplicarCena());
-const fatosDaCena = (): FatosDaCena => cenas.fatos();
+const fatosDaCena = (): SceneFacts => cenas.fatos();
 initLayout({ numJogadores: () => rodada.numPlayers });
 // `a11yVisualAtiva`: ALGUM jogador fora do modo `normal`. O CRT é decoração GLOBAL — uma só para a tela
 // inteira —, então não há como escurecer as bordas de meia tela; se decoração e acessibilidade de qualquer
@@ -492,7 +492,7 @@ const { frontOverlay } = overlays;
 initFocusTrap({
   overlayDeCima: overlays.topVisibleOverlay,
   focoAtual: () => document.activeElement,
-  focaveisDe: focaveisNoDom,
+  focaveisDe: focusablesInDom,
   win: window,
 }).attach();
 
@@ -519,9 +519,9 @@ function ehToque(){ try{ return matchMedia('(pointer:coarse)').matches && matchM
 // teclado e pad não declaram nenhum. Então num tablet ou telemóvel o aviso aparece — e a resposta a ele é
 // a trava do botão de correr (`#opt-togglerun`), que põe a exigência em dois. Ver a nota do
 // `onTouchControlsShown` mais abaixo, que é quem a liga sozinha no toque.
-mostrarAvisoDeAlcance(
+showReachNotice(
   { procurar: (sel) => $<HTMLElement>(sel), criar: (tag) => document.createElement(tag), t, srAlert },
-  alcance(transportesPadrao({
+  reach(defaultTransports({
     gamepad: () => { try { return [...(navigator.getGamepads?.() ?? [])].some(Boolean); } catch (e) { return false; } },
     // ⚠️ A MESMA pergunta que o `isCoarsePointer` do ctx de `game/session` faz (linha ~1324), escrita aqui e
     // nao reutilizada: aquele e definido MAIS ABAIXO neste ficheiro, e chama-lo daqui cairia em TDZ e
@@ -559,7 +559,7 @@ const kbRuntime = initKeyboardRuntime({ getKB: () => kb, getNumPlayers: () => ro
 // faz `store.remove(CKEY)` ANTES de devolver a cópia. Como este painel chama o leitor a CADA render, usá-lo
 // apagaria o remapeamento da criança a cada abertura do painel — e o estrago só apareceria no arranque
 // seguinte, quando o mapa dela voltasse ao de fábrica sem que nada o tivesse pedido.
-const kbFabrica = initKeyboardRuntime({ getKB: fabricaComOJogo, getNumPlayers: () => rodada.numPlayers, getPlayers: () => controlados() });
+const kbFabrica = initKeyboardRuntime({ getKB: factoryWithGame, getNumPlayers: () => rodada.numPlayers, getPlayers: () => controlados() });
 const kbFor = (i: number) => kbRuntime.kbFor(i);
 // controls/KJUMP..KRUN/GAME_KEYS nao moram mais aqui (D1): eram oito copias de kbRuntime.computeControlsState(),
 // e `applyControls` existia so para refaze-las. A memoria foi para dentro de input/keyboard-runtime, que e quem
@@ -592,7 +592,7 @@ assignControls();
 // `criarArestaComAlternancia` (e não o `arestaDoJogador` cru de input/state) porque ESTE jogo tem
 // alternância: `toggleMove`/`walkDir` vivem no jogador, que é exatamente o `JogadorDaAlternancia` que
 // a fábrica pede.
-const arestaDoJogador = criarArestaComAlternancia(() => players);
+const arestaDoJogador = createLatchedEdge(() => players);
 
 /*
  * ⚠️ DUAS ADAPTAÇÕES QUE EXISTEM POR UMA COSTURA DA ENGINE, e não por desleixo daqui — medido na 9.0.0:
@@ -724,7 +724,7 @@ function surfaceUnder(pl: PlayerView<'x' | 'y'>){ const tile=tileAt(Math.floor(p
 // A MESMA PERGUNTA QUE O SONAR FAZ, escrita uma vez. Era `VIZ_BY_KEY[pl.viz]` com os `kind` 'blind' e
 // 'lowvision' atravessados à mão; a engine 8.0.0 publica os dois predicados e apagou a tabela do ctx do
 // sonar (#104). A conta é idêntica — o que muda é que agora há UM sítio a errá-la, e não dois.
-const visaoComprometidaDe=(v: VisualState)=> ehCego(v) || ehBaixaVisao(v);
+const visaoComprometidaDe=(v: VisualState)=> isBlind(v) || isLowVision(v);
 // `caneOn` é a pergunta do DESENHO e soma o modo cego global; o sonar recebe o modo cego à parte, por
 // isso lá vai só o predicado de cima. A diferença é real e está anotada dos dois lados.
 const caneOn=(pl: PlayerView<'visual'>)=> modoCego || visaoComprometidaDe(pl.visual); // predicado de visão (movimento/render) — fica no main.js
@@ -1990,7 +1990,7 @@ function openHelp(){ const ov=$('#help'); if(!ov)return; const c=$('#help-conten
   //
   // O `escaparHtml` é defesa em profundidade: o rótulo vem do preset deste repositório, não de fora, mas ele
   // entra num template que vira `innerHTML` e a regra da casa é não interpolar texto em marcação sem escapar.
-  const rows=linhasDaAjuda(acoesDoJogo(),map).map(l=>`<div class="ctrl-row"><span>${escaparHtml(l.rotulo)}</span><span>${l.teclas.map(keyName).map(k=>'<kbd>'+k+'</kbd>').join(' ')||'—'}</span></div>`).join('');
+  const rows=linhasDaAjuda(acoesDoJogo(),map).map(l=>`<div class="ctrl-row"><span>${escapeHtml(l.rotulo)}</span><span>${l.teclas.map(keyName).map(k=>'<kbd>'+k+'</kbd>').join(' ')||'—'}</span></div>`).join('');
   // O cabecalho e' UMA FRASE por caso ('Seus controles' / 'Seus controles · Jogador N'), e nao um prefixo mais
   // um sufixo: uma lingua que ponha o numero do jogador ANTES do titulo so consegue se a frase inteira morar
   // no dicionario. Mesma decisao de `sr.audio.*` e dos anuncios motores.
@@ -2281,7 +2281,7 @@ const attractCtl = createAttract({
    O Dev relatou várias cópias do personagem em posições diferentes, e eu não reproduzo no meu ambiente —
    todas as minhas medições encontram UMA. A sonda existe para que a medição ande na tela dele.
 
-   O PixiJS fica AQUI, e o painel recebe DADOS. Mesma razão do `RenderizarEm` em render/port: pedir o verbo
+   O PixiJS fica AQUI, e o painel recebe DADOS. Mesma razão do `RenderInto` em render/port: pedir o verbo
    cabe onde emprestar o objeto não cabe, e é isso que mantém `ui/debug-panel` testável sem navegador.
 
    AS BASES CONHECIDAS SE ACUMULAM entre chamadas, e essa linha é o conserto de um erro MEU: eu procurava
@@ -2289,7 +2289,7 @@ const attractCtl = createAttract({
    distintas (cada um vira uma tela própria no tapa-costuras). Uma cópia exibindo outro quadro escapava do
    filtro — foi por isso que eu medi "uma" três vezes seguidas enquanto a tela dele mostrava dezenas. */
 const _basesDoPersonagem = new Set<unknown>();
-function _amostrarPersonagem(): AmostraDoPersonagem | null {
+function _amostrarPersonagem(): CharacterSample | null {
   // `PlayerSpriteLike` é a fatia ESTREITA que o jogo declara do sprite (ADR-0039), e a sonda precisa de
   // campos que ela não promete (`texture.frame`, `scale`). A conversão passa por `unknown` porque é isso que
   // ela é: a raiz de composição sabe que ali mora um `PIXI.Sprite`, e é o único lugar que sabe.

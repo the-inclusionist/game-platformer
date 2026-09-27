@@ -14,7 +14,7 @@
 //
 // MUTATIONS CHECKED (at the end of the file).
 import { describe, it, expect } from 'vitest';
-import { rotaAte } from '@the-inclusionist/engine/core/route.js';
+import { routeTo } from '@the-inclusionist/engine/core/route.js';
 import { distance } from '@the-inclusionist/engine/core/contract.js';
 import {
   createAudioGuide, GUIDE_WAVE, GUIDE_VOL, FRAMES_BETWEEN_ROUTES,
@@ -225,10 +225,10 @@ describe('platform/audio-guide · the route, when the game allows it (#84 item 2
     // It is the assertion that prevents the extra conversion. `distance()` divides by `unit` in the continuous branch, and
     // the route counts steps by definition — dividing again by the world's step would put the guide at full brightness
     // forever in a game with `unit = 16`.
-    const route = rotaAte({ topology: ORTHO_GRID, roleAt: () => 'free' }, { x: 0, y: 0 }, [{ x: 7, y: 0 }]);
+    const route = routeTo({ topology: ORTHO_GRID, roleAt: () => 'free' }, { x: 0, y: 0 }, [{ x: 7, y: 0 }]);
     expect(route.passos).toBe(distance(ORTHO_GRID, { x: 0, y: 0 }, { x: 7, y: 0 }));
     // And with a wall the route is STRICTLY longer — never shorter than the straight line.
-    const detour = rotaAte({ topology: ORTHO_GRID, roleAt: WALL }, { x: 4, y: 0 }, [{ x: 6, y: 0 }]);
+    const detour = routeTo({ topology: ORTHO_GRID, roleAt: WALL }, { x: 4, y: 0 }, [{ x: 6, y: 0 }]);
     expect(detour.passos).toBeGreaterThan(distance(ORTHO_GRID, { x: 4, y: 0 }, { x: 6, y: 0 }));
   });
 });

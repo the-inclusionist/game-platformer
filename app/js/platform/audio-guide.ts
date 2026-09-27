@@ -18,7 +18,7 @@
 // ========================= NO I/O AT IMPORT =========================
 // Nothing here touches `window`: the audio context comes from the ctx. It runs in the `node` project.
 import { distance, type Role, type Spot, type Topology } from '@the-inclusionist/engine/core/contract.js';
-import { rotaAte } from '@the-inclusionist/engine/core/route.js';
+import { routeTo } from '@the-inclusionist/engine/core/route.js';
 import type { AudioSonar, SonarPlayer } from '@the-inclusionist/engine/platform/audio-sonar.js';
 import { guideIntensity, FAR_CUT, STEPS_TO_FLOOR } from './guide-intensity.js';
 
@@ -146,7 +146,7 @@ export function createAudioGuide(ctx: AudioGuideCtx): AudioGuide {
   function stepsToTarget(pl: GuidePlayer, target: { at: Spot; d: number }): number {
     const roleAt = ctx.roleAt;
     if (roleAt) {
-      const path = rotaAte({ topology: ctx.topology(), roleAt, orcamento: ROUTE_BUDGET }, { x: pl.x, y: pl.y }, [target.at]);
+      const path = routeTo({ topology: ctx.topology(), roleAt, orcamento: ROUTE_BUDGET }, { x: pl.x, y: pl.y }, [target.at]);
       if (path) return path.passos;
     }
     return target.d;

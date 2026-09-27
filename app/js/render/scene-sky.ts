@@ -5,8 +5,8 @@
 // render-graph (parallax/worldSprite/lifeLayer/carLayer) — e são INJETADAS aqui; movemos só a LÓGICA. Fórmulas copiadas
 // verbatim da v3.1.100. Injeção por closure. Ver docs/5-Refactoring/plano-modularizacao-mapa.md (#43).
 
-import type { Desenho, Camada } from '@the-inclusionist/engine/render/port.js';
-import type { CriarSprite } from '@the-inclusionist/engine/render/port.js';
+import type { Drawing, Layer } from '@the-inclusionist/engine/render/port.js';
+import type { CreateSprite } from '@the-inclusionist/engine/render/port.js';
 /**
  * Posição horizontal de uma nuvem à deriva, com wrap SUB-PIXEL e pelo CORPO INTEIRO. Corrige #21:
  * (a) NÃO arredonda → deriva suave mesmo a <1px/frame; (b) só reentra quando a nuvem inteira saiu.
@@ -96,9 +96,10 @@ const CUMULO: readonly (readonly [number, number, number, number])[] = [
 /** A sombra sob a base — uma linha só. Na Floresta ela é alaranjada: a luz baixa bate por baixo. */
 const CUMULO_SOMBRA: readonly [number, number, number, number] = [1, 12, 24, 1];
 
-type Gfx = Desenho;
+type Gfx = Drawing;
 interface Sprite { x: number; y: number; alpha: number; texture: unknown; scale: { x: number }; _v?: number; destroy(): void; }
-type Layer = Camada;
+// O alias local morreu na engine 11: ele existia so para chamar `Camada` de `Layer`, e agora o tipo
+// JA se chama `Layer` e vem importado de `render/port` no topo deste ficheiro.
 // O construtor virou FÁBRICA (Fase D): `new (tex: unknown)` não recebe o `PIXI.Sprite` real, cujo
 // construtor só aceita `Texture`. Por contravariância, prometer aceitar qualquer coisa é o que impede.
 // Ver `CriarSprite` no cabeçalho de `render/port`.
@@ -113,7 +114,7 @@ export interface SceneSkyCtx {
    *  esconde o sol) e ATRÁS das duas bandas de morro (por isso as árvores do fundo passam à frente dela).
    *  `skyDecoG`, onde moram os pássaros e as nuvens dos outros temas, está à frente dos morros e não serve. */
   nuvemG: Gfx;
-  CLOUD_TEX: unknown[]; BIRD_TEX: unknown[]; criarSprite: CriarSprite<Sprite>; // texturas + a fábrica
+  CLOUD_TEX: unknown[]; BIRD_TEX: unknown[]; criarSprite: CreateSprite<Sprite>; // texturas + a fábrica
   hexN: (s: string) => number; rnd: () => number; randInt: (a: number, b: number) => number;
   WORLD_PX_W: number; WORLD_PX_H: number; WORLD_W: number; WORLD_H: number; TILE: number; LOGICAL_W: number; LOGICAL_H: number; BOX: { h: number };
   CENARIOS: Record<string, Theme>; THEME_FLORA: Record<string, Flora | undefined>; DIRECT_CFG: Record<string, unknown>;

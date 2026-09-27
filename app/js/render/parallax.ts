@@ -80,7 +80,7 @@
 
 import { LOGICAL_W, LOGICAL_H } from '@the-inclusionist/engine/core/constants.js';
 import type { CenarioTema, TemaMorros, TemaPredios, FaixaDePredios } from './cenario-data.js';
-import type { CriarAzulejo } from '@the-inclusionist/engine/render/port.js';
+import type { CreateTile } from '@the-inclusionist/engine/render/port.js';
 
 /* ===================== os fatores de profundidade (dado) ===================== */
 
@@ -92,14 +92,14 @@ export interface CamadaParallax {
 }
 
 /* Parallax: 3 camadas de FUNDO atrás do tileset (Camada 1 = tileset+personagem).
-   Camada 4 (fator 0.10) é a mais distante e "quase não se mexe" — receberá a maior imagem possível do
+   Layer 4 (fator 0.10) é a mais distante e "quase não se mexe" — receberá a maior imagem possível do
    PixelLab. Vivem DENTRO do camera (contra-posicionadas p/ ficarem fixas na tela) para também aparecerem nas
    render-textures do multiplayer. tilePosition faz o scroll fracionado → ilusão de profundidade.
    A ORDEM do array é a ordem-z: índice 0 no fundo. */
 export const PARALLAX: readonly CamadaParallax[] = [
-  { key: 'sky',  factor: 0.10, fy: 0 }, // Camada 4 — mais distante (céu/horizonte), maior imagem
-  { key: 'far',  factor: 0.28, fy: 0 }, // Camada 3
-  { key: 'near', factor: 0.52, fy: 0 }, // Camada 2 — mais próxima do tileset
+  { key: 'sky',  factor: 0.10, fy: 0 }, // Layer 4 — mais distante (céu/horizonte), maior imagem
+  { key: 'far',  factor: 0.28, fy: 0 }, // Layer 3
+  { key: 'near', factor: 0.52, fy: 0 }, // Layer 2 — mais próxima do tileset
 ];
 
 /** Índice da camada → número do arquivo PNG da Cidade (`c4.png`, `c3.png`, `c2.png`). */
@@ -159,7 +159,7 @@ interface PosicionavelLike { position: { set(x: number, y: number): void } }
 export interface ParallaxCtx {
   /* --- render-graph (criados no game.js; a ordem-z é soldada lá) --- */
   camera: ContainerLike;          // container do mundo — as 3 camadas entram nos índices 0,1,2
-  criarAzulejo: CriarAzulejo<TilingSpriteLike>; // era `TilingSprite: TilingSpriteCtor`
+  criarAzulejo: CreateTile<TilingSpriteLike>; // era `TilingSprite: TilingSpriteCtor`
 
   /* --- geradores de textura (render/scene-parallax): injetados, não importados, p/ rodar no project node --- */
   placeholderTex: (i: number) => unknown;                       // parallaxPlaceholder — fundo da Cidade sem PNG

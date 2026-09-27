@@ -33,7 +33,7 @@ const setNumPlayersValue = (n) => rodada.setNumPlayers(n);
 // ele testa que `ui/activities-menu` LÊ e ESCREVE o que lhe injetam, e nunca o que o platformer escolheu.
 /** A neutral storage id, as the engine's fake cartridge had it. */
 const JOGO = 'jogo-de-teste';
-let ACTIVITY = DEFAULT_ACTIVITY_ID; // arranca no PADRAO, como o `activity` de `game/state`
+let ACTIVITY = DEFAULT_ACTIVITY_ID; // arranca no DEFAULT_VISUAL, como o `activity` de `game/state`
 // ⚠️ O SETTER GRAVA, e nao e' detalhe: o `setActivityValue` de `game/state` fazia
 //   `activity = id; store.set(store.KEYS.activity(JOGO), id); emit(...)`
 // e cinco casos deste ficheiro afirmam contra o ARMAZENAMENTO, nao contra a variavel. Um falso que so

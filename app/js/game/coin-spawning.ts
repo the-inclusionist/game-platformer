@@ -14,7 +14,7 @@ import { coins, setCoins } from './state.js'; // item 19: `coins`/`quizLevel` sa
 import { findCoinCandidates, positionEasyCoins } from './coins.js';
 import { SOMASUB_SHAPES, WORD_INITIALS } from './activity-content.js';
 import type { DomQuery } from '@the-inclusionist/engine/core/dom-query.js';
-import type { Tingivel, ComTextura, CamadaEsvaziavel, CriarSprite } from '@the-inclusionist/engine/render/port.js';
+import type { Tintable, WithTexture, ClearableLayer, CreateSprite } from '@the-inclusionist/engine/render/port.js';
 
 /** Minimal DOM-selector shape (matches ui/dom.ts's `$`) — injected, never imported, so the module stays node-testable. */
 // `DomQuery` mora em `core/dom-query` desde 2026-08-26: esta linha estava copiada em DEZESSEIS
@@ -30,7 +30,7 @@ export type { DomQuery } from '@the-inclusionist/engine/core/dom-query.js';
 // se ENTREGA — a inversão que o ADR-0039 registra: em posição de saída, a fatia mínima é a do RECEPTOR.
 // E a `texture` está aqui pela mesma entrega: `render/viz-setters` TROCA a textura do item quando o modo
 // acessível muda (`itemTexId: 'coin'`). Quem entrega declara o que o receptor toca.
-export interface CoinSprite extends Tingivel, ComTextura {
+export interface CoinSprite extends Tintable, WithTexture {
   x: number; y: number;
   width?: number; height?: number;
   alpha: number;
@@ -40,7 +40,7 @@ export interface CoinSprite extends Tingivel, ComTextura {
 /** O container PIXI onde os sprites de moeda vivem — a camada esvaziável da porta do renderizador.
  *  Era declarado aqui, com `removeChildren(): CoinSprite[]`: pedir de volta algo MAIS ESPECÍFICO do que o
  *  PixiJS entrega (`DisplayObject[]`) é o que não cabia — retorno é covariante. */
-export type CoinContainer = CamadaEsvaziavel;
+export type CoinContainer = ClearableLayer;
 /** Handle opaco de textura — repassado direto do injetor para a fábrica de sprite, nunca inspecionado aqui. */
 export type CoinTexture = unknown;
 
@@ -48,7 +48,7 @@ export interface CoinSpawningCtx {
   /** A corrente do cartucho (ADR-0141) — ver a mesma nota em `coins.ts`. */
   rng: Rng;
   coinContainer: CoinContainer;                          // camada PIXI onde os sprites de moeda entram
-  createSprite: CriarSprite<CoinSprite>;                   // fábrica de sprite (= `new PIXI.Sprite(tex)` na raiz)
+  createSprite: CreateSprite<CoinSprite>;                   // fábrica de sprite (= `new PIXI.Sprite(tex)` na raiz)
   coinTexFor: (mode: string) => CoinTexture;              // textura padrão da moeda (varia por modo acessível)
   shapeTexFor: (shapeId: string) => CoinTexture;          // textura de forma (Soma-Sub; = SHAPE_TEX[id] cacheado)
   letterTexFor: (letter: string) => CoinTexture;          // textura de letra (Sílabas; NÃO cacheada no game.js — ver "Bugs surfados")

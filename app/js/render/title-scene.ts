@@ -8,11 +8,11 @@
 
 import { LOGICAL_H } from '@the-inclusionist/engine/core/constants.js';
 import { cloudWrapX } from './scene-sky.js';
-import type { Desenho } from '@the-inclusionist/engine/render/port.js';
+import type { Drawing } from '@the-inclusionist/engine/render/port.js';
 
 // `Gfx` vem de `render/port` desde 2026-08-26: estava escrito cinco vezes na árvore, com quatro
 // definições diferentes. Ver o cabeçalho de lá.
-type Gfx = Desenho;
+type Gfx = Drawing;
 
 export interface TitleSceneCtx {
   /** The PIXI.Graphics layer this scene draws into (created + z-ordered in game.js). */

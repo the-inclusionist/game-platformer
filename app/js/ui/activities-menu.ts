@@ -36,13 +36,13 @@
 // `activity`/`setActivityValue` NÃO são mais importados: eles vão para `game/state` (Fase B do plano), e
 // este módulo é ENGINE — o gate de fronteira proíbe engine importar de `game/`, e a lista dele esvaziou em
 // 2026-08-25. Chegam por injeção, como todo o resto do que é do jogo.
-import { escaparHtml } from '@the-inclusionist/engine/core/escape-html.js'; // #106: o id do cenario vem do JOGO
+import { escapeHtml } from '@the-inclusionist/engine/core/escape-html.js'; // #106: o id do cenario vem do JOGO
 import { getActivity, hasActivity, isValidActivityId, DEFAULT_ACTIVITY_ID, activityCategory,
          type ActivityDef, type ActivityCat } from '@the-inclusionist/engine/educational/activities-registry.js';
 import * as store from '@the-inclusionist/engine/platform/storage.js';
 import { t } from '@the-inclusionist/engine/core/i18n.js';
 import type { TitleMenuId } from '@the-inclusionist/engine/ui/title.js';
-import { TITLE_MENU_IDS_ORDERED as TITLE_MENU_ORDER } from '@the-inclusionist/engine/ui/title.js';
+import { TITLE_MENU_IDS as TITLE_MENU_ORDER } from '@the-inclusionist/engine/ui/title.js';
 
 // -------------------------------------------------------------------------------------------------------
 // Types
@@ -62,7 +62,7 @@ export type FracNot = Record<FracNotKey, number>;
 /** The 6 directional/confirm flags the title menu reacts to. Single definition in input/edges. */
 import type { NavKeys } from '@the-inclusionist/engine/input/edges.js';
 import { passoNoAnel } from '@the-inclusionist/engine/core/anel.js';
-import { anunciarItem } from '@the-inclusionist/engine/ui/item-announcement.js';
+import { announceItem } from '@the-inclusionist/engine/ui/item-announcement.js';
 import { rotuloAcessivel } from '@the-inclusionist/engine/core/rotulo-acessivel.js';
 // LIGAÇÃO VIVA (ESM), e não cópia: `menuIndexOn` muda quando a criança desliga o índice no menu, e o valor
 // aqui acompanha sem precisar de assinatura nem de um campo a mais no `ctx`.
@@ -199,7 +199,7 @@ export const FR_MENU_IDS: readonly string[] = ['fr2', 'fr3', 'fr42', 'fr5', 'fr6
 /** The 6 title submenus, in the order game.js has always scanned them for the visible one. */
 // A lista ordenada vem de ui/title, que e a dona dos submenus; aqui so ganha o nome que este modulo e
 // seus testes ja usavam. Duas copias mantidas em sincronia por disciplina eram uma a mais.
-export { TITLE_MENU_IDS_ORDERED as TITLE_MENU_ORDER } from '@the-inclusionist/engine/ui/title.js';
+export { TITLE_MENU_IDS as TITLE_MENU_ORDER } from '@the-inclusionist/engine/ui/title.js';
 /** The two rows of the tabuada number picker (0–5 then 6–10). */
 export const TAB_ROWS: readonly (readonly number[])[] = [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10]];
 /** Default tabuada selection when storage is empty (or holds something unusable). */
@@ -373,7 +373,7 @@ export function cenMenuHtml(cenarios: readonly CenarioOption[]): string {
   // repositório (ADR-0083) — um id com uma aspa fecharia o `data-cen="…"` e o que viesse a seguir viraria
   // atributo. Escapar e não construir nós porque aqui é UM valor dentro de um construtor de string, e o par
   // que o guarda existe: `activities-menu` tem caso com id hostil.
-  return tmTitleHtml(t('menu.cen')) + cenarios.map((c) => `<button class="title-btn" data-cen="${escaparHtml(c.id)}" type="button">${t(c.nome)}</button>`).join('')
+  return tmTitleHtml(t('menu.cen')) + cenarios.map((c) => `<button class="title-btn" data-cen="${escapeHtml(c.id)}" type="button">${t(c.nome)}</button>`).join('')
     + `<button class="title-btn ghost" data-cen-back="1" type="button">${t('menu.back')}</button>`;
 }
 
@@ -549,7 +549,7 @@ export function initActivitiesMenu(ctx: ActivitiesMenuCtx): ActivitiesMenuApi {
       const n = nextTitleIndex(i, bs.length, k);
       bs[n].focus();
       // O índice "N de M" entra AQUI e não no `srSay`: é o menu que sabe quantos itens tem (ADR-0044, item 3).
-      ctx.srSay(anunciarItem({ ...partesDoBotao(bs[n]), posicao: n + 1, total: bs.length }, menuIndexOn));
+      ctx.srSay(announceItem({ ...partesDoBotao(bs[n]), posicao: n + 1, total: bs.length }, menuIndexOn));
     } else if (k.yes) { (i < 0 ? bs[0] : bs[i]).click(); }
     else if (k.no) { const back = bs.find(isBackButton); if (back) back.click(); }
   }

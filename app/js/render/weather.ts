@@ -13,7 +13,7 @@
 import { rngDecoracao } from '@the-inclusionist/engine/core/rng.js';
 const rnd = rngDecoracao.rnd;
 
-import type { DesenhoComLinha } from '@the-inclusionist/engine/render/port.js';
+import type { DrawingWithLine } from '@the-inclusionist/engine/render/port.js';
 // `cenario` e `CENARIOS` SAÍRAM (Fase B, ADR-0038): o cenário virou estado do JOGO (`game/state`), e este
 // módulo é engine — o gate de fronteira proíbe a importação. Em vez do VALOR, entra a PERGUNTA: `temChuva`.
 // Ficou melhor do que era: o módulo perguntava "qual tema, e o dado dele diz chuva?"; agora pergunta "chove
@@ -114,7 +114,7 @@ export function stepRainDrop(d: RainDrop, W: number, H: number, moving: boolean,
 
 // `Gfx` vem de `render/port`. A chuva traça linha, então é o `DesenhoComLinha`; o `parent` é lido para
 // saber se a camada está no `stage` informado antes de reposicioná-la.
-type Gfx = DesenhoComLinha & { parent: unknown };
+type Gfx = DrawingWithLine & { parent: unknown };
 interface StageLike {
   children: { length: number };
   setChildIndex(child: unknown, index: number): void;

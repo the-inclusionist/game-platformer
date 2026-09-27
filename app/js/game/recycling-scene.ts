@@ -22,7 +22,7 @@
 // SEM PIXI AQUI: contêiner e fábrica de sprite entram injetados, como em `game/coin-spawning`. É o que deixa
 // o módulo inteiro exercitável no project `node`, com sprites de mentira.
 
-import type { CamadaEsvaziavel, CriarSprite, Visivel } from '@the-inclusionist/engine/render/port.js';
+import type { ClearableLayer, CreateSprite, Visible } from '@the-inclusionist/engine/render/port.js';
 import type { Ponto } from './recycling-spawn.js';
 import type { Material, Lixeira } from './recycling.js';
 import { LIXEIRAS } from './recycling.js';
@@ -38,7 +38,7 @@ import {
 import type { AcaoDeCarga } from './carry.js';
 
 /** A fatia de sprite que esta cena escreve. Mínima de propósito — ver ADR-0039. */
-export interface SpriteDeLixo extends Visivel {
+export interface SpriteDeLixo extends Visible {
   x: number; y: number;
   destroy(): void;
 }
@@ -63,9 +63,9 @@ export interface JogadorNaReciclagem {
 
 export interface RecyclingSceneCtx {
   /** A camada onde lixo, lixeiras e placa entram. */
-  camada: CamadaEsvaziavel;
+  camada: ClearableLayer;
   /** Fábrica de sprite (= `new PIXI.Sprite(tex)` na raiz). */
-  criarSprite: CriarSprite<SpriteDeLixo>;
+  criarSprite: CreateSprite<SpriteDeLixo>;
   /** As texturas assadas por `render/recycling-tex.createRecyclingTextures()`. */
   texturaDoLixo: (m: Material) => unknown;
   texturaDaLixeira: (c: Lixeira) => unknown;

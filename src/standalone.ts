@@ -12,7 +12,7 @@
 import '@the-inclusionist/engine/style.css';
 import * as PIXI from 'pixi.js';
 import { startLoop } from '@the-inclusionist/engine/core/loop.js';
-import { criarAvisoDeQueda } from '@the-inclusionist/engine/ui/loop-crash.js';
+import { createCrashNotice } from '@the-inclusionist/engine/ui/loop-crash.js';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
 import { t } from '@the-inclusionist/engine/core/i18n.js';
 import { srAlert } from '@the-inclusionist/engine/core/a11y-sr.js';
@@ -80,7 +80,7 @@ startLoop(
   (dt: number) => inst.update(dt),
   2,
   {
-    aoFalhar: criarAvisoDeQueda({
+    aoFalhar: createCrashNotice({
       procurar: (sel: string) => document.querySelector<HTMLElement>(sel),
       criar: (tag: string) => document.createElement(tag),
       // `srAlert` e nao a voz neural, e o contrato diz exatamente isto: «the shell wires it to `srAlert`

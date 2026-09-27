@@ -69,12 +69,12 @@ const rnd = rngDecoracao.rnd;
 import { JUICE, easeOut3, shakeAmp, drawFx } from './fx.js';
 import { criarCamera, type CameraObj } from './camera.js';
 import { drawCane, drawRunCane, drawChair } from './wheelchair-sprites.js';
-import { chaveDeTextura, ehBaixaVisao } from '@the-inclusionist/engine/render/viz-axes.js';
+import { textureKey, isLowVision } from '@the-inclusionist/engine/render/viz-axes.js';
 // (`game/powerups` e `game/coin-spawning` SAÍRAM daqui no item 19 — ver o bloco "ITENS DECLARADOS" abaixo.)
 import { drawWeather } from './weather.js';
 
 import { choosePlayerFrame, type AnimPlayer, type Frame, type PlayerTextures } from './player-anim.js';
-import type { RenderizarEm } from '@the-inclusionist/engine/render/port.js';
+import type { RenderInto } from '@the-inclusionist/engine/render/port.js';
 
 /* ===================== interfaces estruturais (PIXI sem importar PIXI) ===================== */
 
@@ -173,7 +173,7 @@ export interface DrawCtx {
   getPlayers: () => readonly unknown[];
   /* --- render-graph criado no game.js (estável: entra por valor) --- */
   camera: CameraLike;           // container do mundo; `placeCam` o move, o multi-tela o renderiza N vezes
-  renderizarEm: RenderizarEm;       // `app.renderer`
+  renderizarEm: RenderInto;       // `app.renderer`
   caneLayer: GraphicsLike;      // bengala (modo cego)
   chairLayer: GraphicsLike;     // cadeira de rodas (empatia motora)
   /**
@@ -296,7 +296,7 @@ export function initDraw(ctx: DrawCtx): DrawApi {
     // ⚠️ `chaveDeTextura` E NÃO A ASSINATURA DE `playerVizTex`. Medido na etapa 0 da #104: aquela função só
     // age quando existe `DIRECT_CFG[mode]`, e devolve a textura como veio para todo o resto. Então o que
     // muda é o CHAMADOR — a metade do estado que interessa à textura — e a porta fica onde estava.
-    if (pl.sprite) pl.sprite.texture = ctx.playerVizTex(tx, chaveDeTextura(pl.visual));
+    if (pl.sprite) pl.sprite.texture = ctx.playerVizTex(tx, textureKey(pl.visual));
     return tx;
   }
 
@@ -351,12 +351,12 @@ export function initDraw(ctx: DrawCtx): DrawApi {
       // está em `DIRECT_CFG` — conferido em `high-contrast.worldTexFor`. Antes, dois jogadores em `normal` e
       // `fix-deuter` contavam como modos DIFERENTES e disparavam uma re-aplicação de texturas que produzia
       // exactamente as mesmas texturas. Agora contam como iguais, porque para a textura eles são.
-      const v0 = chaveDeTextura(PLS[0].visual);
-      const allSame = PLS.every((p) => chaveDeTextura(p.visual) === v0);
-      const anyOverlay = PLS.some((p) => ehBaixaVisao(p.visual));
+      const v0 = textureKey(PLS[0].visual);
+      const allSame = PLS.every((p) => textureKey(p.visual) === v0);
+      const anyOverlay = PLS.some((p) => isLowVision(p.visual));
       if (allSame) ctx.applySharedTextures(v0);
       for (let i = 0, n = ctx.getNumPlayers(); i < n; i++) {
-        const viz = chaveDeTextura(PLS[i].visual);
+        const viz = textureKey(PLS[i].visual);
         if (!allSame) ctx.applySharedTextures(viz);            // só troca por viewport quando os modos diferem
         const itens2 = ctx.getItemSprites();
         for (let j = 0; j < itens2.length; j++) {

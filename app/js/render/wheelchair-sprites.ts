@@ -4,7 +4,7 @@
 // each takes a Graphics `g` + the player. The layers (caneLayer/chairLayer) stay in game.js and are passed in.
 // `caneColor` (pure) moves here too — it was only used by the cane draws. See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
-import { ehBaixaVisao, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js';
+import { isLowVision, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 
 /** Minimal PIXI.Graphics surface these draws use (structural → module stays PIXI-free for node tests). */
@@ -28,7 +28,7 @@ type DrawablePlayer = PlayerView<'facing' | 'x' | 'y' | 'visual'>;
  * passa a ser a resposta CERTA para um estado que a tabela antiga não sabe exprimir.
  */
 export function caneColor(pl: { visual: VisualState }): number {
-  return ehBaixaVisao(pl.visual) ? 0x35d06a : 0xf2f2f2;
+  return isLowVision(pl.visual) ? 0x35d06a : 0xf2f2f2;
 }
 
 /** Rigid half-block cane (~8px): front-hand extension, fixed to the body (does not swing on its own). */

@@ -10,8 +10,8 @@
 
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import type { Rng } from '@the-inclusionist/engine/core/rng.js';
-import type { Desenho, Camada, Tingivel } from '@the-inclusionist/engine/render/port.js';
-import type { CriarSprite, CriarDesenho } from '@the-inclusionist/engine/render/port.js';
+import type { Drawing, Layer, Tintable } from '@the-inclusionist/engine/render/port.js';
+import type { CreateSprite, CreateDrawing } from '@the-inclusionist/engine/render/port.js';
 import { cenario } from './state.js'; // GAME desde a Fase B (ADR-0038)
 
 export type LightState = 'green' | 'yellow' | 'red';
@@ -64,16 +64,17 @@ export function isOffscreen(x: number, worldPxW: number): boolean {
 // a contrária — engine importando de `game/` —, e este é um tipo, apagado na compilação.
 // `Dimmable` = o que o alto-contraste esmaece. O `tint` vem de `render/port`: declarar `tint: number`
 // era estreitar um campo de outro dono (ADR-0039) — o `PIXI.Sprite` tem `ColorSource`, mais largo.
-interface Dimmable extends Tingivel { alpha: number; }
+interface Dimmable extends Tintable { alpha: number; }
 // O desenho do semáforo e o das placas TAMBÉM esmaecem — são sinalização ambiente, como os carros. Daí o
 // `Gfx` daqui ser `Desenho & Dimmable`, e não só `Desenho`.
-type Gfx = Desenho & Dimmable;
+type Gfx = Drawing & Dimmable;
 interface CarSprite extends Dimmable { x: number; y: number; anchor: { set(x: number, y: number): void }; scale: { x: number }; destroy(): void; }
 // `Layer` é só `Camada` desde 2026-08-26. Antes era `Camada & { children: Dimmable[] }`, e a leitura de
 // `children` era o defeito: o PixiJS tipa os filhos como `DisplayObject[]`, que NÃO tem `tint` — e,
 // pior, ler a lista do pai significava esmaecer o que quer que alguém pendurasse ali depois. Este
 // módulo agora esmaece o que ELE criou (`_ambientes`), que é o que a regra sempre quis dizer.
-type Layer = Camada;
+// O alias local morreu na engine 11: ele existia so para chamar `Camada` de `Layer`, e agora o tipo
+// JA se chama `Layer` e vem importado de `render/port` no topo deste ficheiro.
 // O construtor virou FÁBRICA (Fase D): `new (tex: unknown)` não recebe o `PIXI.Sprite` real, cujo
 // construtor só aceita `Texture`. Por contravariância, prometer aceitar qualquer coisa é o que impede.
 // Ver `CriarSprite` no cabeçalho de `render/port`.
@@ -84,8 +85,8 @@ export interface TrafficCtx {
   rng: Rng;
   carLayer: Layer;             // PIXI.Container — created + z-ordered in game.js, injected here
   CAR_TEX: unknown[];          // car sprite textures (already built in game.js)
-  criarSprite: CriarSprite<CarSprite>;   // era `SpriteCtor`
-  criarDesenho: CriarDesenho<Gfx>;       // era `GraphicsCtor`
+  criarSprite: CreateSprite<CarSprite>;   // era `SpriteCtor`
+  criarDesenho: CreateDrawing<Gfx>;       // era `GraphicsCtor`
   WORLD_PX_W: number;
   WORLD_PX_H: number;          // → STREET_Y (the front street sits at the bottom of the world; R-cidade 2026-07-03)
   WORLD_W: number;

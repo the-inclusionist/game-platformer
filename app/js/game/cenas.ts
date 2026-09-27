@@ -21,7 +21,7 @@
 // pilha a mantém — é dela que sai, sem ninguém escrever, "o mundo continua desenhado mas não recebe tempo".
 // `irPara('playing')` a partir da pausa DESEMPILHA em vez de trocar, para que o jogo de baixo seja o mesmo
 // objeto de antes, e não um recomeço.
-import { criarPilha, type SceneStack, type FatosDaCena } from '@the-inclusionist/engine/core/scenes.js';
+import { createSceneStack, type SceneStack, type SceneFacts } from '@the-inclusionist/engine/core/scenes.js';
 
 /** As três cenas que este jogo vive, com os nomes que o resto do código sempre usou. */
 export type Fase = 'title' | 'playing' | 'paused';
@@ -35,7 +35,7 @@ export interface CenasDoJogo {
   /** jogando ⇄ pausado. Em qualquer outra cena, NÃO faz nada — nem no título, nem numa cena futura. */
   alternarPausa(): void;
   /** Os três fatos, para quem é engine e não conhece os nomes. */
-  fatos(): FatosDaCena;
+  fatos(): SceneFacts;
   /** A fase como string, para quem ainda fala esse idioma — hoje só o `window.__incl` do protocolo. */
   fase(): Fase;
   /** A pilha crua, da base ao topo. Existe para o teste afirmar o que `fatos()` esconde: o que há POR BAIXO. */
@@ -51,10 +51,10 @@ export interface CenasDoJogo {
  * Opcional: as regras de transição são conferíveis sem casca nenhuma, que é o motivo deste arquivo.
  */
 export function criarCenasDoJogo(aoTrocar?: () => void): CenasDoJogo {
-  const pilha = criarPilha();
+  const pilha = createSceneStack();
   pilha.push({ nome: NOME.title });
 
-  const fatos = (): FatosDaCena => {
+  const fatos = (): SceneFacts => {
     const topo = pilha.top()?.nome;
     return {
       telaDeTitulo: topo === NOME.title,
