@@ -5,7 +5,7 @@
 // o `createGame` chama no arranque para RECUSAR uma declaracao malformada. Um teste que repetisse a lista de
 // campos aqui seria uma segunda copia do contrato, e as duas divergiriam no dia em que uma mudasse.
 //
-// Os outros prendem as duas RESPOSTAS — `holdsAtOnce` e `seguraTeclas` —, que nao sao detalhes de forma: sao
+// Os outros prendem as duas RESPOSTAS — `holdsAtOnce` e `holdsKeys` —, que nao sao detalhes de forma: sao
 // afirmacoes sobre a barreira que a crianca encontra, e o contrato aceita qualquer numero.
 import { describe, it, expect } from 'vitest';
 import { conformanceProblems } from '@the-inclusionist/engine/core/contract.js';
@@ -56,7 +56,7 @@ describe('as duas respostas sobre a barreira', () => {
   // Segundo campo porque `holdsAtOnce` nao responde isto: aquele conta posicoes SIMULTANEAS e recusa zero.
   // Responder `false` REMOVE o ☝️ da barra em vez de o esconder — e este jogo segura direcao, correr e pular.
   it('[Right] declara que segura tecla, que e o que mantem a trava disponivel', () => {
-    expect(arreio().seguraTeclas()).toBe(true);
+    expect(arreio().holdsKeys()).toBe(true);
   });
 });
 

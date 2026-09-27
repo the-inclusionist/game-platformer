@@ -84,7 +84,7 @@ export function createPlatformerDeclaration(deps: DeclarationDeps): GameDeclarat
      * e com ele a acomodação de quem não consegue manter uma tecla pressionada, que este jogo implementa em
      * `#opt-altmove` e `#opt-togglerun`.
      */
-    seguraTeclas(): boolean {
+    holdsKeys(): boolean {
       return true;
     },
 
