@@ -10,9 +10,15 @@
 import { describe, it, expect } from 'vitest';
 import { alcance, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { presetActions } from '@the-inclusionist/engine/core/actions.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
 import { platformerPreset } from '../app/js/game/platformer-preset.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+// O TRADUTOR E' DESTE ARREIO (nota CV): `core/i18n` deixou de exportar um `t`, e `platformerPreset` passou
+// a recebe-lo. Quem monta o preset num teste monta tambem o tradutor.
+const i18n = createTranslator();
+const t = i18n.t;
 
 const nunca = () => false;
 const sempre = () => true;
@@ -28,7 +34,7 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
 
   it('[Right] a raiz chama o aviso com as acoes do PROPRIO preset', () => {
     expect(FONTE).toContain('showReachNotice');
-    expect(FONTE).toContain('presetActions(platformerPreset())');
+    expect(FONTE).toContain('presetActions(platformerPreset(t))');
   });
 
   it('[Interface] os nove lugares CABEM, e nao e essa a pergunta que reprova', () => {
@@ -36,7 +42,7 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
     // controle de tela, e `curtos` (os transportes com lugares a menos) fica vazio. O que mudou foi haver uma
     // SEGUNDA pergunta ao lado desta desde a engine 8.0.0 — contar lugares responde se as acoes cabem, nao se
     // a crianca consegue segura-las ao mesmo tempo.
-    const acoes = presetActions(platformerPreset());
+    const acoes = presetActions(platformerPreset(t));
     expect(acoes).toHaveLength(9);
     expect(reach(soToque(), acoes, 1).curtos).toEqual([]);
   });
@@ -48,7 +54,7 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
     // ⚠️ O `2` esta escrito aqui como LITERAL de proposito. Le-lo de `SEGURA_TOQUE` faria a asserçao andar
     // junto com a engine: no dia em que o toque passasse a segurar tres, este caso continuaria verde a
     // dizer que reprova, e ninguem saberia que a barreira tinha desaparecido.
-    const r = reach(soToque(), presetActions(platformerPreset()), 3);
+    const r = reach(soToque(), presetActions(platformerPreset(t)), 3);
     expect(r.ok).toBe(false);
     expect(r.naoSeguram).toEqual([{ id: 'toque', holds: 2 }]);
   });
@@ -56,7 +62,7 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
   it('[Right] com a trava do botao de correr, a exigencia cai para duas e o toque alcanca', () => {
     // E o que torna `#opt-togglerun` a RESPOSTA ao aviso, e nao um ajuste qualquer: com a corrida engatada
     // sobram direcao e pulo. Quem liga a trava sozinha no toque e' o `onTouchControlsShown` de `main.ts`.
-    expect(reach(soToque(), presetActions(platformerPreset()), 2).ok).toBe(true);
+    expect(reach(soToque(), presetActions(platformerPreset(t)), 2).ok).toBe(true);
   });
 
   it('[Interface] a raiz declara TRES, e nao um numero qualquer', () => {

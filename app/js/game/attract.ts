@@ -7,7 +7,9 @@
 
 import * as store from '@the-inclusionist/engine/platform/storage.js';
 import { JOGO } from './save-id.js';
-import { t } from '@the-inclusionist/engine/core/i18n.js';
+import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
+// Preenchido pela raiz no init abaixo; ver a nota no ctx.
+let t: Translate = (k) => k;
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 
 /** O bot da demonstração de atração move um jogador de verdade; a fatia é a mesma que o `stepPlayer` lê. */
@@ -19,6 +21,11 @@ interface Kb { right?: readonly string[] | null; left?: readonly string[] | null
 type Cenarios = Record<string, { nome?: string } | undefined>;
 
 export interface AttractCtx {
+  /**
+   * O TRADUTOR VEM DA RAIZ (ADR-0232 D3, nota CV). Nenhum modulo le `core/i18n` por import: quem constroi
+   * o `createTranslator` e' quem compoe, e entrega o `t` ja resolvido para o idioma vigente.
+   */
+  t: Translate;
   CENARIOS: Cenarios;
   keys: Set<string>;
   getPlayers: () => Player[];   // binding vivo (restartGame pode reatribuir)
@@ -56,6 +63,7 @@ export interface AttractCtl {
 }
 
 export function createAttract(ctx: AttractCtx): AttractCtl {
+  t = ctx.t;
   const RECORDING = /[?&]record=1/.test(ctx.search ?? location.search);
   let idleT = 0;
   let attract: Attract | null = null;

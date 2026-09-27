@@ -4,7 +4,7 @@
 // They lived in the engine's dictionaries, which the engine drops in its next major: a sentence of one game is that game's.
 // Taken from engine v9.0.0. Registered through the engine's `registerDict`, whose keys win over the engine's own, so this
 // runs the same on the engine that still has them and on the one that does not.
-import { registerDict } from '@the-inclusionist/engine/core/i18n.js';
+
 
 const pt: Record<string, string> = {
   'a11y.actionButtons': 'Botões de ação',
@@ -535,8 +535,15 @@ const es: Record<string, string> = {
 };
 
 /** Registers the three languages; call before any sentence of this game is drawn or spoken. */
-export function registrarChavesDoJogo(): void {
-  registerDict('pt', pt);
-  registerDict('en', en);
-  registerDict('es', es);
-}
+/**
+ * O TRADUTOR ENTRA POR ARGUMENTO (ADR-0232 D3, nota CV): `core/i18n` deixou de ter um `registerDict`
+ * importavel, porque quem regista um dicionario tem de ser quem possui o tradutor — e num cartucho isso e'
+ * o shell, nao o jogo. Os dicionarios abaixo sao DADOS; registá-los e' ato de quem carrega.
+ */
+/**
+ * OS TRES DICIONARIOS DESTE JOGO, como DADOS. Registá-los e' ato de quem possui o tradutor, e num cartucho
+ * isso e' o shell (ADR-0139: «registered by whichever shell loads this cartridge; a cartridge never
+ * registers its own»). Antes desta versao este ficheiro registava sozinho, por `registerDict` importado —
+ * que e' exatamente a leitura global que o ADR-0232 D3 tirou da engine.
+ */
+export const DICIONARIOS: Readonly<Record<string, Readonly<Record<string, string>>>> = { pt, en, es };

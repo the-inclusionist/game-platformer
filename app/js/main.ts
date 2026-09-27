@@ -39,10 +39,10 @@
 // `package.json` da engine registra que foi o que aconteceu ao primeiro consumidor que a instalou.
 import '@the-inclusionist/engine/style.css';
 import * as PIXI from 'pixi.js'; // PixiJS 7.4.2 via npm (Vite empacota; aposenta o <script> global vendor/pixi.min.js)
-import i18n, { t } from '@the-inclusionist/engine/core/i18n.js'; // internacionalização
 import * as tiles from './core/tiles.js'; // legend + parser do mapa em glifo
-import * as store from '@the-inclusionist/engine/platform/storage.js'; // camada de persistência
-import { emit, vizMode, initVizMode, modoCego, setModoCegoValue, caneBlockDiv, setCaneBlockDivValue, wheelchair, setWheelchairValue, oneButton, setOneButtonValue, cbSafe, setCbSafeValue, ownerColors, setOwnerColorsValue, hcOutlineFg, setOutlineFgValue, hcOutlineBg, setOutlineBgValue, letterCase, setLetterCaseValue, captionsOn, setCaptionsOnValue, menuIndexOn, defaultReducedMotion } from '@the-inclusionist/engine/core/state.js'; // estado compartilhado
+import { createStorage } from '@the-inclusionist/engine/platform/storage.js'; // camada de persistência
+import { createSettingsStore } from '@the-inclusionist/engine/core/state.js';
+import { defaultReducedMotion } from '@the-inclusionist/engine/core/setting-defaults.js';
 import { cenario as CENARIO, setCenarioValue, activity as ACTIVITY, setActivityValue } from './game/state.js'; // GAME (ADR-0038, Fase B)
 import { JOGO } from './game/save-id.js'; // ADR-0080: o id deste jogo, que a engine deixou de guardar
 import { createRunState } from './core/run-state.js'; // ADR-0038 Fase B: a RODADA como fábrica
@@ -142,7 +142,6 @@ import { initTouch, padLayoutFromId } from '@the-inclusionist/engine/input/touch
 import { initGamepad } from '@the-inclusionist/engine/input/gamepad.js'; // Onda A: leitura da Gamepad API + assistente de mapeamento
 import { initActivitiesMenu, attachAbbr, QL_NAME } from './ui/activities-menu.js'; // the title menu is this game's (engine ADR-0174)
 import { PM_BTNS, PM_OPTIONS_BTNS } from '@the-inclusionist/engine/ui/activities-menu.js'; // the pause card's buttons stay the engine's
-import { registrarChavesDoJogo } from './i18n/game-keys.js'; // Onda A: menus do titulo + inicio de partida
 import { initPauseIcons, iconsMarkup } from '@the-inclusionist/engine/ui/pause-icons.js';
 import { initShell, pauseLegendHtml } from '@the-inclusionist/engine/ui/shell.js'; // C3: a casca — em que TELA o jogo esta (fase, pausa, legenda do titulo)
 import { initMenuNav } from '@the-inclusionist/engine/ui/menu-nav.js'; // C3: navegacao universal de menus (teclado/controle/olhos/fala) // Onda A: menu de pausa por tela + barra de icones de a11y
@@ -206,7 +205,6 @@ import { SFX } from './game/earcons.js';
  * 📌 `dt` continua em QUADROS, e nao em segundos. E' a convencao herdada que mais se quebra.
  */
 export async function create(ctx: GameCtx): Promise<CartuchoMontado> {
-  registrarChavesDoJogo(); // before any sentence of this game is drawn or spoken (engine ADR-0174)
 
 // A ficha de cancelamento dos ouvintes GLOBAIS. Seis deles vivem na `window` e nao morrem com o DOM da
 // regiao: um `signal` em cada registro e um `abort()` solta os seis de uma vez, o que e' a unica forma
@@ -215,7 +213,30 @@ const CANCELAR = new AbortController();
 const SOLTAR = { signal: CANCELAR.signal } as const;
 
 
-const rodada = createRunState<Powerup>({ aoTrocarJogadores: (n) => emit('numPlayers', n) });
+/*
+ * A PERSISTENCIA E OS AJUSTES SAO CONSTRUIDOS AQUI (ADR-0232 D4, notas CT e CU). Nenhum modulo le
+ * `localStorage` nem `core/state` por import: quem os tem e' quem compoe, e os entrega.
+ *
+ * 📌 O nome `store` fica: era um espaco de nomes (`import * as store`) e passa a ser a instancia, entao
+ * todas as chamadas `store.get`/`store.setBool`/`store.KEYS` continuam a ler exatamente igual. O que muda
+ * e' de onde ela vem — e e' essa a mudanca inteira.
+ *
+ * ⚠️ A ordem importa: a loja de ajustes LE a persistencia ao nascer, para que nenhuma escrita ponha um
+ * padrao por cima do que a crianca guardou (`createSettingsStore`, erratum D2b).
+ */
+const store = createStorage(typeof localStorage === 'undefined' ? null : localStorage);
+const settingsStore = createSettingsStore(store);
+
+/*
+ * O TRADUTOR VEM DO SHELL, PELO `ctx` (ADR-0139 §4 e ADR-0232 D3, nota CV).
+ *
+ * ⚠️ ELE NAO SE CONSTROI AQUI, e a diferenca nao e' de estilo: um `createTranslator()` nesta linha daria
+ * DOIS tradutores na mesma pagina — o do shell e o da fabrica —, cada um com o seu dicionario e o seu
+ * idioma, e a crianca veria metade do jogo traduzida. Quem possui o tradutor e' quem carrega o cartucho.
+ */
+const t = ctx.t;
+
+const rodada = createRunState<Powerup>({ aoTrocarJogadores: (n) => settingsStore.emit('numPlayers', n) });
 // `players` é um APELIDO, não uma cópia: a lista da rodada nunca é reatribuída (só mutada no lugar), então
 // um `const` aponta para o mesmo array para sempre — e as 44 leituras deste arquivo seguem escritas igual.
 // Ver a nota do campo em `core/run-state`, que é onde essa garantia está declarada.
@@ -257,14 +278,14 @@ initCrt({
  * obrigaria os trezentos jogos a repetir a mesma derivação.
  */
 function rotuloCurto(acao: string): string | null {
-  return shortLabellerFrom(platformerPreset())(acao as Action);
+  return shortLabellerFrom(platformerPreset(t))(acao as Action);
 }
 
 // ⚠️ `Action` E JÁ NÃO `string`: a engine 8.0.0 estreitou `SettingsControlsCtx.acoesDoJogo`, e o conserto
 // foi APAGAR o `as string` que alargava de volta o que `presetActions` já devolvia certo. O alargamento
 // era antigo e custava a recusa de tecla duplicada, que casa a posição pela PALAVRA da ação.
 function acoesDoJogo(): readonly { readonly acao: Action; readonly rotulo: string }[] {
-  const preset = platformerPreset();
+  const preset = platformerPreset(t);
   const rotulo = labellerFrom(preset);
   return presetActions(preset)
     .map((a) => ({ acao: a, rotulo: rotulo(a) || '' }))
@@ -325,8 +346,6 @@ const { rnd, randInt, shuffle } = rng;
    de cenario, os de atividade — ja tinha capturado o texto de pt, e nada reconstruia. O sintoma era
    `t('cen.cidade')` devolver "City" com o botao na tela dizendo "Cidade".
    O `await` custa UM chunk, e so' para quem nao joga em portugues; em pt ele resolve na hora. */
-i18n.initI18n();
-await i18n.idiomaPronto();
 const WORLD = buildWorldFromText(await (await fetch('assets/levels/clarity.map.txt')).text());
 const WORLD_W = WORLD[0].length, WORLD_H = WORLD.length;
 const WORLD_PX_W = WORLD_W*TILE, WORLD_PX_H = WORLD_H*TILE;
@@ -338,9 +357,9 @@ initWorldTex({ world: WORLD, W: WORLD_W, H: WORLD_H }); // Estágio 4: liga o bu
 // Mundo + estado prontos → liga a colisão (core/collision.js). As closures leem o estado VIVO daqui:
 // wheelchair/modoCego/caneBlockDiv/wcSolid/gateTiles/gateOpen mudam neste módulo e a colisão sempre vê o atual.
 initCollision({ world: WORLD, W: WORLD_W, H: WORLD_H,
-  isWheelchair: ()=>wheelchair, isModoCego: ()=>modoCego, caneDiv: ()=>caneBlockDiv,
+  isWheelchair: ()=>settingsStore.wheelchair, isModoCego: ()=>settingsStore.blindMode, caneDiv: ()=>settingsStore.caneBlockDiv,
   wcSolid: ()=>rodada.wcSolid, gateTiles: ()=>rodada.gateTiles, gateOpen: ()=>rodada.gateOpen });
-initCoins({ rng, numJogadores: () => rodada.numPlayers, world: WORLD, W: WORLD_W, H: WORLD_H, anyEasy: ()=>anyEasy(), isWheelchair: ()=>wheelchair }); // Estágio 4: posicionamento de coletáveis (usa solidAt já ligado acima)
+initCoins({ rng, numJogadores: () => rodada.numPlayers, world: WORLD, W: WORLD_W, H: WORLD_H, anyEasy: ()=>anyEasy(), isWheelchair: ()=>settingsStore.wheelchair }); // Estágio 4: posicionamento de coletáveis (usa solidAt já ligado acima)
 // Itens do mapa Clarity → viram ITENS/barreira (não tiles): 7=pulo-turbo, 8=voo, 11=chave; 10=portão.
 // Removemos o tile do grid (vira ar) e o item/barreira é desenhado/colidido à parte; some ao pegar/abrir.
 const MAP_ITEMS: { tx: number; ty: number; kind: string }[] = [], MAP_GATE: { tx: number; ty: number }[] = [];
@@ -412,7 +431,7 @@ const MODE = (): GameMode => modeForActivity(ACTIVITY);
 // `letterCase` migrou para core/state.js (#50) — 'mixed' | 'upper', escolha pedagógica, hoje feita no menu de
 // CAA (ADR-0028). 'mixed' NÃO força minúscula: devolve o texto como ele é, que é o que "maiúsculas e
 // minúsculas" quer dizer. Forçar minúscula num nome próprio ensinaria a criança a escrevê-lo errado.
-const disp=(s: unknown)=> letterCase==='upper'?String(s).toUpperCase():String(s);
+const disp=(s: unknown)=> settingsStore.letterCase==='upper'?String(s).toUpperCase():String(s);
 // E8: Braille (modo pessoa cega). Padrão de pontos da cela por letra (Grau 1, PT).
 // BRAILLE/NUMW/brailleText extraídos p/ game/braille.js (Estágio 4).
 // `blindMode` REMOVIDO: era escrito só por applyLetra a partir de `LETRA[i].blind`, e as duas entradas da
@@ -547,7 +566,7 @@ showReachNotice(
     // SINAL CONTÍNUO ao lado do teclado, e por isso entra como pergunta de DISPOSITIVO — medida como as
     // outras três, e não deduzida de `!ehToque()`: um portátil com ecrã táctil tem os dois.
     rato: () => { try { return matchMedia('(pointer:fine)').matches; } catch (e) { return false; } },
-  }), presetActions(platformerPreset()), 3),
+  }), presetActions(platformerPreset(t)), 3),
 );
 // As seis flags `*Open` que moravam aqui morreram: quem sabe se um painel esta aberto e o proprio DOM, e o
 // registro de ui/settings-panel le de la (D1). `jumpEdge` estava nesta mesma linha e tambem morreu: era
@@ -584,7 +603,7 @@ function applyControls(){ kbRuntime.refreshControls(); }
 // amarelo distinguíveis em protan/deutan/tritan) SÓ para jogadores/itens/efeitos — o CENÁRIO fica com cores naturais.
 const PCOLOR_DEF=[0xffffff,0xff9a9a,0x8affc0,0xffe08a], PCOLOR_CB=[0xffffff,0xe69f00,0x56b4e9,0xf0e442];
 // `cbSafe` migrou para core/state.js (#50).
-const PCOLOR=(cbSafe?PCOLOR_CB:PCOLOR_DEF).slice(); // mutável in-place (todos referenciam PCOLOR)
+const PCOLOR=(settingsStore.cbSafe?PCOLOR_CB:PCOLOR_DEF).slice(); // mutável in-place (todos referenciam PCOLOR)
 // `ownerColors` migrou para core/state.js (#50) — itens na cor do dono (padrão ligado).
 const assignControls = () => kbRuntime.assignControls();
 assignControls();
@@ -646,7 +665,7 @@ const keydownApi = initKeydown({
   handleCaptureKeydown: (e) => ctrlPanel.handleCaptureKeydown(e),
   getNumPlayers: () => rodada.numPlayers, getPlayers: () => players,
   getControls: instantaneoDosControles,
-  heldKeys: keys, isOneButton: () => oneButton,
+  heldKeys: keys, isOneButton: () => settingsStore.oneButton,
   // As quatro portas que a engine 8.0.0 passou a exigir: quem marca, quem solta, e de QUE transporte veio
   // a tecla. Sem elas o teclado deixa de contar como aresta do jogador.
   marcarTecla, marcarTeclaSemOrigem, soltarTecla, arestaDoJogador,
@@ -669,7 +688,7 @@ addEventListener('blur',()=>keys.clear(), SOLTAR);
 setVlibrasSay(vlibrasSay); // registra a fala em Libras (ui/vlibras) no core/a11y-sr
 
 /* ===== E9: áudio (WebAudio) + legendas (C1) + assistência (C2) ===== */
-let capTimer: ReturnType<typeof setTimeout> | null = null; // `captionsOn` migrou para core/state.js (#50); soundOn/volume/audioCtx vêm de platform/audio.js
+let capTimer: ReturnType<typeof setTimeout> | null = null; // `settingsStore.captionsOn` migrou para core/state.js (#50); soundOn/volume/audioCtx vêm de platform/audio.js
 const anyEasy=()=>players.some(p=>p.easy); // efeitos de MUNDO do Fácil (moedas no chão) ligam se QUALQUER jogador usa Fácil
 // Modo Fácil (deficiência motora): gravidade ×2/3, pulo ×8/7, andar ×0.7, sem perigos, sem correr,
 // hitbox de coleta +4px, moedas no chão, proteção de borda, pula-pula suave (segurar = flutuar descendo).
@@ -693,7 +712,7 @@ const RM_CHAR: readonly MotionCharDef[] = [ {prop:'rmWalk',lbl:'rm.walk'},
 // `RM_KEYS`, que é o que o tipo exige — mas o objeto nasce vazio, e o compilador não acompanha um
 // preenchimento por laço. É afirmação sobre o laço logo ao lado, não sobre dado de fora.
 const rm=(()=>{ const s=store.getJSON(store.KEYS.reducedMotion,null); if(s&&typeof s==='object'){ const o = {} as MotionSceneFlags; RM_KEYS.forEach(k=>o[k]=!!s[k]); return o; }
-  const o = {} as MotionSceneFlags; RM_KEYS.forEach(k=>o[k]=defaultReducedMotion()); return o; })();
+  const o = {} as MotionSceneFlags; RM_KEYS.forEach(k=>o[k]=defaultReducedMotion(matchMedia)); return o; })();
 function saveRM(){ store.setJSON(store.KEYS.reducedMotion,rm); }
 // Movimento por alternância (1 dedo): tocar a direção trava a marcha; segurar acelera; pulo não interrompe. Persistido.
 function loadPlayerA11y(p: Player,i: number){ const v=store.get(store.KEYS.vizP(i)); if(v&&VIZ_BY_KEY[v])p.viz=v;
@@ -704,7 +723,7 @@ function loadPlayerA11y(p: Player,i: number){ const v=store.get(store.KEYS.vizP(
   // "5 alvos; padrão herda prefers-reduced-motion". Só os 4 de CENA herdavam. Quem pediu menos movimento no
   // sistema ganhava o parallax congelado e o personagem andando — metade do pedido, e a metade que se move
   // mais. Agora os cinco herdam, que é o que o código já dizia fazer.
-  const rmDef=defaultReducedMotion();
+  const rmDef=defaultReducedMotion(matchMedia);
   p.rmWalk=store.getBool(store.KEYS.rmWalkP(i),rmDef); p.rmBreath=store.getBool(store.KEYS.rmBreathP(i),rmDef); p.rmFlavor=store.getBool(store.KEYS.rmFlavorP(i),rmDef);
   if(i===0){ const ov=store.get(store.KEYS.viz); if(ov&&VIZ_BY_KEY[ov]&&store.get(store.KEYS.vizP(0))==null)p.viz=ov; // migra chaves antigas
     if(store.getBool(store.KEYS.toggleMoveLegacy)&&store.get(store.KEYS.toggleMoveP(0))==null)p.toggleMove=true; } }
@@ -719,7 +738,7 @@ function showCaption(txt: string){ const el=$('#caption'); if(!el||!txt)return; 
 // Earcons + ponte com legendas extraídos p/ platform/audio-earcons.ts (Tier 2, áudio rodada 2). captionsOn/showCaption
 // VIVEM aqui (UI alterna captionsOn; win() reusa showCaption) → entram por injeção. Chamado como earcons.sfx(...).
 const earcons = createAudioEarcons({ SFX, ensureAC, catNode, audioOut, noiseHit,
-  getSoundOn: () => soundOn, getVolume: () => volume, getCaptionsOn: () => captionsOn, showCaption });
+  getSoundOn: () => soundOn, getVolume: () => volume, getCaptionsOn: () => settingsStore.captionsOn, showCaption });
 // ===== Vitória: jingle 8-bit ascendente + fogos de artifício (assobio subindo → estouro/crepitar) =====
 // ensureAC() (ciclo do AudioContext) extraído p/ platform/audio.js (Fase 2).
 // Modo empatia — perda auditiva: passa-baixas (perda de agudos) + EXPANSÃO DESCENDENTE (frames fracos abafados → dificulta a fala).
@@ -742,7 +761,7 @@ function surfaceUnder(pl: PlayerView<'x' | 'y'>){ const tile=tileAt(Math.floor(p
 const visaoComprometidaDe=(v: VisualState)=> isBlind(v) || isLowVision(v);
 // `caneOn` é a pergunta do DESENHO e soma o modo cego global; o sonar recebe o modo cego à parte, por
 // isso lá vai só o predicado de cima. A diferença é real e está anotada dos dois lados.
-const caneOn=(pl: PlayerView<'visual'>)=> modoCego || visaoComprometidaDe(pl.visual); // predicado de visão (movimento/render) — fica no main.js
+const caneOn=(pl: PlayerView<'visual'>)=> settingsStore.blindMode || visaoComprometidaDe(pl.visual); // predicado de visão (movimento/render) — fica no main.js
 // caneColor extraído p/ render/wheelchair-sprites.js (Estágio 4).
 // TTS (narração por voz: Piper neural lazy + fallback Web Speech) extraído p/ platform/tts.ts (Tier 2, #38). Criado ANTES do
 // audio-nav porque o nav injeta narrate. As funções de painel (populateTTS*/reflectTTS) ficam no main.js (→ #54) e usam get/set.
@@ -776,7 +795,7 @@ const sonarNav = createAudioSonar({
   // conhece os dois eixos — `platform/` não pode importar de `render/` sem inverter uma camada.
   // O `pl` do sonar só carrega `i/x/y`, então o estado visual vem do jogador desta lista.
   visaoComprometida: (pl) => { const p = players[pl.i]; return !!p && visaoComprometidaDe(p.visual); },
-  getModoCego: () => modoCego, LOGICAL_W,
+  getModoCego: () => settingsStore.blindMode, LOGICAL_W,
   getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
   getAudioCtx: () => audioCtx, getSoundOn: () => soundOn, getAudioCat: () => audioCat,
 });
@@ -867,7 +886,7 @@ const parallaxApi = createParallax({
   citySkyTex: themeCitySkyTexture, skylineTex: themeSkylineTexture, // ADR-0042: a Cidade é gerada, não baixada
   // `Imagem`/`texturaDeImagem`/`escalaNearest` saíram: eram a carga dos três PNG da Cidade, e com ela a
   // corrida que cada `onload` tinha de conferir (`getCenario() !== theme`). Não há mais o que baixar.
-  rm, getCenario: () => CENARIO, getVizMode: () => vizMode,
+  rm, getCenario: () => CENARIO, getVizMode: () => settingsStore.vizMode,
   clearParallaxTexCache: () => vp.clearParallaxTexCache(), // `vp` e const declarado ABAIXO: seta resolve na chamada
   getDecorDeTela: () => [starsG, nuvemG, skyDecoG, fogG],  // `var` icados: undefined no boot, e o modulo guarda
 });
@@ -907,7 +926,7 @@ const { setCenario } = createSetCenario({
 // coisas que nao sao do realce L->Q.
 initLqFilter({ onChange: () => { if(app&&view){ if(rodada.numPlayers<=1)applyVizGlobal(players[0].visual); else view.style.filter=lqFilter(); } } });
 // vizMode vem de core/state.js (Fase 2, mega-var 6). Init de boot SEM persistir (preserva o rastreio de prefers-contrast):
-initVizMode((()=>{ try{ const v=store.get('incl_viz',null); if(v&&VIZ_CYCLE.includes(v))return v; }catch(e){}
+settingsStore.initVizMode((()=>{ try{ const v=store.get('incl_viz',null); if(v&&VIZ_CYCLE.includes(v))return v; }catch(e){}
   // A guarda `window.matchMedia &&` saiu: o `tsc` acusa TS2774 porque ela testa uma função que SEMPRE existe
   // no DOM, e uma condição sempre verdadeira lida por quem revisa parece proteção contra algo. Ela vinha de
   // antes do TypeScript; `matchMedia` existe desde o IE10 e o alvo do pilar 1 é Chromium.
@@ -942,7 +961,7 @@ const coinCanvasNormal=coinCanvas();
 const coinTex=tex(coinCanvasNormal);
 // As texturas NORMAIS ja existem: ligue o alto contraste. worldCanvasNormal/worldTexNormal sao `let`
 // (setCenario os reescreve ao trocar de tema), entao entram por getter e nao por valor.
-initHighContrast({ W: WORLD_W, H: WORLD_H, roleOf, outlineFg: () => hcOutlineFg, outlineBg: () => hcOutlineBg,
+initHighContrast({ W: WORLD_W, H: WORLD_H, roleOf, outlineFg: () => settingsStore.hcOutlineFg, outlineBg: () => settingsStore.hcOutlineBg,
   getWorldCanvasNormal: () => worldCanvasNormal, getWorldTexNormal: () => worldTexNormal,
   // Os sprites que ESTE jogo quer recoloridos por modo. A engine cacheia por (id, modo) e nao sabe o que
   // 'coin' significa — outro jogo declara 'peca', 'silaba', o que for.
@@ -965,7 +984,7 @@ const coinContainer=new PIXI.Container(); camera.addChild(coinContainer);
 // silabas, restart) nao mudam — so a definicao saiu daqui.
 initCoinSpawning({ rng, coinContainer, createSprite: (t) => new PIXI.Sprite(t as never), coinTexFor: (m) => spriteTexFor('coin', m),
   shapeTexFor: (id) => SHAPE_TEX[id], letterTexFor: letterTexture, pcolor: PCOLOR,
-  getMode: () => MODE(), getOwnerColors: () => ownerColors, invalidateSharedViz: () => { _lastSharedViz=null; },
+  getMode: () => MODE(), getOwnerColors: () => settingsStore.ownerColors, invalidateSharedViz: () => { _lastSharedViz=null; },
   powerShort: POWER_SHORT, $ });
 rebuildCoins();
 
@@ -1028,7 +1047,7 @@ const reciclagem = createRecycling({
   anunciar: (chave, j, sobre) => {
     const msg = t(chave, { o: t('lixo.obj.' + sobre.material), cor: sobre.cor ? t('lixo.cor.' + sobre.cor) : '' });
     srSay(playerPrefix(j, rodada.numPlayers) + msg);
-    if (captionsOn) showCaption(msg);
+    if (settingsStore.captionsOn) showCaption(msg);
   },
 });
 reciclagem.montar();
@@ -1074,7 +1093,7 @@ const extraLayer=new PIXI.Container(); camera.addChild(extraLayer); // power-ups
 // no grafo NAO e. So o construtor subiu.
 const rampLayer=new PIXI.Graphics();
 const ropeLayer=new PIXI.Graphics();
-initLevelGeometry({ W: WORLD_W, H: WORLD_H, getPlayers: () => rodada.players, isWheelchair: () => wheelchair,
+initLevelGeometry({ W: WORLD_W, H: WORLD_H, getPlayers: () => rodada.players, isWheelchair: () => settingsStore.wheelchair,
   rampLayer, ropeLayer, extraLayer,
   wcSolid: () => rodada.wcSolid, powerups: () => rodada.powerups, gateTiles: () => rodada.gateTiles,
   gate: () => rodada.gate, gateOpen: () => rodada.gateOpen,
@@ -1084,8 +1103,8 @@ initLevelGeometry({ W: WORLD_W, H: WORLD_H, getPlayers: () => rodada.players, is
 function rebuildExtras(){ lgRebuildExtras(); _lastSharedViz=null; }
 function setupExtras(){
   rodada.setDecorSeed((Math.random()*1e9)>>>0); // #69: nova semente por fase
-  const _blind = modoCego || players.some(p=>{const m=VIZ_BY_KEY[p.viz];return m&&m.kind==='blind';});
-  rodada.setLevelExtras(lgSetupExtras(MAP_ITEMS, MAP_GATE, { wheelchair, blind:_blind })); // era desestruturação em bloco; binding importado não se atribui
+  const _blind = settingsStore.blindMode || players.some(p=>{const m=VIZ_BY_KEY[p.viz];return m&&m.kind==='blind';});
+  rodada.setLevelExtras(lgSetupExtras(MAP_ITEMS, MAP_GATE, { wheelchair: settingsStore.wheelchair, blind:_blind })); // era desestruturação em bloco; binding importado não se atribui
   rebuildExtras();
 }
 setupExtras();
@@ -1096,7 +1115,7 @@ const easyHitbox=new PIXI.Graphics(); camera.addChild(easyHitbox);
 camera.addChild(rampLayer);   // ordem pelo Z.SCENERY_INTERACT (bloco R1), não pela posição de inserção
 // buildRamps + WC_BRIDGES migraram para game/level-geometry.ts (Onda A).
 // WC_ELEVATORS (fossos só-cadeirante) movidos p/ game/elevators.js (Estágio 4).
-function buildWcGeom(){ rodada.setWcSolid(lgBuildWcGeom(wheelchair)); } // o módulo calcula; a RODADA guarda
+function buildWcGeom(){ rodada.setWcSolid(lgBuildWcGeom(settingsStore.wheelchair)); } // o módulo calcula; a RODADA guarda
 buildWcGeom();
 buildRamps(); // desenha as rampas + coberturas (lava, pontes) se já iniciar em modo cadeirante
 // CORDAS FLUTUANTES na superfície da água (o cego atravessa por elas; visual para todos)
@@ -1106,7 +1125,7 @@ buildRopes();
 // ELEVADOR (cadeirante): trampolim = plataforma LARGA, escada = plataforma FINA. Toque ↑/↓ = viaja até a parada segura.
 // ELEV_SPEED/elevShafts/buildElevators/elevAt extraídos p/ game/elevators.js (Estágio 4). drawElevators (cabine
 // de vidro) fica aqui e lê os poços por getElevShafts(). WC_ELEVATORS foi p/ o módulo; WC_BRIDGES fica (ramps).
-initElevators({ W: WORLD_W, H: WORLD_H, isWheelchair: () => wheelchair }); // liga o módulo às dims + estado
+initElevators({ W: WORLD_W, H: WORLD_H, isWheelchair: () => settingsStore.wheelchair }); // liga o módulo às dims + estado
 buildElevators();
 const elevLayer=new PIXI.Graphics(); camera.addChild(elevLayer); // ordem pelo Z.SCENERY_INTERACT+20 (bloco R1)
 // Estilo VIDRO PREDIAL (rodoviária/shopping/aeroporto): fosso de vidro translúcido (vê o background),
@@ -1186,7 +1205,7 @@ const themeFxBackG=new PIXI.Graphics(); camera.addChild(themeFxBackG);  // fauna
 const sceneSky = createSceneSky({ skyLayer, starsG, skyDecoG, nuvemG, fogG, grassG, themeFxG, themeFxBackG, CLOUD_TEX, BIRD_TEX, criarSprite: (t) => new PIXI.Sprite(t as never),
   hexN, rnd, randInt, WORLD_PX_W, WORLD_PX_H, WORLD_W, WORLD_H, TILE, LOGICAL_W, LOGICAL_H, BOX,
   CENARIOS, THEME_FLORA, DIRECT_CFG, solidAt, tileAt,
-  getCenario: () => CENARIO, getVizMode: () => vizMode, getPlayers: () => players, getFxClock: () => fxClock, getRm: () => rm,
+  getCenario: () => CENARIO, getVizMode: () => settingsStore.vizMode, getPlayers: () => players, getFxClock: () => fxClock, getRm: () => rm,
   getAglomeracao: () => weather.getAglomeracao(), // o MESMO relógio da chuva: as nuvens fecham antes da 1ª gota
   getGrassDensity: () => rodada.grassDensity, getDecorSeed: () => rodada.decorSeed });
 // drawV3Cloud + drawV3Grass extraídos p/ render/scene-sky.ts (#43) — funções de desenho puras usadas por stepV3Decor.
@@ -1199,7 +1218,7 @@ const lavaFxG=new PIXI.Graphics(); lifeLayer.addChildAt(lavaFxG,0);   // tracinh
 const waterFxG=new PIXI.Graphics(); decoLayer.addChild(waterFxG);     // corais/algas/peixes no BACKGROUND (camada das árvores — pedido do José; ficam atrás de player E carros)
 const sceneCity = initSceneCity({ cityDecoG, abandonG, lavaFxG, waterFxG, skyLayer, darkRegions,
   solidAt, tileAt, lifeSurfaceAt, WORLD_W, WORLD_H, TILE, WORLD_PX_W, WORLD_PX_H, LOGICAL_W, LOGICAL_H, BOX,
-  DIRECT_CFG, getCenario: () => CENARIO, getVizMode: () => vizMode, getPlayers: () => players,
+  DIRECT_CFG, getCenario: () => CENARIO, getVizMode: () => settingsStore.vizMode, getPlayers: () => players,
   getFxClock: () => fxClock, getRm: () => rm,
   onCenarioChange: (city) => { carLayer.visible = city; if(!city) traffic.clearCars(); } });
 sceneCity.buildCityDeco();
@@ -1275,7 +1294,7 @@ const pauseIcons = initPauseIcons({
   getPauseActs: () => pauseActs,            // LAZY: pauseActs e const bem abaixo (TDZ)
   setPauseActor: (i) => rodada.setPauseActor(i),
   getA11yBars: () => vpBars,                // idem: `let` reatribuido a cada remontagem do HUD
-  getModoCego: () => modoCego, setModoCego,
+  getModoCego: () => settingsStore.blindMode, setModoCego,
   getAudioCat: () => audioCat, setCatGain,
   reflectTtsPanel: () => audioPanel.reflectTts(), // LAZY: audioPanel e const bem abaixo
   // LIGADO. Estava morto desde que reflectTTS foi extraida para ui/settings-audio: a guarda
@@ -1396,7 +1415,7 @@ initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1)
 initPhysics({
   rng,
   getPlayers: () => rodada.players,
-  isWheelchair: ()=>wheelchair, isModoCego: ()=>modoCego, caneOn, WORLD_PX_H: ()=>WORLD_PX_H,
+  isWheelchair: ()=>settingsStore.wheelchair, isModoCego: ()=>settingsStore.blindMode, caneOn, WORLD_PX_H: ()=>WORLD_PX_H,
   sfx: (n)=>earcons.sfx(n), srSay, srAlert, hideTips, showPower, nav,
   tonePan, noiseHit, surfaceUnder,
   puffDust, setSquash, addShake, addHitstop, POWER_MSG,
@@ -1475,7 +1494,7 @@ function update(dt: number){
    placeCam, draw e a cauda de animacao do stepPlayer moram no modulo. Aqui fica so o ENVOLUCRO de `draw` —
    declaracao de funcao, portanto icada, porque startLoop e window.__incl o capturam pelo NOME, mais abaixo.
    placeCam NAO ganha envolucro: fora do proprio draw ele nao tinha chamador nenhum.
-   O ctx segue a regra da casa: o que o main.js REATRIBUI (vpTex, wheelchair, fxClock, powerups) entra por
+   O ctx segue a regra da casa: o que o main.js REATRIBUI (vpTex, wheelchair: settingsStore.wheelchair, fxClock, powerups) entra por
    GETTER; camadas, camera e renderer entram por valor. `applySharedTextures` e `const` declarado ABAIXO
    (viz-setters), por isso entra embrulhado numa seta — passado direto, cairia em TDZ e derrubaria o boot. */
 const drawApi = initDraw({
@@ -1483,7 +1502,7 @@ const drawApi = initDraw({
   camera, renderizarEm: (o, alvo, limpar) => app.renderer.render(o as never, { renderTexture: alvo as never, clear: limpar }),
   BOX, // a caixa do jogador ENTRA (como ja entrava em scene-city/scene-sky/audio-nav), nao e' importada la
   caneLayer, chairLayer, easyHitbox,
-  getVpTex: ()=>vpTex, isWheelchair: ()=>wheelchair, getFxClock: ()=>fxClock, getPowerups: ()=>rodada.powerups,
+  getVpTex: ()=>vpTex, isWheelchair: ()=>settingsStore.wheelchair, getFxClock: ()=>fxClock, getPowerups: ()=>rodada.powerups,
   // OS ITENS DECLARADOS (item 19). O `render/draw` importava `getCoinSprites` de `game/coin-spawning` e
   // `puTaken` de `game/powerups` — as duas ultimas arestas de importacao da engine para o jogo. E trazia
   // junto TRES regras que sao deste jogo: item coletado some, item de outro dono fica esmaecido, e a chave
@@ -1557,7 +1576,7 @@ function respawnFigure(i: number){
    chamador nenhum. MODE_LABELS/MODES desceram junto e voltam por import: eram `const` declarados ABAIXO deste
    ponto, e passa-los por valor cairia em TDZ no boot.
    O ctx segue a regra da casa: o que o main.js REATRIBUI (MODE, collected, ended, powerups, gate, gateOpen,
-   pauseActor, ownerColors, captionsOn, player) entra por GETTER/SETTER; PCOLOR, darkRegions e os callbacks
+   pauseActor, ownerColors: settingsStore.ownerColors, captionsOn: settingsStore.captionsOn, player) entra por GETTER/SETTER; PCOLOR, darkRegions e os callbacks
    estaveis entram por valor. `reapplyVizAll` e `const` declarado ABAIXO (viz-setters), por isso vem embrulhado
    numa seta — passado direto, cairia em TDZ e derrubaria o boot. */
 const sessionApi = initSession({
@@ -1568,7 +1587,7 @@ const sessionApi = initSession({
   setEnded: (v) => rodada.setEnded(v),
   getPowerups: ()=>rodada.powerups, getGate: ()=>rodada.gate, isGateOpen: ()=>rodada.gateOpen,
   setGateOpen: (v) => rodada.setGateOpen(v),
-  getPauseActor: ()=>rodada.pauseActor, ownerColors: ()=>ownerColors, captionsOn: ()=>captionsOn,
+  getPauseActor: ()=>rodada.pauseActor, ownerColors: ()=>settingsStore.ownerColors, captionsOn: ()=>settingsStore.captionsOn,
   // `setPlayerRef` SAIU: o `let player` que ele reatribuía era sempre `players[0]`, e `players[0]` não
   // muda de identidade — nem quando o array cresce nem quando encolhe (n ≥ 1 sempre). A dança de
   // referência vinha do monólito e não movia nada. Agora é derivado, como o MODE (ADR-0040).
@@ -1639,7 +1658,7 @@ const quizApi = initQuiz({
   rng,
   $, getScreen: (i) => hud.getScreen(i),
   getNumPlayers: () => rodada.numPlayers,
-  disp, isModoCego: () => modoCego,
+  disp, isModoCego: () => settingsStore.blindMode,
   actCat, tabSel, fracNot, QL_NAME,
   srSay, srAlert, gameSay, narrate: (t) => tts.narrate(t),
   sfx: (n) => earcons.sfx(n), playPuzzleSolved: () => jingles.playPuzzleSolved(),
@@ -1667,7 +1686,7 @@ const gamepadApi = initGamepad({
   // ⚠️ A PALAVRA VEM DO JOGO, e o preset resolve-se A CADA CHAMADA para acompanhar o idioma vigente.
   // Era uma constante em português dentro de `input/gamepad.ts` — o defeito do ADR-0074 na forma mais
   // visível que ele tinha. Ver `game/platformer-preset.ts`.
-  rotuloDaAcao: (acao) => labellerFrom(platformerPreset())(acao as Action),
+  rotuloDaAcao: (acao) => labellerFrom(platformerPreset(t))(acao as Action),
   mundoRodando: () => fatosDaCena().mundoRodando, menuDePausa: () => fatosDaCena().menuDePausa,
   pausar: () => setPhase('paused'), retomar: () => setPhase('playing'),
   isAttractActive: () => attractCtl.isAttract(), stopAttract: () => attractCtl.stopAttract(),
@@ -1721,12 +1740,12 @@ function setQuizLevel(n: number, announce: boolean){ setQuizLevelValue(n); // co
 function applyLetra(){
   // O DOM (menus, HUD, legendas) via CSS; a canvas via `disp()`, que a PIXI usa ao desenhar. São dois caminhos
   // de texto no jogo, e o botão só ligava um deles — daí "letras maiúsculas" não alcançar os menus.
-  document.documentElement.dataset.letras = letterCase;
+  document.documentElement.dataset.letras = settingsStore.letterCase;
   if(typeof rebuildCoins==='function' && MODE()==='silabas') rebuildCoins();
   jogadores().forEach(p=>{ if(p.quiz)renderQuiz(p); }); // L3: re-renderiza o quiz de quem estiver num
 }
 applyLetra(); // estado inicial: reflete a caixa persistida no atributo que o CSS lê
-function setLetterCaseAndApply(c: Parameters<typeof setLetterCaseValue>[0]){ setLetterCaseValue(c); applyLetra(); }
+function setLetterCaseAndApply(c: Parameters<typeof settingsStore.setLetterCaseValue>[0]){ settingsStore.setLetterCaseValue(c); applyLetra(); }
 const optLetraBtn=$('#opt-letra'); if(optLetraBtn)optLetraBtn.addEventListener('click',()=>{ caa.open(); });
 // E9: toggles de Som / Legendas / Fácil
 const soundBtn=$('#opt-sound'), capBtn=$('#opt-captions');
@@ -1735,9 +1754,9 @@ const soundBtn=$('#opt-sound'), capBtn=$('#opt-captions');
 // passou a poder mentir: a criança desliga as legendas, recarrega, e o botão diz que estão ligadas enquanto
 // elas não estão — o pior estado possível para um controle de acessibilidade, porque quem depende dele não
 // tem como desempatar. Acrescentar persistência a um valor expõe todo lugar que presumia o padrão.
-if(capBtn) toggleBtn(capBtn, captionsOn);
+if(capBtn) toggleBtn(capBtn, settingsStore.captionsOn);
 if(soundBtn){ soundBtn.setAttribute('aria-haspopup','dialog'); soundBtn.addEventListener('click',openAudio); } // botão de áudio agora abre o mixer
-if(capBtn) capBtn.addEventListener('click',()=>{ setCaptionsOnValue(!captionsOn); toggleBtn(capBtn,captionsOn); srSay(t(captionsOn?'sr.captions.on':'sr.captions.off')); });
+if(capBtn) capBtn.addEventListener('click',()=>{ settingsStore.setCaptionsOnValue(!settingsStore.captionsOn); toggleBtn(capBtn,settingsStore.captionsOn); srSay(t(settingsStore.captionsOn?'sr.captions.on':'sr.captions.off')); });
 // `seguraTeclas: true` — a MESMA resposta do cartão de pausa, e aqui é VALOR e não função: os dois
 // contextos divergem de propósito na engine (o do cartão virou função na 9.0.0 porque o ícone descrevia o
 // jogo que arrancou primeiro; este não tem esse problema). Com `false` a engine esconderia `#opt-altmove`.
@@ -1801,7 +1820,7 @@ const _rebakeDirect = viz.rebakeDirect;
 // O ESTADO mora em core/state (setModoCegoValue: grava, persiste, avisa). Aqui ficam só os EFEITOS — refazer
 // os extras do nível, refletir o painel, anunciar —, que são reação e pertencem ao composition root. A guarda
 // de igualdade também está no setter: se o valor não mudou, ele não avisa e nada disto roda.
-function setModoCego(on: boolean){ const antes=modoCego; setModoCegoValue(on); if(modoCego===antes)return;
+function setModoCego(on: boolean){ const antes=settingsStore.blindMode; settingsStore.setBlindModeValue(on); if(settingsStore.blindMode===antes)return;
   // A guarda que estava aqui — `typeof reflectModoCego==='function'` — testava um nome LIVRE que não existe
   // neste arquivo desde que a função saiu para `ui/settings-audio`. E `typeof` sobre identificador não
   // declarado devolve 'undefined' em vez de lançar, então ela virou SEMPRE falsa e ninguém percebeu.
@@ -1815,18 +1834,18 @@ function setModoCego(on: boolean){ const antes=modoCego; setModoCegoValue(on); i
   srSay(t(on?'sr.blind.on':'sr.blind.off')); }
 // setPlayerViz/applyVizGlobal migraram para render/viz-setters.ts (Onda A).
 const caa = initSettingsCaa({ $, srSay, frontOverlay, fillExplain: (c)=>overlays.fillExplain(c), restoreFocus: (id)=>overlays.restoreFocus(id),
-  getLetterCase: () => letterCase, setLetterCase: setLetterCaseAndApply }); // 7º menu (ADR-0028): ui/settings-caa.ts
-const empathy = initSettingsEmpathy({ $, srSay, store, renderVizGroup, reflectMotorEmpathy, reflectVizButtons, frontOverlay, restoreFocus: (id)=>overlays.restoreFocus(id), setHearingLoss, setOneButton, setWheelchair, getOneButton: () => oneButton, getWheelchair: () => wheelchair, getPlayers: () => players, setPlayerViz }); // painel de empatia: ui/settings-empathy.ts (registra #opt-empathy, #opt-hearing, #opt-onebtn, #opt-wheelchair + restaura o grafo de audio)
+  getLetterCase: () => settingsStore.letterCase, setLetterCase: setLetterCaseAndApply }); // 7º menu (ADR-0028): ui/settings-caa.ts
+const empathy = initSettingsEmpathy({ $, srSay, store, renderVizGroup, reflectMotorEmpathy, reflectVizButtons, frontOverlay, restoreFocus: (id)=>overlays.restoreFocus(id), setHearingLoss, setOneButton, setWheelchair, getOneButton: () => settingsStore.oneButton, getWheelchair: () => settingsStore.wheelchair, getPlayers: () => players, setPlayerViz }); // painel de empatia: ui/settings-empathy.ts (registra #opt-empathy, #opt-hearing, #opt-onebtn, #opt-settingsStore.wheelchair + restaura o grafo de audio)
 // updateVizIndicator/reapplyVizAll migraram para render/viz-setters.ts (Onda A).
 // Simulações de empatia: o predicado mora em render/viz-modes (simulatesDisability), fonte única. A cópia
 // local respondia pelo `kind` e contava as 3 correções de daltonismo como simulação (#60); `VIZ_SIM`, derivada
 // dela, era declarada e nunca lida — a terceira cópia do mesmo erro, e morta.
 // renderVizGroup migrou para render/viz-setters.ts (Onda A).
-function setOwnerColors(on: boolean){ const antes=ownerColors; setOwnerColorsValue(on); if(ownerColors===antes)return;
-  rebuildCoins(); srSay(t(ownerColors?'sr.visual.ownerColorsOn':'sr.visual.ownerColorsOff')); }
-function setCbSafe(on: boolean){ const antes=cbSafe; setCbSafeValue(on); if(cbSafe===antes)return;
-  const src=cbSafe?PCOLOR_CB:PCOLOR_DEF; PCOLOR.length=0; src.forEach(c=>PCOLOR.push(c)); // troca IN-PLACE (todos referenciam PCOLOR)
-  rebuildCoins(); ensureSprites(); srSay(t(cbSafe?'sr.visual.cbSafeOn':'sr.visual.cbSafeOff')); }
+function setOwnerColors(on: boolean){ const antes=settingsStore.ownerColors; settingsStore.setOwnerColorsValue(on); if(settingsStore.ownerColors===antes)return;
+  rebuildCoins(); srSay(t(settingsStore.ownerColors?'sr.visual.ownerColorsOn':'sr.visual.ownerColorsOff')); }
+function setCbSafe(on: boolean){ const antes=settingsStore.cbSafe; settingsStore.setCbSafeValue(on); if(settingsStore.cbSafe===antes)return;
+  const src=settingsStore.cbSafe?PCOLOR_CB:PCOLOR_DEF; PCOLOR.length=0; src.forEach(c=>PCOLOR.push(c)); // troca IN-PLACE (todos referenciam PCOLOR)
+  rebuildCoins(); ensureSprites(); srSay(t(settingsStore.cbSafe?'sr.visual.cbSafeOn':'sr.visual.cbSafeOff')); }
 function setRoleColor(k: HcRoleKey, hex: string){ const rgb=hexRgb(hex); if(!rgb||!HC_ROLE[k])return; HC_ROLE[k]=rgb; saveHcRole();
   _rebakeDirect(); rebuildExtras(); srSay(t('sr.visual.roleColorSet',{v:ROLE_LABELS[k]})); } // ROLE_LABELS ainda é pt-BR
 function resetRoleColors(){
@@ -1841,14 +1860,14 @@ function resetRoleColors(){
 // A tabela ['nenhum','fino','grosso'] estava escrita DUAS vezes, uma em cada função, para o mesmo trio de
 // espessuras — e em pt-BR fixo. Virou chave i18n indexada pelo próprio nível.
 const OUTLINE_KEY=['outline.none','outline.thin','outline.thick'];
-function setOutlineFg(v: number){ const antes=hcOutlineFg; setOutlineFgValue(v); if(hcOutlineFg===antes)return;
-  _rebakeDirect(); visual.render(); srSay(t('sr.visual.outlineFg',{v:t(OUTLINE_KEY[hcOutlineFg])})); }
-function setOutlineBg(v: number){ const antes=hcOutlineBg; setOutlineBgValue(v); if(hcOutlineBg===antes)return;
-  _rebakeDirect(); visual.render(); srSay(t('sr.visual.outlineBg',{v:t(OUTLINE_KEY[hcOutlineBg])})); }
-const visual = initSettingsVisual({ $, srSay, renderEixosVisuais, getPlayers: () => players, getNumPlayers: () => rodada.numPlayers, getVisualSettings: () => ({ lq: getLqT(), ownerColors, cbSafe, outlineFg: hcOutlineFg, outlineBg: hcOutlineBg, roleColors: HC_ROLE }), getSelectedPlayer: () => rodada.selVizPlayer, setSelectedPlayer: (i) => rodada.setSelVizPlayer(i), setPlayerViz, setLq, setOwnerColors, setCbSafe, setOutlineFg, setOutlineBg, setRoleColor, resetRoleColors }); // painel visual: ui/settings-visual.ts
+function setOutlineFg(v: number){ const antes=settingsStore.hcOutlineFg; settingsStore.setOutlineFgValue(v); if(settingsStore.hcOutlineFg===antes)return;
+  _rebakeDirect(); visual.render(); srSay(t('sr.visual.outlineFg',{v:t(OUTLINE_KEY[settingsStore.hcOutlineFg])})); }
+function setOutlineBg(v: number){ const antes=settingsStore.hcOutlineBg; settingsStore.setOutlineBgValue(v); if(settingsStore.hcOutlineBg===antes)return;
+  _rebakeDirect(); visual.render(); srSay(t('sr.visual.outlineBg',{v:t(OUTLINE_KEY[settingsStore.hcOutlineBg])})); }
+const visual = initSettingsVisual({ $, srSay, renderEixosVisuais, getPlayers: () => players, getNumPlayers: () => rodada.numPlayers, getVisualSettings: () => ({ lq: getLqT(), ownerColors: settingsStore.ownerColors, cbSafe: settingsStore.cbSafe, outlineFg: settingsStore.hcOutlineFg, outlineBg: settingsStore.hcOutlineBg, roleColors: HC_ROLE }), getSelectedPlayer: () => rodada.selVizPlayer, setSelectedPlayer: (i) => rodada.setSelVizPlayer(i), setPlayerViz, setLq, setOwnerColors, setCbSafe, setOutlineFg, setOutlineBg, setRoleColor, resetRoleColors }); // painel visual: ui/settings-visual.ts
 function reflectVizButtons(){ const help=players.some(p=>{const m=VIZ_BY_KEY[p.viz];return m&&m.kind==='hcnew';});
   const sim=players.some(p=>simulatesDisability(p.viz));
-  const bv=$('#opt-visual'); if(bv)bv.classList.toggle('is-on',help); const be=$('#opt-empathy'); if(be)be.classList.toggle('is-on',sim||hearingLoss||oneButton||wheelchair); }
+  const bv=$('#opt-visual'); if(bv)bv.classList.toggle('is-on',help); const be=$('#opt-empathy'); if(be)be.classList.toggle('is-on',sim||hearingLoss||settingsStore.oneButton||settingsStore.wheelchair); }
 // "tela = canvas": reparenta os diálogos de a11y para dentro do #game-region (ficam presos ao canvas)
 // e empilha o último aberto por cima (z crescente). frontOverlay é chamado em cada open*.
 // _ovZ/fillExplain/frontOverlay migraram para ui/settings-panel.ts (B4).
@@ -1864,7 +1883,7 @@ function reflectVizButtons(){ const help=players.some(p=>{const m=VIZ_BY_KEY[p.v
   const camada=document.getElementById('dom-layer')||gr;
   document.querySelectorAll('.overlay').forEach(el=>{ if(!camada.contains(el))camada.appendChild(el); });
   // Botões puramente on/off viram TOGGLE (switch) — o texto "Ligado/Desligado" fica oculto (font-size:0).
-  ['opt-facil','opt-altmove','opt-togglerun','opt-hearing','opt-onebtn','opt-wheelchair','opt-modocego','opt-tts','audio-master','opt-captions','motion-master'].forEach(id=>{ const b=document.getElementById(id); if(b)b.classList.add('switch'); });
+  ['opt-facil','opt-altmove','opt-togglerun','opt-hearing','opt-onebtn','opt-settingsStore.wheelchair','opt-modocego','opt-tts','audio-master','opt-captions','motion-master'].forEach(id=>{ const b=document.getElementById(id); if(b)b.classList.add('switch'); });
 })();
 function openVisual(){ const ov=$('#visual'); if(!ov)return; visual.render(); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector<HTMLElement>('button[data-viz]')||ov.querySelector('button'); if(f)f.focus(); }
 // Foco de volta para QUEM ABRIU (WCAG 2.4.3), pelo registro de ui/settings-panel. Antes cada um focava um
@@ -1875,14 +1894,14 @@ function closeVisual(){ const ov=$('#visual'); if(!ov)return; ov.hidden=true; if
 const visualBtn=$('#opt-visual'); if(visualBtn)visualBtn.addEventListener('click',openVisual);
 const visualClose=$('#visual-close'); if(visualClose)visualClose.addEventListener('click',closeVisual);
 // Empatia motora: um-botão e cadeirante
-function reflectMotorEmpathy(){ const a=$('#opt-onebtn'); if(a){ toggleBtn(a,oneButton); a.textContent=toggleLabel(oneButton); }
-  const b=$('#opt-wheelchair'); if(b){ toggleBtn(b,wheelchair); b.textContent=toggleLabel(wheelchair); } reflectVizButtons(); }
+function reflectMotorEmpathy(){ const a=$('#opt-onebtn'); if(a){ toggleBtn(a,settingsStore.oneButton); a.textContent=toggleLabel(settingsStore.oneButton); }
+  const b=$('#opt-settingsStore.wheelchair'); if(b){ toggleBtn(b,settingsStore.wheelchair); b.textContent=toggleLabel(settingsStore.wheelchair); } reflectVizButtons(); }
 // Estado em core/state; aqui só os EFEITOS (refletir o painel, anunciar). Mesma forma que setModoCego.
-function setOneButton(on: boolean){ const antes=oneButton; setOneButtonValue(on); if(oneButton===antes)return;
+function setOneButton(on: boolean){ const antes=settingsStore.oneButton; settingsStore.setOneButtonValue(on); if(settingsStore.oneButton===antes)return;
   reflectMotorEmpathy(); srSay(t(on?'sr.motor.oneButtonOn':'sr.motor.oneButtonOff')); }
 // Estado em core/state; aqui a REAÇÃO, que neste caso é grande: o modo cadeirante refaz a geometria do
 // nível inteiro. Por isso ele não caberia dentro de um setter — e por isso o setter não o conhece.
-function setWheelchair(on: boolean){ const antes=wheelchair; setWheelchairValue(on); if(wheelchair===antes)return;
+function setWheelchair(on: boolean){ const antes=settingsStore.wheelchair; settingsStore.setWheelchairValue(on); if(settingsStore.wheelchair===antes)return;
   players.forEach(p=>{ if(on && p.activePower!=='fly' && p.activePower!=='turbo') p.activePower='off'; if(on) p.owned=p.owned.filter(k=>k==='fly'||k==='turbo'); showPower(p); });
   setupExtras(); rebuildCoins(); buildWcGeom(); buildRamps(); buildElevators(); reflectMotorEmpathy(); // só voo/super-corrida; moedas no chão; escada/trampolim viram elevador; rampas+pontes; lava vira chão
   srSay(t(on?'sr.motor.wheelchairOn':'sr.motor.wheelchairOff')); }
@@ -1941,7 +1960,7 @@ function closeTypo(){ const ov=$('#typo'); if(!ov)return; ov.hidden=true; if(!ov
 { const b=$('#typo-close'); if(b)b.addEventListener('click',closeTypo); }
 
 /* F1: menu de áudio (mixer por categoria) — o botão "Som" abre este menu */
-function openAudio(){ const ov=$('#audio'); if(!ov)return; ensureAC(); audioPanel.renderAudio(); audioPanel.reflectModoCego(); audioPanel.reflectTts(); const cd=$<HTMLSelectElement>('#cane-div'); if(cd)cd.value=String(caneBlockDiv); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector('button'); if(f)f.focus(); }
+function openAudio(){ const ov=$('#audio'); if(!ov)return; ensureAC(); audioPanel.renderAudio(); audioPanel.reflectModoCego(); audioPanel.reflectTts(); const cd=$<HTMLSelectElement>('#cane-div'); if(cd)cd.value=String(settingsStore.caneBlockDiv); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector('button'); if(f)f.focus(); }
 function closeAudio(){ const ov=$('#audio'); if(!ov)return; ov.hidden=true; if(!overlays.restoreFocus('audio'))menuFocus(sharedDialogOpen()); }
 // A12e auditiva: Modo cego (só áudio) + seleção de voz (Web Speech agora; neurais em breve)
 // Botões abreviados: hover/foco DESCOMPACTA o número em letras (o "12" vira as 12 letras contando p/ baixo), suave;
@@ -1983,7 +2002,7 @@ addEventListener('gamepadconnected', (e)=>{ try{ const d=touchCtl.applyPadDesign
 const padDesignSel=$<HTMLSelectElement>('#pad-design'); if(padDesignSel){ padDesignSel.value=touchCtl.getPadDesign(); padDesignSel.addEventListener('change',()=>{ touchCtl.applyPadDesign(padDesignSel.value); srSay(t('sr.pad.design',{v:padDesignSel.value})); }); } // A4: escolha manual
 // PLAYING WITH THE EYES is the engine's now: the 👀 on its quick bar (engine ADR-0213); WebGazer left the engine (ADR-0214).
 const audioCloseBtn=$('#audio-close'); if(audioCloseBtn)audioCloseBtn.addEventListener('click',closeAudio);
-const audioPanel = initSettingsAudio({ $, srSay, store, audioCats: AUDIO_CATS, toggleBtn, getNumPlayers: () => rodada.numPlayers, getPlayers: () => players, getSoundOn: () => soundOn, setSoundOn, getVolume: () => volume, setVolume, getAudioCat: () => audioCat, setCatGain, tts, getModoCego: () => modoCego, setModoCego, getCaneBlockDiv: () => caneBlockDiv, setCaneBlockDiv: setCaneBlockDivValue }); // painel de audio: ui/settings-audio.ts
+const audioPanel = initSettingsAudio({ $, srSay, store, audioCats: AUDIO_CATS, toggleBtn, getNumPlayers: () => rodada.numPlayers, getPlayers: () => players, getSoundOn: () => soundOn, setSoundOn, getVolume: () => volume, setVolume, getAudioCat: () => audioCat, setCatGain, tts, getModoCego: () => settingsStore.blindMode, setModoCego, getCaneBlockDiv: () => settingsStore.caneBlockDiv, setCaneBlockDiv: settingsStore.setCaneBlockDivValue }); // painel de audio: ui/settings-audio.ts
 // REFLETE O MODO CEGO PERSISTIDO no boot. `incl_modocego` sobrevive à sessão desde sempre, mas nada refletia o
 // valor no botão ao abrir o jogo: com o modo LIGADO, o `#opt-modocego` dizia "Desligado" e reportava
 // `aria-pressed="false"`. Para quem usa leitor de tela isso é WCAG 4.1.2 (nome, papel, VALOR) quebrado no
@@ -2068,17 +2087,17 @@ function quadro(dt: number): void { gamepadApi.pollPads(); update(dt); draw();
 // ⚠️ O `maxDt` E O `aoFalhar` SAIRAM COM O LACO, e nao foram perdidos: o ADR-0054 poe o aviso de queda no
 // shell, que e' quem sabe que o laco parou. Um cartucho que rebenta tem de parar a si proprio sem parar a
 // plataforma, e isso so quem corre o laco pode garantir.
-window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,pollPads:()=>gamepadApi.pollPads(),update,openPadWiz:()=>gamepadApi.openPadWiz(),padWizTick:()=>gamepadApi.padWizTick(),padMapFor:(id: Parameters<typeof gamepadApi.padMapFor>[0])=>gamepadApi.padMapFor(id),get padWiz(){return gamepadApi.getPadWiz();},get phase(){return cenas.fase();},get padPrev(){return padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[vizMode]||{}).kind==='hcnew';} /* derivado de vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return _footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return guide.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
-  get mmSeen(){return minimapSeenCount();},get MODE(){return MODE();},get letterCase(){return letterCase;},brailleText,tileAt,WORLD_W,WORLD_H,TUNE,
+window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,pollPads:()=>gamepadApi.pollPads(),update,openPadWiz:()=>gamepadApi.openPadWiz(),padWizTick:()=>gamepadApi.padWizTick(),padMapFor:(id: Parameters<typeof gamepadApi.padMapFor>[0])=>gamepadApi.padMapFor(id),get padWiz(){return gamepadApi.getPadWiz();},get phase(){return cenas.fase();},get padPrev(){return padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[settingsStore.vizMode]||{}).kind==='hcnew';} /* derivado de settingsStore.vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return _footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return guide.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
+  get mmSeen(){return minimapSeenCount();},get MODE(){return MODE();},get letterCase(){return settingsStore.letterCase;},brailleText,tileAt,WORLD_W,WORLD_H,TUNE,
   JUICE,addShake,addHitstop,burstSparkle,puffDust,draw,get particles(){return getParticles();},get hitstopT(){return getHitstopT();},get shakeT(){return getShakeT();},CRT,applyCrt,setLq,get lqT(){return getLqT();},
-  setOwnerColors,setCbSafe,setRoleColor,resetRoleColors,PCOLOR,HC_ROLE,get ownerColors(){return ownerColors;},get cbSafe(){return cbSafe;},
+  setOwnerColors,setCbSafe,setRoleColor,resetRoleColors,PCOLOR,HC_ROLE,get ownerColors(){return settingsStore.ownerColors;},get cbSafe(){return settingsStore.cbSafe;},
   setQuizLevel,get quizLevel(){return quizLevel;},openSilabas,quizMove,quizConfirm,quizErase,get quiz(){return jogadores()[0].quiz;},INCL_VERSION,fmtFrac,fracGraphic,speakChoice,get fracNot(){return fracNot;},
   setGameFont:typo.setFont,openTypo,get fontKey(){return typo.getFontKey();},FONT_GROUPS,get mmSeen2(){return minimapSeenCount();},
   startAttract:()=>attractCtl.startAttract(),stopAttract:()=>attractCtl.stopAttract(),get attract(){return attractCtl.isAttract();}, // attract → game/attract.ts
   loadTTS:tts.loadTTS,ttsSpeak:tts.ttsSpeak,narrate:tts.narrate,get ttsEngine(){return tts.getEngine();},get ttsLoading(){return tts.loading;},get ttsFailed(){return tts.failed;},setTtsEngineSel(v: Parameters<typeof tts.setEngineSel>[0]){tts.setEngineSel(v);},
   updateWeather:weather.updateWeather,get rainLevel(){return weather.getRainLevel();},set weatherT(v){weather.setWeatherT(v);},get weatherT(){return weather.getWeatherT();},rm,
   spawnCreature:life.spawnCreature,stepLife:life.stepLife,get creatures(){return life.getCreatures();},spawnCar:traffic.spawnCar,get cars(){return traffic.getCars();},SEM:traffic.SEM,get STREET_Y(){return traffic.getStreetY();},
-  get elevShafts(){return getElevShafts();},elevAt,get BOX(){return BOX;},get wheelchair(){return wheelchair;},setWheelchair,buildElevators,buildRamps,solidAt,surfTop, // debug cadeirante
+  get elevShafts(){return getElevShafts();},elevAt,get BOX(){return BOX;},get wheelchair(){return settingsStore.wheelchair;},setWheelchair,buildElevators,buildRamps,solidAt,surfTop, // debug cadeirante
   get clouds(){return sceneSky.getClouds();},get birds(){return sceneSky.getBirds();},stepSky:(dt: number)=>sceneSky.stepSky(dt),CENARIOS,stepV3Decor:()=>sceneSky.stepV3Decor(),
   get grassDensity(){return rodada.grassDensity;},setGrassDensity:(v: number)=>rodada.setGrassDensity(v), // o clamp mora no setter da RODADA
   get decorCounts(){ const n=(g: PIXI.Graphics)=>g.geometry&&g.geometry.graphicsData?g.geometry.graphicsData.length:0; return {stars:n(starsG),skyDeco:n(skyDecoG),fog:n(fogG),grass:n(grassG),front:n(themeFxG)}; }};
@@ -2192,7 +2211,7 @@ const menuNav = initMenuNav({
   // O modo `accessibility` (ADR-0044, item 7) roda com o jogo ANDANDO, e por isso e' perguntado antes do
   // guarda de "navegavel". Quem sabe quem esta nele e' `ui/pause-icons`, dono da barra.
   srSay,
-  comIndice: () => menuIndexOn,
+  comIndice: () => settingsStore.menuIndexOn,
   naBarraDe: (i) => pauseIcons.naBarraDe(i),
   navBar: (i, k) => pauseIcons.navBar(i, k),
   topVisibleOverlay: () => overlays.topVisibleOverlay(), closeById: (id) => overlays.closeById(id),
@@ -2402,8 +2421,8 @@ const hooks: GanchosDoCartucho = {
   isNavigable: () => true,
   sonarPlayers: () => controlados().map((p, i) => ({ i, x: p.x, y: p.y })),
   setPhase: (f) => { if (f === 'playing' || f === 'title' || f === 'paused') setPhase(f); },
-  isBlindMode: () => modoCego,
-  preset: platformerPreset(),
+  isBlindMode: () => settingsStore.blindMode,
+  preset: platformerPreset(t),
   getPauseActs: () => pauseActs,
   setPauseActor: (i: number) => rodada.setPauseActor(i),
   setTemaDoJogador: (...a: Parameters<typeof setTemaDoJogador>) => setTemaDoJogador(...a),

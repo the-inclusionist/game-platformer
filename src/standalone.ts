@@ -14,9 +14,9 @@ import * as PIXI from 'pixi.js';
 import { startLoop } from '@the-inclusionist/engine/core/loop.js';
 import { createCrashNotice } from '@the-inclusionist/engine/ui/loop-crash.js';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
-import { t } from '@the-inclusionist/engine/core/i18n.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
 import { srAlert } from '@the-inclusionist/engine/core/a11y-sr.js';
-import { create } from './index.js';
+import { create, dicts } from './index.js';
 
 const regiao = document.querySelector<HTMLElement>('#game-region');
 if (!regiao) throw new Error('standalone: sem `#game-region` nao ha onde o cartucho viver');
@@ -32,6 +32,24 @@ if (!regiao) throw new Error('standalone: sem `#game-region` nao ha onde o cartu
  * nao ha aqui evidencia que decida. Fica por decidir, e nao por inventar.
  */
 const rng = createRng();
+
+/*
+ * O TRADUTOR E' DO SHELL (ADR-0232 D3, nota CV; ADR-0139 §4). `core/i18n` deixou de ter um `t` importavel:
+ * nenhum modulo alcanca o idioma por import, e quem o constroi entrega-o pelo `ctx`.
+ *
+ * ⚠️ E E' AQUI QUE OS DICIONARIOS DO CARTUCHO SE REGISTAM, antes de qualquer frase ser desenhada ou dita.
+ * O ADR-0139 poe o ato deste lado com todas as letras — «registered by whichever shell loads this
+ * cartridge; a cartridge never registers its own» —, e a razao e' a mesma do tradutor unico: na plataforma
+ * ha um so, e seis cartuchos a registar cada um o seu e' seis vezes o mesmo ato sobre o mesmo objeto.
+ *
+ * 📌 O `ready()` e' esperado ANTES da fabrica: ela desenha frases no arranque, e um idioma que chega depois
+ * deixaria metade da primeira tela na lingua errada — o defeito que o `applyDom` sozinho nao conserta,
+ * porque o que o JavaScript monta ja capturou o texto.
+ */
+const i18n = createTranslator();
+for (const [codigo, palavras] of Object.entries(dicts)) i18n.registerDict(codigo, palavras);
+i18n.init(document);
+await i18n.ready();
 
 /*
  * ⚠️ O QUE ESTE SHELL AINDA NAO FAZ, e a ausencia esta escrita porque e' a parte que falta do ADR-0139:
@@ -56,7 +74,7 @@ const inst = await create({
   engine: undefined as never,
   region: regiao,
   rng,
-  t,
+  t: i18n.t,
   // Na plataforma ha UM endereco para todos os cartuchos, entao um cartucho que lesse `location.search`
   // direto leria os parametros de outro jogo. Aqui o shell e' dono do endereco e entrega-o inteiro.
   params: new URLSearchParams(location.search),

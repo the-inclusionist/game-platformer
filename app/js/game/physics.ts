@@ -21,7 +21,9 @@ import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import { EASY } from '../core/game-constants.js';
 import { TUNE, COIN_TARGET } from './tuning.js';
 import { ehTrampolim } from '../core/tiles.js';
-import { t } from '@the-inclusionist/engine/core/i18n.js';
+import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
+// Preenchido pela raiz no init abaixo; ver a nota no ctx.
+let t: Translate = (k) => k;
 import type { ControlledGamePlayer } from './entity.js'; // ADR-0033: a fatia do JOGO — `quiz` mora aqui
 import { tileAt, solidAt, surfTop, isWcRampRiser, rampSurfaceY, caneBlockPx } from '../core/collision.js';
 import { correndoAgora, usaTravaDeCorrer, botaoDeCorrerEngatado } from './run-toggle.js';
@@ -87,6 +89,11 @@ export interface PhysicsNav {
 /** Tudo que a física precisa e que ainda mora no game.js. Sem defaults implícitos: injeção explícita. */
 export interface PhysicsCtx {
   /**
+   * O TRADUTOR VEM DA RAIZ (ADR-0232 D3, nota CV). Nenhum modulo le `core/i18n` por import: quem constroi
+   * o `createTranslator` e' quem compoe, e entrega o `t` ja resolvido para o idioma vigente.
+   */
+  t: Translate;
+  /**
    * A corrente do cartucho (ADR-0141). Entra pelo contexto e não por import: `rnd` de `core/rng` é um
    * atalho ligado a uma corrente de ESCOPO DE MÓDULO, partilhada por quem quer que a importe — e duas
    * partidas na mesma página mexeriam uma no sorteio da outra sem que nada o dissesse.
@@ -137,7 +144,7 @@ const DEFAULT_CTX: PhysicsCtx = {
 let C: PhysicsCtx = DEFAULT_CTX;
 
 /** Liga a física ao game.js. Chamada UMA vez no boot (depois do mundo/colisão). Idempotente. */
-export function initPhysics(ctx: PhysicsCtx): void { C = ctx; }
+export function initPhysics(ctx: PhysicsCtx): void { C = ctx; t = ctx.t; }
 
 /* ===================== consultas do ambiente + colisão do corpo ===================== */
 

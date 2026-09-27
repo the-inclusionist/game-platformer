@@ -40,7 +40,9 @@ import { escapeHtml } from '@the-inclusionist/engine/core/escape-html.js'; // #1
 import { getActivity, hasActivity, isValidActivityId, DEFAULT_ACTIVITY_ID, activityCategory,
          type ActivityDef, type ActivityCat } from '@the-inclusionist/engine/educational/activities-registry.js';
 import * as store from '@the-inclusionist/engine/platform/storage.js';
-import { t } from '@the-inclusionist/engine/core/i18n.js';
+import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
+// Preenchido pela raiz no init abaixo; ver a nota no ctx.
+let t: Translate = (k) => k;
 import type { TitleMenuId } from '@the-inclusionist/engine/ui/title.js';
 import { TITLE_MENU_IDS as TITLE_MENU_ORDER } from '@the-inclusionist/engine/ui/title.js';
 
@@ -79,6 +81,11 @@ export interface CenarioOption { readonly id: string; readonly nome: string }
 export type { DomQuery } from '@the-inclusionist/engine/core/dom-query.js';
 
 export interface ActivitiesMenuCtx {
+  /**
+   * O TRADUTOR VEM DA RAIZ (ADR-0232 D3, nota CV). Nenhum modulo le `core/i18n` por import: quem constroi
+   * o `createTranslator` e' quem compoe, e entrega o `t` ja resolvido para o idioma vigente.
+   */
+  t: Translate;
   /**
    * O ID DO JOGO, para escopar as duas chaves que pertencem a ESTA partida (`tabsel`, `fracnot`).
    *
@@ -432,6 +439,7 @@ export function attachAbbr(b: HTMLElement | null | undefined): void {
 interface BusyOverlay extends HTMLElement { _busy?: boolean }
 
 export function initActivitiesMenu(ctx: ActivitiesMenuCtx): ActivitiesMenuApi {
+  t = ctx.t;
   // ACTIVITY arrives from core/state.ts already read from storage; the CATALOG check is ours (state.ts has no
   // opinion about which ids exist), so a value left over from an activity that no longer ships falls back here.
   if (!isValidActivityId(ctx.getActivityId() ?? '')) ctx.setActivityId(DEFAULT_ACTIVITY_ID);

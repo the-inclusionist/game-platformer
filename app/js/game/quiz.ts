@@ -21,7 +21,9 @@
 // Sem I/O no import: `document`/`setTimeout` só aparecem DENTRO das funções.
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (B3).
 import { COIN_TARGET } from './tuning.js';
-import { t } from '@the-inclusionist/engine/core/i18n.js';
+import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
+// Preenchido pela raiz no init abaixo; ver a nota no ctx.
+let t: Translate = (k) => k;
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 import type { PlayerQuiz } from './entity.js'; // ADR-0039: o jogador carrega o SUPERTIPO, não a união
 import type { Rng } from '@the-inclusionist/engine/core/rng.js';
@@ -472,6 +474,11 @@ export function selRange(q: QuizComCursor): { min: number; max: number } {
  * tts/hud/menu de atividades), ou é um efeito que pertence a outro slice (moeda, HUD, vitória, toque).
  */
 export interface QuizCtx {
+  /**
+   * O TRADUTOR VEM DA RAIZ (ADR-0232 D3, nota CV). Nenhum modulo le `core/i18n` por import: quem constroi
+   * o `createTranslator` e' quem compoe, e entrega o `t` ja resolvido para o idioma vigente.
+   */
+  t: Translate;
   /** A corrente do cartucho (ADR-0141) — ver a nota em `MathDeps`. */
   rng: Rng;
   /** Seletor DOM (`$` de ui/dom.ts). Injetado p/ o módulo nunca tocar `document` direto (project node). */
@@ -532,6 +539,7 @@ export interface QuizApi {
 
 /** Liga o slice do quiz ao jogo. Sem I/O: só guarda o ctx e devolve a API. */
 export function initQuiz(ctx: QuizCtx): QuizApi {
+  t = ctx.t;
   const c = ctx;
   /** `quizWho` com a contagem da rodada já preenchida — é como as onze falas daqui o usam. */
   const who = (pl: QuizPlayer): string => quizWho(pl, c.getNumPlayers());

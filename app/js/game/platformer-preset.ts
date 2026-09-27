@@ -17,7 +17,7 @@
 // `input/gamepad.ts`, ela deixa cada verbo na tecla e no botão que já ocupava. Zero de quatro se movem.
 
 import type { ActionPreset } from '@the-inclusionist/engine/core/actions.js';
-import { t } from '@the-inclusionist/engine/core/i18n.js';
+import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
 
 /**
  * O vocabulário da plataforma, resolvido no IDIOMA VIGENTE a cada chamada.
@@ -26,7 +26,9 @@ import { t } from '@the-inclusionist/engine/core/i18n.js';
  * uma `const` de módulo congela as palavras no idioma que estava carregado quando o módulo foi importado. A
  * criança troca de idioma no menu e o assistente de controle continuaria a dizer «PULAR» em português.
  */
-export function platformerPreset(): ActionPreset {
+// `t` POR ARGUMENTO e nao por import (nota CV): este modulo e' puro, e dar-lhe estado de modulo para
+// receber o tradutor custaria a propriedade que o torna aferivel sem navegador.
+export function platformerPreset(t: Translate): ActionPreset {
   return {
     up: { label: t('act.up') },
     down: { label: t('act.down') },

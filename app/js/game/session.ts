@@ -81,7 +81,9 @@
 //
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (C2).
 
-import { t } from '@the-inclusionist/engine/core/i18n.js';
+import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
+// Preenchido pela raiz no init abaixo; ver a nota no ctx.
+let t: Translate = (k) => k;
 import type { GamePlayerView, GamePlayer } from './entity.js'; // ADR-0033: a fatia do JOGO — `quiz` mora aqui
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 // ANIM/EASY/TILE_COLOR vieram para casa: sao NUMEROS DESTE JOGO, e a engine nao descreve um jogo (nota 2).
@@ -281,6 +283,11 @@ export type { DomQuery } from '@the-inclusionist/engine/core/dom-query.js';
 export interface DarkRegion { announced: boolean; gfx: { alpha: number; visible: boolean } }
 
 export interface SessionCtx {
+  /**
+   * O TRADUTOR VEM DA RAIZ (ADR-0232 D3, nota CV). Nenhum modulo le `core/i18n` por import: quem constroi
+   * o `createTranslator` e' quem compoe, e entrega o `t` ja resolvido para o idioma vigente.
+   */
+  t: Translate;
   /* --- A RODADA (ADR-0038): a lista de jogadores e a contagem vêm da instância que a raiz possui ---
      Eram `players`/`numPlayers`/`setNumPlayersValue`, `let` de `core/state` importados como bindings vivos.
      Um `let` de módulo é compartilhado por qualquer segundo jogo que a mesma página carregue (D13 do
@@ -413,6 +420,7 @@ export interface SessionApi {
 }
 
 export function initSession(ctx: SessionCtx): SessionApi {
+  t = ctx.t;
   // O salto por `unknown` VOLTOU em 2026-08-25, e por um motivo melhor do que o de antes: `core/state.players`
   // é `Player[]`, a visão da ENGINE, e o campo `quiz` saiu de lá (ADR-0033). Este jogo sabe que os jogadores
   // dele carregam mais; a engine não pode saber. Antes o salto existia porque o tipo era frouxo — agora
