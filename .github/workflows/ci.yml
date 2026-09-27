@@ -63,6 +63,10 @@ jobs:
       # gate looks at anything.
       a11y: true
 
+      # This game's own records (ADR-0226, ADR-0242), validated with their citations resolved against the engine's.
+      # Run locally before this line changed, with the command the step runs: 9 records · 9 sound · 0 with problems.
+      adr-records: true
+
       # ⚠️ INHERITED, AND THE CHOICE IS MEASURED — `game-soccer` PINS this and the difference is real, so the
       # two cases must be told apart rather than copied. It pins because it has a floor of its OWN:
       # `scripts/build-sw.mjs` imports precache rules from TypeScript source and needs Node 24's native type
@@ -73,3 +77,7 @@ jobs:
       # six repositories that nobody remembers to move. `.node-version` here reads 24.14.0, the same as the
       # engine's default at the time of writing; when the engine moves, this game moves with it, which is the
       # point of a shared default.
+    secrets:
+      # Read access to the private engine repository, where the records this game cites live. A fine-grained token per
+      # repository, because the organisation's plan has no organisation secrets for private repositories.
+      records-token: ${{ secrets.RECORDS_TOKEN }}
