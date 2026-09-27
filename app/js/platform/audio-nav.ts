@@ -16,11 +16,11 @@
 // em três alturas. Nada disso é traduzível para um jogo sem corpo e sem mundo, e por isso NÃO foi traduzido:
 // o corte separa o que viaja do que não viaja, em vez de fingir que tudo viaja.
 //
-// ========================= A METADE QUE VIAJOU CONTINUA SAINDO DAQUI =========================
-// `playerCtx`, `panFor`, `needsAudioCues`, `sonar` e `updateGuide` seguem no retorno, delegados ao
-// `AudioSonar` injetado. Não é preguiça de mexer no chamador: a bengala PRECISA do `playerCtx` (a batida sai
-// no dispositivo do jogador) e o `main.js` monta um objeto só de navegação. O que mudou é que este módulo
-// deixou de IMPLEMENTAR a metade genérica — ele a repassa, e quem quiser só ela importa o outro arquivo.
+// ========================= THE HALF THAT TRAVELLED STILL GOES OUT FROM HERE =========================
+// `playerCtx`, `panFor`, `needsAudioCues` and `sonar` stay in the return, delegated to the injected `AudioSonar`:
+// the cane NEEDS `playerCtx` (the tap goes out on the player's own device) and `main.ts` builds one navigation object.
+// This module does not IMPLEMENT the generic half — it passes it on. The continuous GUIDE is not here: it is this game's
+// own module, `platform/audio-guide` (ADR-0257), and the game loop calls it directly.
 // Extraído do game.js. Ver docs/5-Refactoring/plano-modularizacao-mapa.md (Tier 2, áudio rodada 3).
 
 import type { PlayerView, ControlledPlayer } from '@the-inclusionist/engine/core/entity.js';
@@ -74,11 +74,9 @@ export interface AudioNav {
   panFor: (wx: number, pl: Player) => number;
   needsAudioCues: (pl: Player) => boolean;
   sonar: (pl: Player) => void;
-  updateGuide: () => void;
   readonly caneCount: number;
   readonly waterNavCount: number;
   readonly sonarCount: number;
-  readonly guideCount: number;
 }
 
 export function createAudioNav(ctx: AudioNavCtx): AudioNav {
@@ -128,10 +126,8 @@ export function createAudioNav(ctx: AudioNavCtx): AudioNav {
     panFor: (wx, pl) => sound.panFor(wx, pl as unknown as SonarPlayer),
     needsAudioCues: (pl) => sound.needsAudioCues(pl as unknown as SonarPlayer),
     sonar: (pl) => sound.sonar(pl as unknown as SonarPlayer),
-    updateGuide: () => sound.updateGuide(),
     get caneCount() { return _caneCount; },
     get waterNavCount() { return _waterNavCount; },
     get sonarCount() { return sound.sonarCount; },
-    get guideCount() { return sound.guideCount; },
   };
 }

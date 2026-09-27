@@ -33,7 +33,7 @@ function setup(over = {}) {
     // usado aqui é `playerCtx`, porque a batida da bengala sai no dispositivo do jogador.
     sonar: {
       playerCtx: () => null, panFor: () => 0, needsAudioCues: () => true,
-      sonar: () => {}, updateGuide: () => {}, sonarCount: 0, guideCount: 0,
+      sonar: () => {}, sonarCount: 0,
       ...(over.sonar || {}),
     },
   };

@@ -101,6 +101,8 @@ import { createAudioJingles } from '@the-inclusionist/engine/platform/audio-jing
 import { createAudioEarcons } from '@the-inclusionist/engine/platform/audio-earcons.js'; // Tier 2 (áudio r2): earcons (sfx) + porta + legendas
 import { createAudioSonar } from '@the-inclusionist/engine/platform/audio-sonar.js'; // item 19: navegacao sonora, a metade que serve a QUALQUER genero
 import { createAudioNav } from './platform/audio-nav.js'; // Tier 2 (áudio r3): bengala e nado cego (a metade que le o mundo)
+import { createAudioGuide } from './platform/audio-guide.js'; // the continuous sound guide — this game's own (ADR-0257)
+import type { Topology } from '@the-inclusionist/engine/core/contract.js'; // the metric the sonar and the guide share
 import { createAudioAmbient } from '@the-inclusionist/engine/platform/audio-ambient.js'; // Tier 2 (áudio r4): trilha de ambiente + trovão
 import { createTts } from '@the-inclusionist/engine/platform/tts.js'; // Tier 2 (#38): narração por voz (Piper neural lazy + fallback Web Speech)
 import { SPR, TEX_IDLE, TEX_WALK, TEX_RUN, FLAVORS, TEX_JUMP_UP, TEX_JUMP_DOWN, TEX_CLIMB, TEX_FLY, TEX_CLING_WALL, TEX_CLING_CEIL, TEX_SWIM, TEX_SWIMIDLE, initCharacterSprites } from './render/sprites.js';
@@ -737,18 +739,21 @@ const tts = createTts({ srSay, srAlert, ensureAC, catNode, audioOut, getSoundOn:
   carregarVozNeural: () => import('@mintplex-labs/piper-tts-web') });
 // Pistas espaciais a11y (bengala · sonar · guarda de beirada · guia · nado, por dispositivo) extraídas p/ platform/audio-nav.ts
 // (Tier 2, áudio r3). playerCtx/panFor/needsAudioCues expostos na API porque a guarda de beirada + o gate de movimento os
-// chamam de fora do cluster. Estado do guia (_guideCount) e SURF_MAT vivem agora no módulo. Uso: nav.<fn>.
+// chamam de fora do cluster. SURF_MAT vive agora no módulo. Uso: nav.<fn>. The guide is `platform/audio-guide` (ADR-0257).
 // A NAVEGACAO SONORA, contra o CONTRATO (item 19). As tres perguntas que substituiram `getCoins`+`TILE`:
 //   · `topology()`  — a metrica. Esta plataforma e um espaco CONTINUO com `unit = TILE`, e por isso os
 //     limiares de "muito perto/perto/longe" continuam valendo 4 e 9 TILES, como no original.
 //   · `targetsOf(i)` — onde estao os alvos deste jogador. Era o laco `if (cn.taken || cn.owner !== pl.i)`
 //     dentro do sonar; agora e o JOGO que filtra, e o sonar so compara distancias.
 //   · `nameAt(at)`   — como se chama o que esta ali. Era `t('sr.nav.coin')` cravado.
+// `move: 'free'` porque num espaco continuo a distancia e a reta; `frame: 'clock'` porque isto e uma
+// PLATAFORMA 2D vista de lado, e norte/sul nao querem dizer nada para quem esta a olhar de lado (ADR-0089).
+// The sonar and the guide ask the same two questions, so they are written once.
+const worldTopology = (): Topology => ({ kind: 'continuous', size: [WORLD_PX_W, WORLD_PX_H], unit: TILE, move: 'free', frame: 'clock' });
+const coinTargetsOf = (i: number) => coins.filter((cn) => !cn.taken && cn.owner === i).map((cn) => ({ x: cn.x, y: cn.y }));
 const sonarNav = createAudioSonar({
-  // `move: 'free'` porque num espaco continuo a distancia e a reta; `frame: 'clock'` porque isto e uma
-  // PLATAFORMA 2D vista de lado, e norte/sul nao querem dizer nada para quem esta a olhar de lado (ADR-0089).
-  topology: () => ({ kind: 'continuous', size: [WORLD_PX_W, WORLD_PX_H], unit: TILE, move: 'free', frame: 'clock' }),
-  targetsOf: (i) => coins.filter((cn) => !cn.taken && cn.owner === i).map((cn) => ({ x: cn.x, y: cn.y })),
+  topology: worldTopology,
+  targetsOf: coinTargetsOf,
   nameAt: () => ({ text: t('hud.nome.moeda'), gender: 'f', plural: false }),
   tonePan, srSay, narrate: tts.narrate,
   // ⚠️ A ENGINE PEDE A RESPOSTA, E JÁ NÃO A TABELA (#104): recebia `VIZ_BY_KEY` e atravessava-a com
@@ -765,6 +770,11 @@ const sonarNav = createAudioSonar({
 // 'up' e 'down' (audio-nav.js:64 e :75), duas ações reais.
 const nav = createAudioNav({ tileAt, solidAt, held: (pl, act) => held(pl, act as Action), tonePan, noiseHit, BOX, TILE,
   getCenario: () => CENARIO, sonar: sonarNav });
+// THE CONTINUOUS SOUND GUIDE (#84 item 2, ADR-0105) — this game's, by the Dev's decision (ADR-0257). It receives exactly
+// what the engine's guide received from this root before the move: no `roleAt`, bus or master volume, so it keeps the
+// straight-line distance and the `destination` it had.
+const guide = createAudioGuide({ sonar: sonarNav, topology: worldTopology, targetsOf: coinTargetsOf,
+  getPlayers: () => players, getAudioCtx: () => audioCtx, getSoundOn: () => soundOn, getAudioCat: () => audioCat });
 // ===== F4: camadas de AMBIENTE (loops sintetizados) + PISTA/GUIA auditivo (beacon em laço) =====
 // Trilha de ambiente sintetizada + trovão extraídos p/ platform/audio-ambient.ts (Tier 2, áudio r4). O clima VISUAL fica no
 // main.js (updateWeather/drawWeather) e migra p/ render depois. Uso: ambient.updateAmbient / ambient.thunder.
@@ -774,7 +784,7 @@ const ambient = createAudioAmbient({ ensureAC, getAudioCtx: () => audioCtx, catN
 let weatherLayer=null; // criado após o `app` existir; o ESTADO do clima (nivel/gotas/clarao) mora em render/weather
 // thunder (rumor do trovão) extraído p/ platform/audio-ambient.ts (Tier 2, áudio r4). Chamado por updateWeather como ambient.thunder.
 // updateWeather/drawWeather migraram para render/weather.ts (Onda A). A camada segue criada aqui.
-// updateGuide (beacon do guia) extraído p/ platform/audio-nav.ts (Tier 2, áudio r3). Chamado no loop como nav.updateGuide.
+// The guide's frame is `guide.updateGuide`, called in the loop (platform/audio-guide, ADR-0257).
 // Narração TTS (Piper neural lazy + fallback Web Speech + estado) extraída p/ platform/tts.ts (Tier 2, #38). A instância `tts`
 // é criada acima (antes do audio-nav, que injeta narrate). Uso: tts.narrate / tts.ttsSpeak / tts.loadTTS; o painel usa
 // tts.get/setEngineSel + tts.get/setVoiceObj + tts.getEngine.
@@ -2034,7 +2044,7 @@ function quadro(dt: number): void { gamepadApi.pollPads(); update(dt); draw();
   attractCtl.titleIdleTick(titleG.visible); // attract após 60s parado no menu (José)
   setMinimapVisible(!titleG.visible&&rodada.numPlayers<=1); document.body.classList.toggle('at-title',titleG.visible); // HUD/minimapa não vazam no menu
   fpsTick();
-  if(fatosDaCena().mundoRodando){ weather.updateWeather(); ambient.updateAmbient(); nav.updateGuide(); } } // F4: clima + ambiente + guia auditivo (só durante o jogo)
+  if(fatosDaCena().mundoRodando){ weather.updateWeather(); ambient.updateAmbient(); guide.updateGuide(); } } // F4: clima + ambiente + guia auditivo (só durante o jogo)
   // ⚠️ O 2 E O `aoFalhar` FALTAVAM AQUI: a chamada tinha DOIS argumentos (ADR-0054, issue #109). O laço já
   // parava quando um quadro lançava — isso o `core/loop` sempre fez —, mas parava EM SILÊNCIO. Tela congelada
   // é sintoma VISUAL: no modo cego, um jogo parado e um jogo pensando produzem a mesma coisa, e a criança
@@ -2043,7 +2053,7 @@ function quadro(dt: number): void { gamepadApi.pollPads(); update(dt); draw();
 // ⚠️ O `maxDt` E O `aoFalhar` SAIRAM COM O LACO, e nao foram perdidos: o ADR-0054 poe o aviso de queda no
 // shell, que e' quem sabe que o laco parou. Um cartucho que rebenta tem de parar a si proprio sem parar a
 // plataforma, e isso so quem corre o laco pode garantir.
-window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,pollPads:()=>gamepadApi.pollPads(),update,openPadWiz:()=>gamepadApi.openPadWiz(),padWizTick:()=>gamepadApi.padWizTick(),padMapFor:(id: Parameters<typeof gamepadApi.padMapFor>[0])=>gamepadApi.padMapFor(id),get padWiz(){return gamepadApi.getPadWiz();},get phase(){return cenas.fase();},get padPrev(){return padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[vizMode]||{}).kind==='hcnew';} /* derivado de vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return _footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return nav.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
+window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,pollPads:()=>gamepadApi.pollPads(),update,openPadWiz:()=>gamepadApi.openPadWiz(),padWizTick:()=>gamepadApi.padWizTick(),padMapFor:(id: Parameters<typeof gamepadApi.padMapFor>[0])=>gamepadApi.padMapFor(id),get padWiz(){return gamepadApi.getPadWiz();},get phase(){return cenas.fase();},get padPrev(){return padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[vizMode]||{}).kind==='hcnew';} /* derivado de vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return _footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return guide.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
   get mmSeen(){return minimapSeenCount();},get MODE(){return MODE();},get letterCase(){return letterCase;},brailleText,tileAt,WORLD_W,WORLD_H,TUNE,
   JUICE,addShake,addHitstop,burstSparkle,puffDust,draw,get particles(){return getParticles();},get hitstopT(){return getHitstopT();},get shakeT(){return getShakeT();},CRT,applyCrt,setLq,get lqT(){return getLqT();},
   setOwnerColors,setCbSafe,setRoleColor,resetRoleColors,PCOLOR,HC_ROLE,get ownerColors(){return ownerColors;},get cbSafe(){return cbSafe;},
