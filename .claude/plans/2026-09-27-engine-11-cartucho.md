@@ -1,0 +1,143 @@
+# `game-platformer` → engine 11.0.0, e o cartucho que o CI passa a exigir
+
+> 📌 **Destino deste ficheiro:** `game-platformer/.claude/plans/`. Está aqui só porque o modo de plano não
+> deixa escrever no repositório. Não há `.claude/plans/` nesse repo ainda — nada a versionar antes.
+
+## Contexto
+
+A engine publicou **11.0.0 hoje** (27/09, 21:31), depois da **10.0.0** (25/09). O `game-platformer` pede
+`^9.0.0` e tem 9.0.0 instalada: **dois majores de distância**, com 185 rubricas de quebra nas duas entradas
+do CHANGELOG.
+
+Mudou o que faltava em setembro: existe **`docs/6-DevOps-SRE/Breaking-Changes.md`**, 4341 linhas escritas
+*para quem consome*, com notas nomeadas (A … EB) e o passo a passo de cada uma. **Quarenta e quatro delas
+mencionam este jogo.** O plano abaixo não re-deriva a migração — ele trabalha as notas, e deixa o
+compilador enumerar o resto.
+
+⚠️ **E o jogo já andou na direção certa sozinho.** Onze commits desde 23/09, com o tema *«comes home»*: ele
+tirou **29 módulos da engine v9.0.0** e passou a possuí-los — colisão de grade, tabela de tipos de tile,
+bengala e nado do cego, demonstração do assistente de pad, guia sonoro contínuo. Três voltaram («they were
+accessibility, not furniture»). Isso já cumpre as notas **BY, CA, CB, CC, CD, DZ** e a **Y**. Não se
+re-migra o que já está feito.
+
+⚠️ **Há 1 commit não empurrado** (`7fb2e57`, de outra sessão). Não mexo nele.
+
+---
+
+## O que muda a FORMA do cartucho (e não só os nomes)
+
+### DV · ADR-0253 — o build e o checador passam a ser da engine, e o CI fica vermelho sem eles
+
+O workflow compartilhado corre `vite build --mode cartridge` e `npx inclusionist-check-cartridge` **sem
+entrada para desligar**. A nota mede os sete jogos e diz: *«None of the seven passes the gate as it
+stands»*. A engine publica `./build` (`defineGameBuild`), `CARTRIDGE_DIR = 'dist-lib'`,
+`CARTRIDGE_FILE = 'cartridge.js'` e o binário `inclusionist-check-cartridge`.
+
+```ts
+import { defineGameBuild } from '@the-inclusionist/engine/build';
+export default defineGameBuild({ cartridge: 'src/index.ts', config: { /* a config do app, como está */ } });
+```
+
+🔴 **E o passo 2 da nota nomeia este jogo, contra uma decisão que eu escrevi aqui em 11/09.** O export
+**padrão** da entrada tem de ser o cartucho — `{ slug, declaration, hooks, create(ctx) }` — porque **o
+checador lê `declaration` e `hooks` no import**, como o `createGame` faz no arranque. Hoje o
+`src/index.ts` exporta membros nomeados, e o `src/contract.ts` argumenta, em letras garrafais, que
+`declaration` e `hooks` **não podem** ser estáticos porque leem a rodada.
+
+**O argumento perdeu, e o conserto não é revertê-lo: é responder a verdade do mundo vazio.** A declaração
+passa a ser estática sobre um suporte que a fábrica preenche, e antes de `create()` responde o que é
+verdade — `targetsOf` vazio, `focusOf` nulo, `topology()` com a medida do mundo ainda não carregado. Isso
+é o que `conformanceProblems` vai invocar no checador, e é uma afirmação honesta, não um remendo. O
+comentário de `src/contract.ts` reescreve-se para dizer que a engine decidiu e por quê.
+
+### O cartucho passa a ser publicável
+
+`package.json`: `build:lib` vira `vite build --mode cartridge` (ou sai), o `tsconfig` próprio do cartucho e
+qualquer checador próprio saem, e `exports["."]` aponta para `./dist-lib/cartridge.js` com `types`
+`./dist-lib/cartridge.d.ts`. Com isso `private: false` deixa de ser promessa vazia — em 11/09 não publiquei
+justamente porque a página ainda era do jogo.
+
+---
+
+## As notas que exigem uma RESPOSTA deste jogo
+
+| nota | o que o jogo tem de responder |
+|---|---|
+| **G / AC** | as acomodações `GAME_KEYED`, incluindo `ownerColors` e `contrastOutlines` — o arranque **recusa** um cartucho que não responda |
+| **DW** (ADR-0255) | a biblioteca de fontes saiu do pacote: `uses: { fonts: [...] }` e `inclusionist-heavy dist --fonts "…"`. ⚠️ Medir primeiro se este jogo desenha com alguma família fora das da engine — não achei prova de que sim, e declarar por precaução carregaria peso que ninguém usa |
+| **DS** (ADR-0243) | `gameSay(voice, text, language)` com o idioma **obrigatório**; a nota nomeia as palavras da alfabetização deste jogo → `'pt-BR'` |
+| **DU** (ADR-0249) | a regra de trava recebe a resposta do jogo: `LatchReading.gameHoldsKeys`, `LatchedEdgeOptions.holdsKeys` — é o `seguraTeclas: true` já decidido em 11/09, agora por outra porta |
+| **DN** | o jogo declara as CHAVES das suas palavras (preset, acomodações) — ele já tem `app/js/i18n/game-keys.ts` |
+| **DT** | `GamepadCtx.wizardClosed()`, obrigatório |
+| **DG / DM** | não há modo Libras, há **modo surdo**: `Engine.libras` → `Engine.deafMode`; o sonar lê o que está na tela |
+| **EB / DZ** | `sonarPlayers` sai, e as categorias `guide`/`guard` do mixer somem — o guia já veio para casa em `69d2a06` |
+| **AS** | existe `Engine.dispose()`: o `teardown()` do cartucho passa a ter em que se apoiar, em vez do `AbortController` sozinho |
+
+## As ondas mecânicas (grandes, mas sem decisão)
+
+- **AL–AR, AT–AW, CI–CP, CW, CX** — a superfície pública e os **nomes de ficheiro** falam inglês. `CAA` vira
+  `AAC` em nomes, caminhos e chaves de i18n. Em 23/09 medi 40 símbolos e 6 módulos; hoje é maior, e é 1:1.
+- **CS–DE (ADR-0232 D4)** — **nenhum módulo lê `localStorage`, `core/state` ou `core/i18n` por import**: a
+  raiz constrói e injeta. Esta é a onda mais funda: alcança os 96 subcaminhos que este jogo importa, e não
+  é renomeação — é mudar quem é dono do quê.
+- **A, H, J–T** — os painéis, a pausa, o pad virtual e o rodapé mudaram de forma; boa parte já não é deste
+  jogo se o passo de adotar `createGame` for feito junto.
+
+---
+
+## Passos
+
+1. **Subir e deixar o compilador enumerar.** `peerDependencies`/`devDependencies` para `^11.0.0`; `npm ci`
+   do zero (⚠️ matar dev/preview antes — trancam o binário nativo do rolldown e o `npm ci` morre com
+   `EPERM`); depois `npm run typecheck`. **A lista de erros é o mapa real**; as notas dizem o *porquê* e o
+   *para quê*, o compilador diz *onde*.
+2. **Trabalhar as notas por camada**, na ordem em que o documento as põe: `core` → `platform` → `input` →
+   `render` → `ui` → `boot`. Cada nota traz a substituição; nenhuma se adivinha.
+3. **A onda da injeção (CS–DE)** num passo próprio, porque muda donos e não nomes.
+4. **Responder as acomodações** e as portas novas (`uses`, `hud`, `gamepad.wizardClosed`, `gameSay` com
+   idioma). ⚠️ **Decisão sua em cada acomodação**: `false` numa que o jogo tem **remove** o controle da
+   criança; palavra numa que ele não tem cria controle morto. Apuro e apresento a conta, uma a uma.
+5. **O cartucho vira export padrão** e a declaração torna-se estática sobre o suporte que a fábrica
+   preenche (ver DV acima). Reescrever o comentário de `src/contract.ts`: ele hoje argumenta o contrário.
+6. **`defineGameBuild`** em `vite.config.ts`; sai a config de modo `lib` própria. `package.json`: `exports`,
+   `types`, `files`, `build:lib` → `--mode cartridge`.
+7. **`inclusionist-check-cartridge`** a passar — é o portão novo do CI compartilhado.
+8. **Publicar**, com `private: false`, quando o checador estiver verde.
+
+### Ficheiros críticos
+
+`package.json` · `vite.config.ts` · `src/index.ts` (export padrão) · `src/contract.ts` (o comentário que
+perdeu o argumento) · `src/standalone.ts` · `app/js/main.ts` · `app/js/declaration/platformer-declaration.ts`
+· `app/index.html` · `.github/workflows/ci.yml` · os testes que leem o fonte
+(`pause-icons-escritores`, `rng-do-cartucho`, `declaration`) — movem-se com ele.
+
+### Reaproveitar, não reescrever
+
+`Breaking-Changes.md` é a migração; `defineGameBuild` e `inclusionist-check-cartridge` substituem a config
+dupla e qualquer checador próprio; `Engine.dispose()` substitui metade do `teardown` escrito à mão; os 29
+módulos que vieram para casa **ficam** — não voltam para a engine.
+
+---
+
+## Verificação
+
+1. `npm run validate` e `npm run test:a11y`, lendo o **código de saída** — `N passed` convive com erro não
+   tratado e saída não-zero.
+2. `npx inclusionist-check-cartridge` — o portão que o CI passou a correr.
+3. O artefato do cartucho importado **de fora** da árvore que o publica; dentro dela as devDependencies
+   mascaram o que falta.
+4. **No navegador, contra `dist/`**: ⚠️ este jogo é PWA — matar o service worker, limpar `caches` e **ler o
+   sha no título**. Em 11/09 o preview serviu precache de um build anterior à migração.
+5. **Uma barra e um cartão de pausa, não dois**; e os painéis que a engine monta **abrem e agem** — um
+   controle presente e morto é pior que um ausente, e foi assim que os ícones 🌗/🚥 morreram sem `tsc`,
+   teste ou axe darem sinal.
+6. ⚠️ **O teclado não se verifica por tecla real neste navegador**: ele entrega `keydown` com `key` certo,
+   `code` **vazio** e `which` 0, e a engine identifica por `e.code`. Clique real para o que é clicável,
+   Vitest para o resto.
+7. **Uma suíte de cada vez** na máquina.
+
+## O que eu não decido sozinho
+
+- Cada acomodação, uma a uma.
+- `uses.fonts` (depois de medir se o jogo desenha fora das famílias da engine), `genero`, `uses.neuralVoice`.
+- Publicar o pacote — e o `git push`, que nunca é meu.
