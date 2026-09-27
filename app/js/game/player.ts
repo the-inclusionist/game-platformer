@@ -4,7 +4,9 @@
 // ventosa-aranha (spiderReattach/wrapConvex) leem o mundo via core/collision (solidAt/tileAt) → puras, testáveis
 // com um mundo FALSO (initCollision no teste). BOX = caixa de colisão (px); SPAWN_* = nascedouro. jumpVel = a
 // velocidade inicial do pulo (fórmula pura). showPower (DOM/HUD) segue no game.js. Consumido pela física.
-import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { TILE } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR vieram para casa: sao NUMEROS DESTE JOGO, e a engine nao descreve um jogo (nota 2).
+import { EASY } from '../core/game-constants.js';
 import { TUNE } from './tuning.js';
 import { solidAt, tileAt } from '../core/collision.js';
 import { DEFAULT_VISUAL } from '@the-inclusionist/engine/render/viz-axes.js';

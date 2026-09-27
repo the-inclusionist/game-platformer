@@ -60,12 +60,24 @@
 // qualquer ponto do game.js posterior às camadas de `Graphics`, à `camera` e ao `app`; o resto do ctx é
 // função e resolve tarde. Ver docs/5-Refactoring/plano-modularizacao-mapa.md (C1).
 
-import { LOGICAL_W, LOGICAL_H, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { LOGICAL_W, LOGICAL_H } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR vieram para casa: sao NUMEROS DESTE JOGO, e a engine nao descreve um jogo (nota 2).
+import { EASY } from '../core/game-constants.js';
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 // A corrente da DECORACAO, nao a do jogo: uma particula sorteada aqui nao pode mover o sorteio
 // das moedas. Ver o cabecalho de core/rng.ts (issue #107).
-import { rngDecoracao } from '@the-inclusionist/engine/core/rng.js';
-const rnd = rngDecoracao.rnd;
+import { createRng, DEFAULT_SEED } from '@the-inclusionist/engine/core/rng.js';
+// A CORRENTE DECORATIVA DESTE JOGO. Era `rngDecoracao` da engine, que saiu com a limpeza: um motor nao
+// descreve a decoracao de um jogo.
+//
+// ⚠️ E ELA FICA NO ESCOPO DO MODULO DE PROPOSITO, ao contrario da corrente do cartucho (ADR-0141). O dano
+// que aquele registro descreve e' um `reseed` num cartucho a reposicionar os sorteios do outro; aqui nao ha
+// `reseed` nenhum e nao ha reprodutibilidade a defender — o que se sorteia e' a poeira, a faisca e a gota de
+// chuva. Dois cartuchos a partilhar esta corrente intercalam decoracao, e mais nada.
+//
+// 📌 A semente e' a da engine desviada (`DEFAULT_SEED ^ 0x5eed`), a MESMA que o `rngDecoracao` usava: o que
+// se desenha continua identico ao de antes desta mudanca.
+const rnd = createRng(DEFAULT_SEED ^ 0x5eed).rnd;
 import { JUICE, easeOut3, shakeAmp, drawFx } from './fx.js';
 import { criarCamera, type CameraObj } from './camera.js';
 import { drawCane, drawRunCane, drawChair } from './wheelchair-sprites.js';

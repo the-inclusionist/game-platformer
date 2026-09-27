@@ -6,7 +6,9 @@
 // See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
 import { makeCanvas, tex } from '@the-inclusionist/engine/render/canvas.js';
-import { TILE, TILE_COLOR } from '@the-inclusionist/engine/core/constants.js';
+import { TILE } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR vieram para casa: sao NUMEROS DESTE JOGO, e a engine nao descreve um jogo (nota 2).
+import { TILE_COLOR } from '../core/game-constants.js';
 import { isSolidType } from '../core/collision.js';
 
 let WORLD: number[][] = [];

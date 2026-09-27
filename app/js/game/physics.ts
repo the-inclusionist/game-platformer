@@ -16,7 +16,9 @@
 //
 // ÂNCORA: tests/physics-golden.node.test.js replaya 14 trajetórias capturadas do jogo rodando
 // (tests/fixtures/physics-golden.json). Qualquer mudança de comportamento aqui aparece lá.
-import { TILE, EASY } from '@the-inclusionist/engine/core/constants.js';
+import { TILE } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR vieram para casa: sao NUMEROS DESTE JOGO, e a engine nao descreve um jogo (nota 2).
+import { EASY } from '../core/game-constants.js';
 import { TUNE, COIN_TARGET } from './tuning.js';
 import { ehTrampolim } from '../core/tiles.js';
 import { t } from '@the-inclusionist/engine/core/i18n.js';

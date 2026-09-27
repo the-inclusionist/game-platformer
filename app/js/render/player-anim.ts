@@ -41,7 +41,8 @@
 //
 // ARMADILHA DE ORDEM DE BOOT: nenhuma. O módulo não tem estado próprio nem toca nada no import.
 
-import { ANIM } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR vieram para casa: sao NUMEROS DESTE JOGO, e a engine nao descreve um jogo (nota 2).
+import { ANIM } from '../core/game-constants.js';
 import type { ControlledPlayer } from '@the-inclusionist/engine/core/entity.js';
 
 /** Uma textura de quadro. Opaca de propósito: este módulo ESCOLHE quadros, nunca os desenha. */

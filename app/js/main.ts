@@ -74,7 +74,20 @@ import { worldCanvas, initWorldTex } from './render/world-tex.js'; // Estágio 4
 import { kb, initKB, setKB, saveKB, resetKB, factoryWithGame } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
 import { AUDIO_CATS } from '@the-inclusionist/engine/platform/audio-mixer.js'; // Fase 2: categorias do mixer (dados); audioCat/catNode/setCatGain vêm de audio.js
 import { FONT_GROUPS } from '@the-inclusionist/engine/ui/fonts.js'; // Fase 2: tipografia (catálogo + persistência)
-import { $, $$, toggleBtn, toggleLabel } from '@the-inclusionist/engine/ui/dom.js';
+import { toggleBtn, toggleLabel } from '@the-inclusionist/engine/ui/dom.js';
+
+/*
+ * OS DOIS SELETORES SAO DESTA RAIZ AGORA (ADR-0232 D4, nota DE). A engine tirou-os de `ui/dom` porque eram
+ * a ultima leitura do `document` de PAGINA INTEIRA fora de uma raiz de composicao: todo modulo consulta o
+ * documento que lhe entregam, e quem tem um documento e' quem compoe. A nota mede os sete jogos e diz que
+ * este e' o unico que os importava.
+ *
+ * ⚠️ Eles olham o `document` e ainda nao a `ctx.region`, e a diferenca importa: 36 overlays deste jogo vivem
+ * FORA do `#game-region`. No dia em que os paineis passarem a ser montados pelo `createGame`, estes dois
+ * estreitam-se para a regiao — e ai deixam de poder alcançar o que nao e' deste cartucho.
+ */
+const $ = <T extends Element = HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
+const $$ = <T extends Element = HTMLElement>(sel: string): T[] => [...document.querySelectorAll<T>(sel)];
 import { initSettingsAudio } from '@the-inclusionist/engine/ui/settings-audio.js';
 import { initSettingsControls, keyName } from '@the-inclusionist/engine/ui/settings-controls.js';
 import { escapeHtml } from '@the-inclusionist/engine/core/escape-html.js';
@@ -142,7 +155,7 @@ import { initQuiz } from './game/quiz.js'; // B3: o desafio educativo (geracao +
 import { initSettingsPanel } from '@the-inclusionist/engine/ui/settings-panel.js'; // B4: o que as cascas dos paineis realmente compartilham
 import { initFocusTrap, focusablesInDom } from '@the-inclusionist/engine/ui/focus-trap.js'; // #109: Tab nao sai de um dialogo aberto
 import { showReachNotice } from '@the-inclusionist/engine/ui/reach-notice.js'; // #112: diz ANTES quando o controle nao alcanca
-import { alcance, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
+import { reach, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { initViewports } from '@the-inclusionist/engine/render/viewports.js'; // B2: fabrica de imagem dos modos de visao
 import { initSession } from './game/session.js'; // C2: o ciclo de vida da RODADA (MODE_LABELS/MODES saíram com o #opt-mode)
 import { initDraw } from './render/draw.js'; // C1: camera + o quadro + a escolha de quadro do personagem
@@ -150,7 +163,9 @@ import { initVizSetters } from '@the-inclusionist/engine/render/viz-setters.js';
 import { roleOf } from './game/tile-roles.js'; // Passo 7: a tabela tile->papel e' do JOGO, nao do alto contraste
 import { initLevelGeometry, buildRamps, buildRopes, drawElevators, buildDarkRegions, buildWcGeom as lgBuildWcGeom, rebuildExtras as lgRebuildExtras, setupExtras as lgSetupExtras } from './game/level-geometry.js'; // Onda A: rampas/cordas/elevador/escuridao/extras
 // Constantes puras extraídas para core/constants.js (modularização Fase B).
-import { LOGICAL_W, LOGICAL_H, TILE, ANIM } from '@the-inclusionist/engine/core/constants.js';
+import { LOGICAL_W, LOGICAL_H, TILE } from '@the-inclusionist/engine/core/constants.js';
+// ANIM/EASY/TILE_COLOR vieram para casa: sao NUMEROS DESTE JOGO, e a engine nao descreve um jogo (nota 2).
+import { ANIM } from './core/game-constants.js';
 import { COIN_TARGET, TUNE } from './game/tuning.js';
 import { TILE_TYPES } from './core/tiles.js'; // a tabela do que cada tile É — a reciclagem pergunta "isto é água?"
 import { acaoDeCarga } from './game/carry.js'; // qual botão pega, solta e arremessa (ADR-0045)

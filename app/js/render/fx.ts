@@ -7,8 +7,18 @@
 
 // A corrente da DECORACAO, nao a do jogo: uma particula sorteada aqui nao pode mover o sorteio
 // das moedas. Ver o cabecalho de core/rng.ts (issue #107).
-import { rngDecoracao } from '@the-inclusionist/engine/core/rng.js';
-const rnd = rngDecoracao.rnd;
+import { createRng, DEFAULT_SEED } from '@the-inclusionist/engine/core/rng.js';
+// A CORRENTE DECORATIVA DESTE JOGO. Era `rngDecoracao` da engine, que saiu com a limpeza: um motor nao
+// descreve a decoracao de um jogo.
+//
+// ⚠️ E ELA FICA NO ESCOPO DO MODULO DE PROPOSITO, ao contrario da corrente do cartucho (ADR-0141). O dano
+// que aquele registro descreve e' um `reseed` num cartucho a reposicionar os sorteios do outro; aqui nao ha
+// `reseed` nenhum e nao ha reprodutibilidade a defender — o que se sorteia e' a poeira, a faisca e a gota de
+// chuva. Dois cartuchos a partilhar esta corrente intercalam decoracao, e mais nada.
+//
+// 📌 A semente e' a da engine desviada (`DEFAULT_SEED ^ 0x5eed`), a MESMA que o `rngDecoracao` usava: o que
+// se desenha continua identico ao de antes desta mudanca.
+const rnd = createRng(DEFAULT_SEED ^ 0x5eed).rnd;
 
 import * as store from '@the-inclusionist/engine/platform/storage.js';
 
