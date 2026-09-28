@@ -17,7 +17,6 @@
 // `input/gamepad.ts`, ela deixa cada verbo na tecla e no botão que já ocupava. Zero de quatro se movem.
 
 import type { ActionPreset } from '@the-inclusionist/engine/core/actions.js';
-import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
 
 /**
  * O vocabulário da plataforma, resolvido no IDIOMA VIGENTE a cada chamada.
@@ -26,27 +25,29 @@ import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
  * uma `const` de módulo congela as palavras no idioma que estava carregado quando o módulo foi importado. A
  * criança troca de idioma no menu e o assistente de controle continuaria a dizer «PULAR» em português.
  */
-// `t` POR ARGUMENTO e nao por import (nota CV): este modulo e' puro, e dar-lhe estado de modulo para
-// receber o tradutor custaria a propriedade que o torna aferivel sem navegador.
-export function platformerPreset(t: Translate): ActionPreset {
+// ⚠️ O PRESET DECLARA CHAVES, E JA NAO PALAVRAS (`ActionPreset = Record<Action, ActionKeys>`, ADR-0232 D3).
+// Ele nao recebe tradutor nenhum — e essa e' a correcao: uma palavra resolvida aqui ficaria na lingua em
+// que foi resolvida, e a linha do menu deixaria de seguir a troca de idioma. Quem resolve e' a engine, a
+// cada desenho, contra `createGame({ dictionaries })`.
+export function platformerPreset(): ActionPreset {
   return {
-    up: { label: t('act.up') },
-    down: { label: t('act.down') },
-    left: { label: t('act.left') },
-    right: { label: t('act.right') },
+    up: { labelKey: 'act.up' },
+    down: { labelKey: 'act.down' },
+    left: { labelKey: 'act.left' },
+    right: { labelKey: 'act.right' },
 
     // ⚠️ AS QUATRO AÇÕES TÊM DUAS PALAVRAS, e não é redundância: `act.*` é a da lista de remapeamento
     // («Correr / interagir») e `legend.*` é a da legenda do título («correr»), que fica debaixo de um glifo
     // numa fileira de quatro e não tem largura para a longa. A distinção já existia no dicionário; o que
     // mudou é que ela atravessa a fronteira COM as palavras, em vez de a engine ter de a conhecer.
-    action1: { label: t('act.run'), short: t('legend.run') },
-    action2: { label: t('act.jump'), short: t('legend.jump') },
-    action3: { label: t('act.especial'), short: t('legend.especial') },
-    action4: { label: t('act.swap'), short: t('legend.swap') },
+    action1: { labelKey: 'act.run', shortKey: 'legend.run' },
+    action2: { labelKey: 'act.jump', shortKey: 'legend.jump' },
+    action3: { labelKey: 'act.especial', shortKey: 'legend.especial' },
+    action4: { labelKey: 'act.swap', shortKey: 'legend.swap' },
     // `touch.act.pause` («Pausar (START)») e não uma chave nova: ela já existe nos três idiomas e já é a
     // palavra que a criança lê no painel de toque para este mesmo botão. Inventar `act.start` criaria uma
     // segunda palavra para a mesma coisa, e as duas divergiriam na primeira revisão de texto.
-    start: { label: t('touch.act.pause') },
+    start: { labelKey: 'touch.act.pause' },
     // ⚠️ `select` e os quatro ombros/gatilhos NÃO são declarados, e a ausência é a declaração: esta
     // plataforma não os usa. O assistente de controle não vai perguntar por eles, o que é exatamente o que
     // `labellerFrom` devolver `null` significa — uma ausência vira menos um passo, nunca um passo mudo.

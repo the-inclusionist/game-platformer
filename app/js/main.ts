@@ -278,14 +278,14 @@ initCrt({
  * obrigaria os trezentos jogos a repetir a mesma derivação.
  */
 function rotuloCurto(acao: string): string | null {
-  return shortLabellerFrom(platformerPreset(t))(acao as Action);
+  return shortLabellerFrom(platformerPreset())(acao as Action);
 }
 
 // ⚠️ `Action` E JÁ NÃO `string`: a engine 8.0.0 estreitou `SettingsControlsCtx.acoesDoJogo`, e o conserto
 // foi APAGAR o `as string` que alargava de volta o que `presetActions` já devolvia certo. O alargamento
 // era antigo e custava a recusa de tecla duplicada, que casa a posição pela PALAVRA da ação.
 function acoesDoJogo(): readonly { readonly acao: Action; readonly rotulo: string }[] {
-  const preset = platformerPreset(t);
+  const preset = platformerPreset();
   const rotulo = labellerFrom(preset);
   return presetActions(preset)
     .map((a) => ({ acao: a, rotulo: rotulo(a) || '' }))
@@ -560,13 +560,13 @@ showReachNotice(
     // ⚠️ A MESMA pergunta que o `isCoarsePointer` do ctx de `game/session` faz (linha ~1324), escrita aqui e
     // nao reutilizada: aquele e definido MAIS ABAIXO neste ficheiro, e chama-lo daqui cairia em TDZ e
     // derrubaria o boot. A duplicacao e de UMA expressao e esta anotada dos dois lados.
-    toque: ehToque,
-    teclado: () => !ehToque(),
+    touch: ehToque,
+    keyboard: () => !ehToque(),
     // ⚠️ O RATO NÃO É UM TRANSPORTE À PARTE (ADR-0112): sozinho não carrega as catorze posições. Ele é o
     // SINAL CONTÍNUO ao lado do teclado, e por isso entra como pergunta de DISPOSITIVO — medida como as
     // outras três, e não deduzida de `!ehToque()`: um portátil com ecrã táctil tem os dois.
-    rato: () => { try { return matchMedia('(pointer:fine)').matches; } catch (e) { return false; } },
-  }), presetActions(platformerPreset(t)), 3),
+    mouse: () => { try { return matchMedia('(pointer:fine)').matches; } catch (e) { return false; } },
+  }), presetActions(platformerPreset()), 3),
 );
 // As seis flags `*Open` que moravam aqui morreram: quem sabe se um painel esta aberto e o proprio DOM, e o
 // registro de ui/settings-panel le de la (D1). `jumpEdge` estava nesta mesma linha e tambem morreu: era
@@ -1686,7 +1686,7 @@ const gamepadApi = initGamepad({
   // ⚠️ A PALAVRA VEM DO JOGO, e o preset resolve-se A CADA CHAMADA para acompanhar o idioma vigente.
   // Era uma constante em português dentro de `input/gamepad.ts` — o defeito do ADR-0074 na forma mais
   // visível que ele tinha. Ver `game/platformer-preset.ts`.
-  rotuloDaAcao: (acao) => labellerFrom(platformerPreset(t))(acao as Action),
+  rotuloDaAcao: (acao) => labellerFrom(platformerPreset())(acao as Action),
   mundoRodando: () => fatosDaCena().mundoRodando, menuDePausa: () => fatosDaCena().menuDePausa,
   pausar: () => setPhase('paused'), retomar: () => setPhase('playing'),
   isAttractActive: () => attractCtl.isAttract(), stopAttract: () => attractCtl.stopAttract(),
@@ -2422,7 +2422,7 @@ const hooks: GanchosDoCartucho = {
   sonarPlayers: () => controlados().map((p, i) => ({ i, x: p.x, y: p.y })),
   setPhase: (f) => { if (f === 'playing' || f === 'title' || f === 'paused') setPhase(f); },
   isBlindMode: () => settingsStore.blindMode,
-  preset: platformerPreset(t),
+  preset: platformerPreset(),
   getPauseActs: () => pauseActs,
   setPauseActor: (i: number) => rodada.setPauseActor(i),
   setTemaDoJogador: (...a: Parameters<typeof setTemaDoJogador>) => setTemaDoJogador(...a),
