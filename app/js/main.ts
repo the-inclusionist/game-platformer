@@ -70,7 +70,7 @@ import { SOMASUB_SHAPES, WORD_INITIALS } from './game/activity-content.js'; // E
 import { JUICE, saveJuice, puffDust, burstSparkle, addShake, addHitstop, setSquash, stepFx, initFx, tickHitstop, getParticles, getHitstopT, getShakeT } from './render/fx.js'; // Estágio 4 (Tier 2): juice (partículas/shake/hitstop/squash)
 import { parallaxPlaceholder, themeSkyTexture, themeHillsTexture, themeCitySkyTexture, themeSkylineTexture } from './render/scene-parallax.js'; // Estágio 4 (Tier 2): geradores de textura do parallax
 import { worldCanvas, initWorldTex } from './render/world-tex.js'; // Estágio 4 (Tier 2): builder da textura NORMAL do mundo
-import { kb, initKB, setKB, saveKB, resetKB, factoryWithGame } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
+import { kb, setKB, saveKB, resetKB, factoryWithGame } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
 import { AUDIO_CATS } from '@the-inclusionist/engine/platform/audio-mixer.js'; // Fase 2: categorias do mixer (dados); audioCat/catNode/setCatGain vêm de audio.js
 import { FONT_GROUPS } from '@the-inclusionist/engine/ui/fonts.js'; // Fase 2: tipografia (catálogo + persistência)
 import { toggleBtn, toggleLabel } from '@the-inclusionist/engine/ui/dom.js';
@@ -107,7 +107,7 @@ import { VIZ_MODES, VIZ_BY_KEY, VIZ_CYCLE, simulatesDisability } from '@the-incl
 import { PAD_DESIGNS } from '@the-inclusionist/engine/input/devices.js'; // Fase 2: rótulos de gamepad/toque (dados)
 import { keys, padCur, padPrevAct, held, marcarTecla, marcarTeclaSemOrigem, soltarTecla } from '@the-inclusionist/engine/input/state.js'; // Fase 2.22: estado de input + held
 import { createLatchedEdge } from '@the-inclusionist/engine/input/latch-edge.js';
-import { audioCtx, ensureAC, soundOn, volume, setSoundOn, setVolume, audioOut, hearingLoss, setHearingLossGraph, setMasterMuted, audioCat, initAudioMixer, catNode, setCatGain, tone, tonePan, noiseBuffer, noiseHit, _footCount } from '@the-inclusionist/engine/platform/audio.js'; // Fase 2: base + mestre + mixer + sínteses (oscilador + ruído)
+import { audioCtx, ensureAC, soundOn, volume, setSoundOn, setVolume, audioOut, hearingLoss, setHearingLossGraph, setMasterMuted, audioCat, catNode, setCatGain, tone, tonePan, noiseBuffer, noiseHit, _footCount } from '@the-inclusionist/engine/platform/audio.js'; // Fase 2: base + mestre + mixer + sínteses (oscilador + ruído)
 import { gameSay } from '@the-inclusionist/engine/platform/speech.js';
 import { createAudioJingles } from '@the-inclusionist/engine/platform/audio-jingles.js'; // Tier 2 (áudio r1): jingles de vitória/enigma/fogos
 import { createAudioEarcons } from '@the-inclusionist/engine/platform/audio-earcons.js'; // Tier 2 (áudio r2): earcons (sfx) + porta + legendas
@@ -126,7 +126,7 @@ import { createSceneSky } from './render/scene-sky.js'; // Tier 2 (#43): céu �
 import { coinCanvas, treeCanvas, powerupCanvas } from './game/props.js'; // item 19: a arte dos props e do JOGO, nao da engine
 import { createCityTextures } from './render/city-tex.js'; // D3-a: arte procedural da rua (bichos, pedestres, carros)
 import * as weather from './render/weather.js'; // Onda A: clima visual (chuva/trovao/clarao)
-import { lqFilter, setLq, getLqT, initLqFilter } from '@the-inclusionist/engine/render/lq-filter.js'; // Onda A: realce de contraste L->Q
+import { setLq, getLqT } from '@the-inclusionist/engine/render/lq-filter.js'; // Onda A: realce de contraste L->Q
 import * as traffic from './game/traffic.js'; // Onda A: carros + semaforo da rua da frente
 import * as life from './game/life.js'; // Onda A: vida ambiente (pombos/gatos/caes/adultos)
 import { initSceneCity } from './render/scene-city.js'; // Onda A: deco da Cidade + fx de tiles vivos
@@ -151,7 +151,6 @@ import { initMapHub } from './ui/map-hub.js'; // D3-c: painel "Mapear controles"
 import { initPhysics, stepPlayer as stepPhysics } from './game/physics.js'; // B1: fisica do jogador (ancorada nas trajetorias-ouro)
 import { initQuiz } from './game/quiz.js'; // B3: o desafio educativo (geracao + markup + efeito)
 import { initSettingsPanel } from '@the-inclusionist/engine/ui/settings-panel.js'; // B4: o que as cascas dos paineis realmente compartilham
-import { initFocusTrap, focusablesInDom } from '@the-inclusionist/engine/ui/focus-trap.js'; // #109: Tab nao sai de um dialogo aberto
 import { showReachNotice } from '@the-inclusionist/engine/ui/reach-notice.js'; // #112: diz ANTES quando o controle nao alcanca
 import { reach, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { initViewports } from '@the-inclusionist/engine/render/viewports.js'; // B2: fabrica de imagem dos modos de visao
@@ -176,7 +175,7 @@ import { initCollision, tileAt, solidAt, surfTop } from './core/collision.js'; /
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
 import { srSay, srAlert, setVlibrasSay } from '@the-inclusionist/engine/core/a11y-sr.js'; // Estágio 4 (Tier 1): anúncios p/ leitor de tela (+ Libras injetado)
-import { CRT, applyCrt, initCrt } from '@the-inclusionist/engine/render/crt.js'; // Estágio 4 (Tier 1): estética CRT (scanlines/vinheta/cantos)
+import { CRT, applyCrt } from '@the-inclusionist/engine/render/crt.js'; // Estágio 4 (Tier 1): estética CRT (scanlines/vinheta/cantos)
 import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount } from './render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
 import { vlibrasSay, vlibrasOpen, toggleLibras, vlTick, librasOpen, setOnLibrasChange } from '@the-inclusionist/engine/ui/vlibras.js'; // Estágio 4 (Tier 1): intérprete VLibras (modo pessoa surda)
 import { layout, initLayout } from '@the-inclusionist/engine/ui/layout.js'; // Estágio 4 (Tier 1): escala do jogo (múltiplo inteiro de 320×180 em px reais)
@@ -263,10 +262,7 @@ initLayout({ numJogadores: () => rodada.numPlayers });
 // `a11yVisualAtiva`: ALGUM jogador fora do modo `normal`. O CRT é decoração GLOBAL — uma só para a tela
 // inteira —, então não há como escurecer as bordas de meia tela; se decoração e acessibilidade de qualquer
 // criança se contradizem, quem cede é a decoração (ADR-0020, "precedência a11y > estética").
-initCrt({
-  numJogadores: () => rodada.numPlayers,
-  a11yVisualAtiva: () => players.some((p) => { const m = VIZ_BY_KEY[p.viz]; return !!m && m.kind !== 'normal'; }),
-});
+// O CRT E DA ENGINE: `createGame` monta-o e devolve-o em `engine.crt`.
 
 
 /**
@@ -292,7 +288,7 @@ function acoesDoJogo(): readonly { readonly acao: Action; readonly rotulo: strin
 }
 if(typeof window!=='undefined') window.__tiles = tiles; // hook de teste (Preview); world.js passa a usar na etapa 2
 initCharacterSprites(); // cria as texturas do personagem no boot — o import de sprites.js é PURO (sem I/O). Fase 2.24
-initAudioMixer();        // carrega o estado do mixer no boot — o import de audio.js é PURO (não lê localStorage). Fase 2.25
+// O MIXER E DA ENGINE: `createGame` chama `initAudioMixer` e devolve o audio em `engine.audio`.
 // Versão vem do CARIMBO DE BUILD (git describe → tag de marketing na produção; SHA nos demais). Injetado pelo
 // Vite (__BUILD__, ver vite.config.ts). Tira o 'v' inicial da tag (o display já prefixa 'v'). Fallback defensivo.
 const INCL_VERSION = String((typeof __BUILD__ !== 'undefined' && __BUILD__.version) || '6.36.1').replace(/^v/, '');
@@ -522,12 +518,8 @@ const { frontOverlay } = overlays;
 // pagina esta inerte. O Tab discordava — saia do dialogo e entrava no tabuleiro por baixo, e quem usa leitor
 // de tela ficava num jogo cujo estado nao percebe, sem volta que perceba. Vai aqui e nao so no `createGame`
 // porque esta raiz NAO passa por ele.
-initFocusTrap({
-  overlayDeCima: overlays.topVisibleOverlay,
-  focoAtual: () => document.activeElement,
-  focaveisDe: focusablesInDom,
-  win: window,
-}).attach();
+// A ARMADILHA DE FOCO E DA ENGINE (ADR-0253): o `createGame` chama `initFocusTrap` sozinho. Esta raiz
+// montava a sua porque NAO passava por ele — a razao acabou, e com ela a chamada.
 
 function ehToque(){ try{ return matchMedia('(pointer:coarse)').matches && matchMedia('(hover:none)').matches; }catch(e){ return 'ontouchstart' in window; } }
 // O AVISO DE ALCANCE (issue #112). Ligado aqui pelo mesmo motivo dos outros dois fios: esta raiz NAO passa
@@ -573,7 +565,7 @@ showReachNotice(
 // Gamepad (B3/L1): estado por controle. padCur[gi]=ações seguradas neste frame; associação pad↔jogador vive em p.pad.
 // padCur/padPrevAct/padPrevStart + PAD_DEAD movidos p/ input/state.js (Fase 2.22)  // // zona morta = primeira METADE do curso (ergonomia — José 2026-07-02)
 // Config de teclado extraída p/ input/keyboard.js (Fase 2): esquemas, defaults, loadKB/saveKB/resetKB.
-initKB(); // o mapa de teclas vive em input/keyboard (#50); aqui só o disparo da leitura persistida
+// A CONFIG DE TECLADO E DA ENGINE: `createGame` chama `initKB` e devolve `engine.keyboardConfig`.
 // saveKB agora vem de input/keyboard.js (recebe o KB como argumento)
 // kbFor/actionOf/whichPlayer/assignControls/applyControls migraram para input/keyboard-runtime.ts (Onda A).
 // KB fica aqui (o painel de controles o edita e persiste); o modulo o le fresco a cada chamada.
@@ -923,7 +915,7 @@ const { setCenario } = createSetCenario({
 // e ja nao tinha chamador aqui (o rotulo do painel vem de ui/settings-visual, que reexporta o do modulo).
 // A RECOMPOSICAO do filtro CSS fica: ela mistura o modo de visao ativo e invalida caches de textura,
 // coisas que nao sao do realce L->Q.
-initLqFilter({ onChange: () => { if(app&&view){ if(rodada.numPlayers<=1)applyVizGlobal(players[0].visual); else view.style.filter=lqFilter(); } } });
+// O REALCE L->Q E DA ENGINE: `createGame` monta-o e devolve-o em `engine.lq`.
 // vizMode vem de core/state.js (Fase 2, mega-var 6). Init de boot SEM persistir (preserva o rastreio de prefers-contrast):
 settingsStore.initVizMode((()=>{ try{ const v=store.get('incl_viz',null); if(v&&VIZ_CYCLE.includes(v))return v; }catch(e){}
   // A guarda `window.matchMedia &&` saiu: o `tsc` acusa TS2774 porque ela testa uma função que SEMPRE existe
