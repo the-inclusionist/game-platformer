@@ -104,12 +104,23 @@ todo termo que o jogo declara — `preset`, `accommodations`, `gameOptions`, `ho
 desse mapa. A fiação de dicionários do terceiro commit entra por esta porta quando o `createGame` for
 adotado.
 
-### Estado em 27/09, 21h
+### Estado em 27/09, 21h16
 
-Sete commits locais, nenhum empurrado. **294 erros de tipo** (eram 383) e **736 de 783 testes** a passar,
-com 25 ficheiros de teste vermelhos. O passo 4 (as acomodações) está **feito**. O que falta é o passo 5–8,
-que é uma peça só: adotar o `createGame`, apagar as 21 raízes e os 36 overlays, e ligar o build do cartucho.
+Doze commits locais, nenhum empurrado (um deles é de outra sessão). **265 erros de tipo** (eram 383) e
+**777 de 795 testes** a passar.
 
+**Feito:** as ondas de renomeação e de injeção; o que nunca foi da engine veio para casa; as 18 acomodações
+respondidas; o preset a declarar chaves; o **export padrão do cartucho** com declaração estática sobre
+suporte (ADR-0253 passo 2); o **shell a chamar `createGame`**; e as cinco primeiras raízes apagadas.
+
+**Falta uma peça só:** dezassete raízes e **~190 usos dos seus punhos** — `overlays` 27, `tts` 21,
+`visual` 18, `motor` 16, `kbRuntime` 13, `touchCtl` 12, `gamepadApi` 11, `menuNav` 10, `pauseIcons` 9 —
+mais os 36 overlays do `index.html`, o `defineGameBuild` e o `inclusionist-check-cartridge`. Parte disso
+é comportamental e não mecânica: o que `visual.render()` significa depois de a engine possuir o painel é
+pergunta, não renomeação.
+
+⚠️ **E a árvore está vermelha de propósito**, com duas barras e dois cartões de pausa enquanto a deleção
+não terminar: o `createGame` já monta a pilha e este jogo ainda desenha a sua.
 ## Passos
 
 1. **Subir e deixar o compilador enumerar.** `peerDependencies`/`devDependencies` para `^11.0.0`; `npm ci`
