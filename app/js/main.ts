@@ -56,9 +56,8 @@ import type { RenderTextureLike, SpriteLike, GraphicsLike } from '@the-inclusion
 import type { MotionSceneKey, MotionSceneFlags, MotionCharDef } from '@the-inclusionist/engine/ui/settings-motion.js'; // as quatro chaves de movimento reduzido
 import type { HcRoleKey } from '@the-inclusionist/engine/render/hc-role-data.js'; // HC_ROLE é Record<HcRoleKey, …>: a chave não é `string`
 import { quizLevel, setQuizLevelValue, coins, setCoins } from './game/state.js'; // item 19: o estado DESTE jogo
-import type { GameCtx, CartuchoMontado } from '../../src/contract.js'; // o contrato do cartucho, deste lado
-import type { GanchosDoCartucho } from '@the-inclusionist/engine';
-import { createPlatformerDeclaration } from './declaration/platformer-declaration.js'; // o contrato do cartucho, deste lado
+import type { GameCtx, GameInstance } from '../../src/contract.js'; // o contrato do cartucho, deste lado
+import { ligarDeclaracao, desligarDeclaracao, ligarGanchos, desligarGanchos } from './declaration/live.js'; // o contrato do cartucho, deste lado
 // `startLoop` e `criarAvisoDeQueda` sairam daqui com o laco: sao do SHELL (ADR-0139), e vivem em src/standalone.ts
 import { initDebugPanel, type CharacterSample } from '@the-inclusionist/engine/ui/debug-panel.js'; // painel ?debug (Tier 1)
 import { createAttract } from './game/attract.js'; // modo demonstração (Tier 1)
@@ -204,7 +203,7 @@ import { SFX } from './game/earcons.js';
  *
  * 📌 `dt` continua em QUADROS, e nao em segundos. E' a convencao herdada que mais se quebra.
  */
-export async function create(ctx: GameCtx): Promise<CartuchoMontado> {
+export async function create(ctx: GameCtx): Promise<GameInstance> {
 
 // A ficha de cancelamento dos ouvintes GLOBAIS. Seis deles vivem na `window` e nao morrem com o DOM da
 // regiao: um `signal` em cada registro e um `abort()` solta os seis de uma vez, o que e' a unica forma
@@ -2390,6 +2389,9 @@ initDebugPanel({
  */
 function teardown(): void {
   CANCELAR.abort();
+  // A declaração volta a dizer a verdade do mundo vazio, que é o que ela é depois de um `unmount`.
+  desligarDeclaracao();
+  desligarGanchos();
   try { app.destroy(true, { children: true }); } catch (e) { /* ja destruido */ }
   try { delete (window as unknown as Record<string, unknown>).__incl; } catch (e) { /* nao enumeravel */ }
 }
@@ -2404,7 +2406,16 @@ function teardown(): void {
  * duas respostas dao 'structure' hoje, mas por motivos diferentes, e confundi-las esconderia o dia em que
  * uma delas mudasse.
  */
-const declaration = createPlatformerDeclaration({
+/* ===================== A RODADA LIGA-SE À DECLARAÇÃO E AOS GANCHOS =====================
+ *
+ * ⚠️ A DECLARAÇÃO JÁ NÃO NASCE AQUI, e isso é o ADR-0253: o export padrão do cartucho tem de carregá-la,
+ * porque o `inclusionist-check-cartridge` a lê NO IMPORT, como o `createGame` faz no arranque. Ela é
+ * construída em `declaration/live` sobre um suporte, e o que esta fábrica faz é LIGAR a rodada a ele.
+ *
+ * 📌 Antes desta chamada a declaração responde a verdade do mundo vazio — sem alvos, sem foco, mundo de
+ * tamanho zero. Depois dela, responde o jogo. Nenhuma das duas é espera-reservada.
+ */
+ligarDeclaracao({
   mundo: () => ({ larguraPx: WORLD_PX_W, alturaPx: WORLD_PX_H, tile: TILE }),
   tipoDoTile: (tx, ty) => (tx < 0 || ty < 0 || tx >= WORLD_W || ty >= WORLD_H) ? null : tileAt(tx, ty),
   ehSolido: (tx, ty) => solidAt(tx, ty),
@@ -2415,19 +2426,17 @@ const declaration = createPlatformerDeclaration({
   seletorDoMundo: '#game-region',
 });
 
-// A METADE DO JOGO das opcoes de `createGame` (ADR-0139), no tipo que a engine 9.0.0 publica. O shell
-// entrega-a ao `engine.mount()` assim que este cartucho existe — e' para isso que o ADR-0142 a criou.
-const hooks: GanchosDoCartucho = {
+// A metade dos ganchos que LÊ A RODADA. A outra — acomodações, dicionários, preset — é dado do cartucho e
+// mora em `src/index.ts`, resolvida uma vez e sem suporte nenhum.
+ligarGanchos({
   isNavigable: () => true,
-  sonarPlayers: () => controlados().map((p, i) => ({ i, x: p.x, y: p.y })),
   setPhase: (f) => { if (f === 'playing' || f === 'title' || f === 'paused') setPhase(f); },
   isBlindMode: () => settingsStore.blindMode,
-  preset: platformerPreset(),
   getPauseActs: () => pauseActs,
   setPauseActor: (i: number) => rodada.setPauseActor(i),
-  setTemaDoJogador: (...a: Parameters<typeof setTemaDoJogador>) => setTemaDoJogador(...a),
-  setCorrecaoDoJogador: (...a: Parameters<typeof setCorrecaoDoJogador>) => setCorrecaoDoJogador(...a),
-};
+  setPlayerTheme: (...a: Parameters<typeof setTemaDoJogador>) => setTemaDoJogador(...a),
+  setPlayerCorrection: (...a: Parameters<typeof setCorrecaoDoJogador>) => setCorrecaoDoJogador(...a),
+});
 
-return { update: quadro, teardown, declaration, hooks };
+return { update: quadro, teardown };
 }

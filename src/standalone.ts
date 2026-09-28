@@ -1,111 +1,103 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// O SHELL SOLTO — a casca que este repositorio poe a volta do proprio cartucho para se poder desenvolver,
+// O SHELL SOLTO — a casca que este repositório põe à volta do próprio cartucho para se poder desenvolver,
 // testar, auditar e demonstrar sem plataforma nenhuma a existir (ADR-0140 §2 e §3).
 //
-// ⚠️ ELE NAO E' UMA ROTA DE ENTREGA. O ADR-0140 §3 escreve isso como LIMITE e nao como permissao: um build
-// solto que existe para quem trabalha neste repositorio nao e' unidade de instalacao de ninguem; um build
-// solto IMPLANTADO PARA CRIANCAS e', e ai vale cada palavra do ADR-0117 — o cache parte-se por origem e as
-// preferencias de acessibilidade deixam de seguir a crianca de um jogo para o outro.
+// ⚠️ ELE NÃO É UMA ROTA DE ENTREGA. O ADR-0140 §3 escreve isso como LIMITE e não como permissão: um build
+// solto que existe para quem trabalha neste repositório não é unidade de instalação de ninguém; um build
+// solto IMPLANTADO PARA CRIANÇAS é, e aí vale cada palavra do ADR-0117 — o cache parte-se por origem e as
+// preferências de acessibilidade deixam de seguir a criança de um jogo para o outro.
 //
-// 📌 E E' A UNICA DIFERENCA entre os dois modos. A plataforma e' outro shell a volta da MESMA fabrica, e
-// nada dentro do jogo sabe qual deles o carregou.
+// 📌 E É A ÚNICA DIFERENÇA entre os dois modos. A plataforma é outro shell à volta da MESMA fábrica, e nada
+// dentro do jogo sabe qual deles o carregou.
 import '@the-inclusionist/engine/style.css';
 import * as PIXI from 'pixi.js';
+import { createGame } from '@the-inclusionist/engine';
 import { startLoop } from '@the-inclusionist/engine/core/loop.js';
 import { createCrashNotice } from '@the-inclusionist/engine/ui/loop-crash.js';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
-import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
-import { srAlert } from '@the-inclusionist/engine/core/a11y-sr.js';
-import { create, dicts } from './index.js';
+import cartucho from './index.js';
 
 const regiao = document.querySelector<HTMLElement>('#game-region');
-if (!regiao) throw new Error('standalone: sem `#game-region` nao ha onde o cartucho viver');
+if (!regiao) throw new Error('standalone: sem `#game-region` não há onde o cartucho viver');
 
 /*
- * A CORRENTE DESTE CARTUCHO (ADR-0141 §1). O shell constroi UM `createRng` por cartucho e entrega-o; o jogo
- * nunca importa `rnd`/`randInt`/`shuffle`/`reseed`, que sao atalhos ligados a uma corrente partilhada.
+ * A CORRENTE DESTE CARTUCHO (ADR-0141 §1). O shell constrói UM `createRng` por cartucho e entrega-o; o jogo
+ * nunca importa `rnd`/`randInt`/`shuffle`/`reseed`, que são atalhos ligados a uma corrente partilhada.
  *
- * 📌 SEM SEMENTE EXPLICITA, e a omissao e' deliberada: `createRng()` nasce com a `SEMENTE_PADRAO`, a MESMA
- * que a corrente partilhada usava, entao o comportamento sorteado deste jogo e' identico ao de antes da
- * mudanca. QUEM ESCOLHE A SEMENTE e' a unica pergunta que o `cartridge-contract.md` deixa em aberto e que a
- * leitura do codigo nao resolveu — e este jogo nao le `?seed=` nenhum (le `?record=1` e `?debug=true`), entao
- * nao ha aqui evidencia que decida. Fica por decidir, e nao por inventar.
+ * 📌 SEM SEMENTE EXPLÍCITA, e a omissão é deliberada: `createRng()` nasce com a `DEFAULT_SEED`, a MESMA que
+ * a corrente partilhada usava, então o comportamento sorteado deste jogo é idêntico ao de antes. QUEM
+ * ESCOLHE A SEMENTE continua a ser a única pergunta que o `cartridge-contract.md` deixa em aberto e que a
+ * leitura do código não resolveu — e este jogo não lê `?seed=` nenhum. Fica por decidir, não por inventar.
  */
 const rng = createRng();
 
 /*
- * O TRADUTOR E' DO SHELL (ADR-0232 D3, nota CV; ADR-0139 §4). `core/i18n` deixou de ter um `t` importavel:
- * nenhum modulo alcanca o idioma por import, e quem o constroi entrega-o pelo `ctx`.
+ * A RAIZ DE COMPOSIÇÃO, CHAMADA UMA VEZ — e é isto que faltava desde 11/09.
  *
- * ⚠️ E E' AQUI QUE OS DICIONARIOS DO CARTUCHO SE REGISTAM, antes de qualquer frase ser desenhada ou dita.
- * O ADR-0139 poe o ato deste lado com todas as letras — «registered by whichever shell loads this
- * cartridge; a cartridge never registers its own» —, e a razao e' a mesma do tradutor unico: na plataforma
- * ha um so, e seis cartuchos a registar cada um o seu e' seis vezes o mesmo ato sobre o mesmo objeto.
+ * O cartucho NUNCA chama `createGame` (ADR-0139): seis cartuchos a chamá-lo dentro de uma plataforma
+ * deduplicariam os bytes e multiplicariam o que corre — N barras de acessibilidade, N instâncias de TTS e N
+ * teclados a disputar o mesmo documento, que é falha pior do que embarcar a engine duas vezes, porque
+ * aparece como defeito e não como peso.
  *
- * 📌 O `ready()` e' esperado ANTES da fabrica: ela desenha frases no arranque, e um idioma que chega depois
- * deixaria metade da primeira tela na lingua errada — o defeito que o `applyDom` sozinho nao conserta,
- * porque o que o JavaScript monta ja capturou o texto.
+ * ⚠️ A METADE DO JOGO ENTRA ESPALHADA (`...cartucho.hooks`) e não como um campo: `CartridgeHooks` é
+ * literalmente `Omit<GameHalf, 'declaration'>`, ou seja, as opções que só o jogo sabe responder. Espalhar é
+ * o que torna o corte visível aqui — o que vem de `hooks` é do cartucho, o que está escrito abaixo é do host.
+ *
+ * 📌 `host.storage` fica de fora de propósito: a engine constrói a sua sobre o `localStorage` do `win`, e
+ * uma segunda instância seriam duas verdades sobre o que a criança guardou.
  */
-const i18n = createTranslator();
-for (const [codigo, palavras] of Object.entries(dicts)) i18n.registerDict(codigo, palavras);
-i18n.init(document);
-await i18n.ready();
+const engine = createGame({
+  declaration: cartucho.declaration,
+  host: { doc: document, win: window },
+  ...cartucho.hooks,
+});
 
 /*
- * ⚠️ O QUE ESTE SHELL AINDA NAO FAZ, e a ausencia esta escrita porque e' a parte que falta do ADR-0139:
+ * A FÁBRICA, DEPOIS DA ENGINE, porque o `ctx` carrega o que ela devolve.
  *
- * ELE NAO CHAMA `createGame`. Deveria — e' o shell quem possui a raiz de composicao, e o cartucho nunca a
- * chama. Nao chama hoje porque a engine montaria a SUA barra de acessibilidade (`#title-icons`) e o SEU
- * cartao de pausa por cima dos que este jogo desenha a mao: duas barras, dois cartoes, dois donos das mesmas
- * teclas. Nao ha meio-termo silencioso entre os dois.
- *
- * A causa esta medida e entregue a quem cuida da engine: dos nove modulos de painel de `ui/`, OITO criam zero
- * elementos e exigem 63 ids de marcacao ja prontos, e o `ui/panel-shell` — que construiria essa marcacao —
- * nao tem chamador nenhum dentro do pacote. Enquanto isso nao mudar, os 36 overlays deste jogo tem de
- * continuar a viver fora do `#game-region`, que e' 1% do documento, e um cartucho nao pode entregar a pagina.
- *
- * 📌 A SEQUENCIA JA ESTA DESENHADA para o dia em que der: `createGame(...)` com uma declaracao minima do
- * shell, depois `engine.mount(inst.declaration, inst.hooks)` — o `mount` da 9.0.0 existe (ADR-0142) para uma
- * declaracao poder chegar DEPOIS do arranque, que e' o caso de qualquer jogo que carregue o nivel da rede.
+ * ⚠️ `await` porque este jogo espera o idioma e BUSCA o mapa do nível da rede antes de existir mundo nenhum.
+ * Uma fábrica síncrona só serve um jogo cujo nível já está em código — o 15-puzzle e o 2048 —, e não um com
+ * níveis em ficheiro. Ver o desvio registado em `src/contract.ts`.
  */
-
-const inst = await create({
-  // `engine` fica por preencher pela razao acima; ver `src/contract.ts`.
-  engine: undefined as never,
+const inst = await cartucho.create({
+  engine,
   region: regiao,
   rng,
-  t: i18n.t,
-  // Na plataforma ha UM endereco para todos os cartuchos, entao um cartucho que lesse `location.search`
-  // direto leria os parametros de outro jogo. Aqui o shell e' dono do endereco e entrega-o inteiro.
+  // O tradutor é o DA ENGINE, e não um segundo: ela constrói-o, regista nele os `dictionaries` que o
+  // cartucho declarou, e resolve cada chave na língua da página. Dois tradutores numa página dariam à
+  // criança metade do jogo traduzido.
+  t: engine.t,
+  // Na plataforma há UM endereço para todos os cartuchos, então um cartucho que lesse `location.search`
+  // direto leria os parâmetros de outro jogo. Aqui o shell é dono do endereço e entrega-o inteiro.
   params: new URLSearchParams(location.search),
 });
 
 /*
- * O LACO E' DO SHELL, e nao do cartucho (ADR-0139). Seis cartuchos a abrir cada um o seu `requestAnimationFrame`
- * seriam seis lacos a disputar o mesmo quadro; na plataforma ha UM laco a chamar o `update(dt)` de cada
- * cartucho montado.
+ * O LAÇO É DO SHELL, e não do cartucho (ADR-0139). Seis cartuchos a abrir cada um o seu
+ * `requestAnimationFrame` seriam seis laços a disputar o mesmo quadro; na plataforma há UM laço a chamar o
+ * `update(dt)` de cada cartucho montado.
  *
- * ⚠️ `dt` VAI EM QUADROS porque o `deltaTime` do ticker do PixiJS vai — fisica copiada de um tutorial em
- * segundos corre errada, e e' a convencao herdada que mais se quebra.
+ * ⚠️ `dt` VAI EM QUADROS porque o `deltaTime` do ticker do PixiJS vai — física copiada de um tutorial em
+ * segundos corre errada, e é a convenção herdada que mais se quebra.
  *
- * E o `aoFalhar` e' onde vive a decisao D16: «um jogo partido tem de continuar distinguivel de um motor
- * partido». Um cartucho que rebenta para a si proprio, DIZENDO que parou, em vez de parar a plataforma em
- * silencio — tela congelada e' sintoma visual, e no modo cego um jogo parado e um jogo a pensar produzem
+ * 📌 `speed` vem da engine e não daqui: a velocidade do jogo é uma acomodação que a criança ajusta, e lê-la
+ * a cada quadro é o que faz o ajuste chegar sem reiniciar nada.
+ *
+ * E o `onFailure` é onde vive a decisão D16: «um jogo partido tem de continuar distinguível de um motor
+ * partido». Um cartucho que rebenta para a si próprio, DIZENDO que parou, em vez de parar a plataforma em
+ * silêncio — tela congelada é sintoma visual, e no modo cego um jogo parado e um jogo a pensar produzem
  * exatamente a mesma coisa.
  */
-startLoop(
-  PIXI.Ticker.shared,
-  (dt: number) => inst.update(dt),
-  2,
-  {
-    aoFalhar: createCrashNotice({
-      procurar: (sel: string) => document.querySelector<HTMLElement>(sel),
-      criar: (tag: string) => document.createElement(tag),
-      // `srAlert` e nao a voz neural, e o contrato diz exatamente isto: «the shell wires it to `srAlert`
-      // and to something visible». O canal do leitor de tela e' SEM ESTADO e existe sempre; a voz neural
-      // e' do host e pode nao ter sido carregada — e o momento em que o laco cai e' o pior possivel para
-      // depender de algo que talvez nao esteja la.
-      narrar: (texto: string) => srAlert(texto),
-    }),
-  },
-);
+const avisoDeQueda = createCrashNotice({
+  t: engine.t,
+  find: (sel: string) => document.querySelector<HTMLElement>(sel),
+  create: (tag: string) => document.createElement(tag),
+  // `engine.alert` e não a voz neural: o canal do leitor de tela existe sempre e não tem estado, e o instante
+  // em que o laço cai é o pior possível para depender de algo que talvez não tenha carregado.
+  narrate: (texto: string) => engine.alert(texto),
+});
+
+startLoop(PIXI.Ticker.shared, (dt: number) => inst.update(dt), 2, {
+  speed: () => engine.gameSpeed(),
+  onFailure: (falha: unknown) => avisoDeQueda(falha),
+});

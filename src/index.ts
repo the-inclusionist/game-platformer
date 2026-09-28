@@ -5,9 +5,15 @@
 // arranca jogo nenhum, nao cria PixiJS, nao toca no documento. Era exatamente o contrario ate a fabrica
 // existir — `app/js/main.ts` bootava no import —, e e' a decisao D14 do spec: um cartucho e' INSTANCIADO, e
 // estado de escopo de modulo sobrevive ao `teardown()` e vaza para o jogo seguinte na mesma pagina.
-export { create } from '../app/js/main.js';
+import { create } from '../app/js/main.js';
+import { createPlatformerDeclaration } from '../app/js/declaration/platformer-declaration.js';
+import { DEPS_VIVAS, GANCHOS_VIVOS } from '../app/js/declaration/live.js';
+import { ACOMODACOES } from '../app/js/declaration/accommodations.js';
+import { platformerPreset } from '../app/js/game/platformer-preset.js';
+import type { CartridgeHooks } from '@the-inclusionist/engine';
+export { create };
 import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
-export type { GameCtx, GameInstance, CartuchoMontado, Cartridge, Dicionario, Traduzir } from './contract.js';
+export type { GameCtx, GameInstance, Cartridge, Dicionario, Traduzir } from './contract.js';
 
 /**
  * Casa com o repositorio e com o `name` do pacote (ADR-0082 §1). Escrito como literal e nao lido do
@@ -29,3 +35,35 @@ export const slug = 'game-platformer';
  * shell — solto ou plataforma.
  */
 export const dicts: Readonly<Record<string, Readonly<Record<string, string>>>> = DICIONARIOS;
+
+/**
+ * A DECLARACAO, ESTATICA — e ela responde mesmo antes de a fabrica correr.
+ *
+ * O `inclusionist-check-cartridge` le-a NO IMPORT (ADR-0253), como o `createGame` faz no arranque, e a nota
+ * DV nomeia este jogo entre os que a tinham so na instancia. As dependencias delegam ao suporte de
+ * `declaration/live`: antes de `create()` respondem a verdade do mundo vazio; depois, a rodada.
+ */
+export const declaration = createPlatformerDeclaration(DEPS_VIVAS);
+
+/**
+ * A METADE DO JOGO das opcoes do `createGame` (`CartridgeHooks = Omit<GameHalf, 'declaration'>`), e a
+ * composicao diz o que e' o que: o que LE A RODADA delega ao suporte, e o que e' DADO deste cartucho esta
+ * aqui, resolvido uma vez.
+ *
+ * 📌 `dictionaries` entra por aqui e nao por um `registerDict` do shell: o contrato chama este campo «THE
+ * ONE PLACE A GAME'S WORDS LIVE», e todo termo que este jogo declara — o preset, as acomodacoes, o HUD —
+ * e' chave dele.
+ */
+export const hooks: CartridgeHooks = {
+  ...GANCHOS_VIVOS,
+  accommodations: ACOMODACOES,
+  dictionaries: dicts,
+  preset: platformerPreset(),
+};
+
+/**
+ * O CARTUCHO, no export PADRAO — exigido pelo ADR-0253 passo 2, porque o checador le `declaration` e
+ * `hooks` daqui, no import. Antes desta versao este ficheiro exportava membros nomeados, e a nota DV conta
+ * este jogo entre os cinco que precisavam de os mudar de lugar.
+ */
+export default { slug, declaration, dicts, hooks, create };
