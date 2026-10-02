@@ -104,7 +104,17 @@ export default defineGameBuild({ cartridge: 'src/index.ts', config: defineConfig
       },
     }),
   ],
-  build: { outDir: '../dist', emptyOutDir: true },
+  /*
+   * O JOGO SAI SOB A SUA PASTA, nao na raiz de `dist/`. O Cloudflare Pages serve o `pages_build_output_dir`
+   * do `wrangler.toml` como RAIZ do dominio custom (`o-inclusionista.jrocha.dev.br/`), entao os ficheiros do
+   * jogo tem que viver dentro de `dist/game-platformer/*` para serem servidos em `.../game-platformer/*` —
+   * exatamente o caminho a que o `base` do Vite esta a emitir referencias absolutas. Sem este nivel, a
+   * mesma origem servia `.../index.html` na raiz e `.../game-platformer/assets/*` dava 404.
+   *
+   * 📌 Em dev (`vite dev`) nao se usa `outDir`; o `base` fica em `/` (ver mais acima). Em build de producao
+   * com `INCL_BASE=/game-platformer/`, o `outDir` vai para a sub-pasta homonima.
+   */
+  build: { outDir: '../dist' + (process.env.INCL_BASE || '').replace(/\/$/, ''), emptyOutDir: true },
   test: {
     // ⚠️ A ENGINE TEM DE SER PROCESSADA PELO VITEST, e não externalizada como qualquer `node_modules` —
     // e a declaração vai DENTRO de cada project, porque eles não herdam a config do topo (o mesmo que este
