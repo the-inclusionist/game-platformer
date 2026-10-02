@@ -194,8 +194,13 @@ passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o 
   no título ganha o anel genérico da engine (perde-se o ◀▶ do número de jogadores); as moedas do assento 0 ficam no
   topo, debaixo da barra. Tudo isto é o (C): pedir à engine cartões por assento numa raiz só.
 - `uses.neuralVoice` (Kokoro, 371 MiB) e o armazenamento pelo `ctx`.
-- **Por medir no navegador:** as cores por papel do alto contraste (sem evento na loja) e a entrega `heavy/`
-  (voz, câmara e reconhecimento dão 404 num `dist/` recém-construído até correr `inclusionist-heavy`).
+- **As cores por papel do alto contraste — respondido pela leitura, não falta medir.** O painel visual da engine 11
+  não as OFERECE (`offer: { roles: false }`, e os escritores são `noEffect`, `create-game.js:1476-1478`): não há
+  evento a escutar porque não há quem escreva. As cores que uma criança guardou na versão antiga continuam a valer
+  (o `createHighContrast` do jogo lê-as do armazenamento), mas já não se mudam. É perda da 11, do lado da engine —
+  vai junto do pedido (C), se o Dev o quiser fazer.
+- **A entrega `heavy/`:** voz, câmara e reconhecimento dão 404 num `dist/` recém-construído até correr
+  `npx inclusionist-heavy dist`, que DESCARREGA centenas de MB do espelho — por isso pede o aval do Dev.
 
 ### DW medido em 02/10: `uses.fonts` fica vazio
 
