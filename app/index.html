@@ -97,6 +97,12 @@
            engine montaria o pad direto no `#game-region`, fora desse filtro. -->
       <div id="touch-controls" class="touch" hidden></div>
       </div><!-- /#dom-layer -->
+      <!-- A BARRA DE ACESSIBILIDADE É HUD DA ENGINE (ADR-0106 §4, ADR-0148): o `createGame` escreve-a aqui e a
+           mesma barra é a da pausa rápida em jogo. Morava DENTRO do `#title-overlay`, herança de quando era o ícone
+           do ecrã de título, e por isso sumia com ele: na pausa rápida a criança ficava sem os botões, sem erro.
+           Medido no navegador em 02/10, aqui ela é alcançável no título e em jogo. Fora do `#dom-layer` de
+           propósito: aquela camada tem `pointer-events:none`, e a barra ficaria visível e morta. -->
+      <div class="pause-icons" id="title-icons" role="group" aria-label="Atalhos de acessibilidade" data-i18n-aria="a11y.shortcuts"></div>
     </section>
       <div id="libras-slot" class="libras-slot" aria-hidden="true"></div>
      </div>
@@ -122,7 +128,6 @@
   <!-- Tela de título (visual da v3): a CENA (céu/nuvens/grama) é desenhada no canvas; aqui só o bloco+menus -->
   <div id="title-overlay" class="overlay">
     <div class="title-wrap" role="dialog" aria-modal="true" aria-labelledby="title-h">
-      <div class="pause-icons" id="title-icons" role="group" aria-label="Atalhos de acessibilidade" data-i18n-aria="a11y.shortcuts"></div>
       <div class="title-block">
         <h2 id="title-h" class="game-title">The Inclusionist</h2>
         <div class="game-byline" data-i18n="title.byline">by Prof. José Rocha</div>
