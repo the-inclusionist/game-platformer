@@ -6,9 +6,9 @@
 // diz com todas as letras que "props é decoração de QUALQUER cenário" e fica fora. Lixo e lixeira aparecem em
 // qualquer tema, então seguem a regra que aquele arquivo escreveu para si.
 //
-// SEM I/O NO IMPORT, pelo mesmo motivo que lá: `makeCanvas` toca `document`, e um módulo de `render/` é
-// importado pelo project `node` do Vitest. Não há constante pronta aqui — há `createRecyclingTextures()`, que a
-// raiz de composição chama uma vez no boot.
+// SEM I/O NO IMPORT, pelo mesmo motivo que lá: criar canvas exige um documento, e um módulo de `render/` é
+// importado pelo project `node` do Vitest. Não há constante pronta aqui — há `createRecyclingTextures(doc)`, que
+// a raiz de composição chama uma vez no boot, entregando o documento (o módulo não lê o `document` global).
 //
 // ========================= POR QUE PROCEDURAL, E NÃO PNG =========================
 // O pilar diz "arte = dados: nenhum PNG embutido no jogo" (ADR-0010/0018). Quatro objetos e quatro lixeiras em
@@ -22,7 +22,7 @@
 // gosto ensina errado. O gate compara este arquivo com `game/recycling`, que é quem decide o acerto, para que
 // as duas listas não possam divergir em silêncio.
 
-import type { PixelPainter } from '@the-inclusionist/engine/render/canvas.js';
+import type { CanvasDoc, PixelPainter } from '@the-inclusionist/engine/render/canvas.js';
 import { pixelTexture } from '@the-inclusionist/engine/render/canvas.js';
 
 // ⚠️ ESTE MÓDULO NÃO IMPORTA DE `game/`, E ISSO É A DECISÃO E NÃO UM DETALHE. A primeira versão puxava
@@ -176,17 +176,17 @@ export interface RecyclingTextures {
   placa: unknown;
 }
 
-/** Assa tudo uma vez. Chamada pela raiz de composição no boot — nunca no import (ver o cabeçalho). */
-export function createRecyclingTextures(): RecyclingTextures {
+/** Assa tudo uma vez, em `doc`. Chamada pela raiz de composição no boot — nunca no import (ver o cabeçalho). */
+export function createRecyclingTextures(doc: CanvasDoc): RecyclingTextures {
   const lixo = {} as Record<Material, unknown>;
   for (const m of Object.keys(LIXO_ART) as Material[]) {
     const a = LIXO_ART[m];
-    lixo[m] = pixelTexture(a.w, a.h, a.paint);
+    lixo[m] = pixelTexture(doc, a.w, a.h, a.paint);
   }
   const lixeira = {} as Record<Lixeira, unknown>;
   for (const c of Object.keys(COR_DA_LIXEIRA) as Lixeira[]) {
-    lixeira[c] = pixelTexture(LIXEIRA_W, LIXEIRA_H, paintLixeira(c));
+    lixeira[c] = pixelTexture(doc, LIXEIRA_W, LIXEIRA_H, paintLixeira(c));
   }
-  return { lixo, lixeira, placa: pixelTexture(PLACA_W, PLACA_H, paintPlaca) };
+  return { lixo, lixeira, placa: pixelTexture(doc, PLACA_W, PLACA_H, paintPlaca) };
 }
 

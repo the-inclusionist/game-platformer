@@ -6,7 +6,7 @@
 // global. Caches are filled BY initTextures (not at import time) so importing this module stays I/O-free, same
 // discipline as render/sprites.ts (Fase 2.24). See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
-import { makeCanvas, tex } from '@the-inclusionist/engine/render/canvas.js';
+import { makeCanvas, tex, type CanvasDoc } from '@the-inclusionist/engine/render/canvas.js';
 import { spriteToCanvas } from '@the-inclusionist/engine/render/sprite-fx.js';
 
 type Tex = ReturnType<typeof tex>;
@@ -59,8 +59,8 @@ export function shapePoints(id: string, cx: number, cy: number, r: number): [num
   }
 }
 /** 16×16 icon for a soma/subtração shape id (cyan fill + dark outline). */
-export function shapeTexture(id: string): Tex {
-  const cv = makeCanvas(16, 16), c = cv.getContext('2d')!;
+export function shapeTexture(doc: CanvasDoc, id: string): Tex {
+  const cv = makeCanvas(doc, 16, 16), c = cv.getContext('2d')!;
   c.fillStyle = '#7fdcff'; c.strokeStyle = '#04121a'; c.lineWidth = 1.5;
   const cx = 8, cy = 8, r = 6;
   c.beginPath();
@@ -81,8 +81,8 @@ export const SHAPE_TEX: Record<string, Tex> = {};
 
 /* ===================== sílabas: letra ===================== */
 /** 16×16 rounded-square tile with a single letter (uses the injected `disp`, which honors letterCase). */
-export function letterTexture(ch: string): Tex {
-  const cv = makeCanvas(16, 16), c = cv.getContext('2d')!;
+export function letterTexture(doc: CanvasDoc, ch: string): Tex {
+  const cv = makeCanvas(doc, 16, 16), c = cv.getContext('2d')!;
   c.fillStyle = '#ffd23f'; c.strokeStyle = '#1a1400'; c.lineWidth = 1.5;
   c.beginPath();
   if (c.roundRect) c.roundRect(2, 2, 12, 12, 3); else c.rect(2, 2, 12, 12);
@@ -122,7 +122,7 @@ export function resetPupTexCache(): void {
 /** Fills SHAPE_TEX/PUP_TEX (+ wires the alto-contraste deps). Call ONCE at boot, before the first rebuildCoins/
  *  rebuildExtras — mirrors game.js's old eager `const SHAPE_TEX=...; SOMASUB_SHAPES.forEach(...)` / PUP_CANVAS
  *  forEach, just deferred past import time so this module stays side-effect-free to import (node tests included). */
-export function initTextures(ctx: TexturesCtx): void {
+export function initTextures(doc: CanvasDoc, ctx: TexturesCtx): void {
   disp = ctx.disp; directCfg = ctx.directCfg; directSpriteCanvas = ctx.directSpriteCanvas;
   // LIMPA ANTES DE ENCHER. Enquanto as formas eram uma tabela FIXA importada, o cache só podia ser preenchido
   // com o mesmo conteúdo e a diferença nunca apareceu — a função é chamada uma vez no boot. Com a lista
@@ -130,7 +130,7 @@ export function initTextures(ctx: TexturesCtx): void {
   // com as formas dele herdaria as nossas por cima, e o sintoma seria texturas de matemática num jogo que não
   // tem matemática. Achado por um teste meu que afirmava a coisa errada e reprovou por isso.
   for (const k of Object.keys(SHAPE_TEX)) delete SHAPE_TEX[k];
-  for (const id of ctx.shapes) SHAPE_TEX[id] = shapeTexture(id);
+  for (const id of ctx.shapes) SHAPE_TEX[id] = shapeTexture(doc, id);
   // Mesma regra de limpar-antes-de-encher, pelo mesmo motivo do bloco acima: com a lista INJETADA, um segundo
   // consumidor herdaria os poderes do primeiro por cima dos dele.
   for (const k of Object.keys(PUP_CANVAS)) delete PUP_CANVAS[k];
@@ -157,14 +157,14 @@ export const PIP_WALK = [
 ];
 /** Valid palette digit (7 = transparent background, skipped); robust to short/ragged rows. */
 export const isPix = (ch: string): boolean => ch >= '0' && ch <= '9' && ch !== '7';
-export function indexedToCanvas(rows: string[]): HTMLCanvasElement {
-  const cv = makeCanvas(PIP_W, PIP_H), c = cv.getContext('2d')!;
+export function indexedToCanvas(doc: CanvasDoc, rows: string[]): HTMLCanvasElement {
+  const cv = makeCanvas(doc, PIP_W, PIP_H), c = cv.getContext('2d')!;
   for (let y = 0; y < PIP_H; y++) { const r = rows[y]; if (!r) continue;
     for (let x = 0; x < PIP_W; x++) { const ch = r[x]; if (!isPix(ch)) continue; c.fillStyle = PIP_PAL[+ch]; c.fillRect(x, y, 1, 1); } }
   return cv;
 }
-export function silhouetteCanvasIdx(rows: string[]): HTMLCanvasElement {
-  const cv = makeCanvas(PIP_W, PIP_H), c = cv.getContext('2d')!;
+export function silhouetteCanvasIdx(doc: CanvasDoc, rows: string[]): HTMLCanvasElement {
+  const cv = makeCanvas(doc, PIP_W, PIP_H), c = cv.getContext('2d')!;
   c.fillStyle = '#ffe600';
   for (let y = 0; y < PIP_H; y++) { const r = rows[y]; if (!r) continue;
     for (let x = 0; x < PIP_W; x++) { if (isPix(r[x])) c.fillRect(x, y, 1, 1); } }
@@ -220,6 +220,6 @@ export const PLAYER_HURT = [
 ];
 /** Verbatim reproduction of game.js's old eager `const TEX={idle:tex(spriteToCanvas(PLAYER_IDLE)),...}` — never
  *  auto-run (see header note above). Unused today; kept callable in case a future caller resurfaces. */
-export function buildLegacyPlayerTex(): Record<string, Tex> {
-  return { idle: tex(spriteToCanvas(PLAYER_IDLE)), walk: tex(spriteToCanvas(PLAYER_WALK)), climb: tex(spriteToCanvas(PLAYER_CLIMB)), hurt: tex(spriteToCanvas(PLAYER_HURT)) };
+export function buildLegacyPlayerTex(doc: CanvasDoc): Record<string, Tex> {
+  return { idle: tex(spriteToCanvas(doc, PLAYER_IDLE)), walk: tex(spriteToCanvas(doc, PLAYER_WALK)), climb: tex(spriteToCanvas(doc, PLAYER_CLIMB)), hurt: tex(spriteToCanvas(doc, PLAYER_HURT)) };
 }

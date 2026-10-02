@@ -14,7 +14,7 @@
 // O QUE ISSO COMPRA, além de tirar dois PNG do pacote: o desenho passa a ser recolorível (o alto contraste e
 // as paletas seguras para daltonismo mexem em cores, não em bitmaps), some o carregamento assíncrono — e com
 // ele a guarda de corrida de `set-cenario` e os 404 de boot dos temas que não têm arte própria.
-import { pixelCanvas, type PixelPainter } from '@the-inclusionist/engine/render/canvas.js';
+import { pixelCanvas, type CanvasDoc, type PixelPainter } from '@the-inclusionist/engine/render/canvas.js';
 
 /** O TILE do miolo da parede: alvenaria em fiada alternada. 51 retângulos, 9 cores, fiel ao pixel. */
 export const paintTileFill: PixelPainter = (px) => {
@@ -128,6 +128,6 @@ export const paintTileSurface: PixelPainter = (px) => {
 };
 
 /** Os dois tiles como canvas 16×16 — a forma que `worldCanvas` consumia das imagens carregadas. */
-export function cityTiles(): { fill: HTMLCanvasElement; surface: HTMLCanvasElement } {
-  return { fill: pixelCanvas(16, 16, paintTileFill), surface: pixelCanvas(16, 16, paintTileSurface) };
+export function cityTiles(doc: CanvasDoc): { fill: HTMLCanvasElement; surface: HTMLCanvasElement } {
+  return { fill: pixelCanvas(doc, 16, 16, paintTileFill), surface: pixelCanvas(doc, 16, 16, paintTileSurface) };
 }

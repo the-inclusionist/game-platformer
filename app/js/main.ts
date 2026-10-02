@@ -233,6 +233,9 @@ const settingsStore = createSettingsStore(store);
  * idioma, e a crianca veria metade do jogo traduzida. Quem possui o tradutor e' quem carrega o cartucho.
  */
 const t = ctx.t;
+// O DOCUMENTO onde as telas se fazem: o que possui a região DESTE cartucho, e não o global `document`
+// (ADR-0232 D4). Na plataforma são o mesmo objeto; num teste ou numa segunda raiz, não.
+const doc = ctx.region.ownerDocument;
 
 const rodada = createRunState<Powerup>({ aoTrocarJogadores: (n) => settingsStore.emit('numPlayers', n) });
 // `players` é um APELIDO, não uma cópia: a lista da rodada nunca é reatribuída (só mutada no lugar), então
@@ -287,7 +290,7 @@ function acoesDoJogo(): readonly { readonly acao: Action; readonly rotulo: strin
     .filter((x) => x.rotulo !== '');
 }
 if(typeof window!=='undefined') window.__tiles = tiles; // hook de teste (Preview); world.js passa a usar na etapa 2
-initCharacterSprites(); // cria as texturas do personagem no boot — o import de sprites.js é PURO (sem I/O). Fase 2.24
+initCharacterSprites(doc); // cria as texturas do personagem no boot — o import de sprites.js é PURO (sem I/O). Fase 2.24
 // O MIXER E DA ENGINE: `createGame` chama `initAudioMixer` e devolve o audio em `engine.audio`.
 // Versão vem do CARIMBO DE BUILD (git describe → tag de marketing na produção; SHA nos demais). Injetado pelo
 // Vite (__BUILD__, ver vite.config.ts). Tira o 'v' inicial da tag (o display já prefixa 'v'). Fallback defensivo.
@@ -873,8 +876,8 @@ const titleUI = initTitle({ $ }); // navegacao dos submenus do titulo: ui/title.
    `vp` (viewports) e as camadas de decor de TELA nascem DEPOIS deste ponto -> entram embrulhados em seta. */
 const parallaxApi = createParallax({
   camera, criarAzulejo: (t, w, h) => new PIXI.TilingSprite(t as never, w, h), // a porta pede a fábrica
-  placeholderTex: parallaxPlaceholder, skyTex: themeSkyTexture, hillsTex: themeHillsTexture, // render/scene-parallax
-  citySkyTex: themeCitySkyTexture, skylineTex: themeSkylineTexture, // ADR-0042: a Cidade é gerada, não baixada
+  placeholderTex: (i) => parallaxPlaceholder(doc, i), skyTex: (T) => themeSkyTexture(doc, T), hillsTex: (T, near, tema) => themeHillsTexture(doc, T, near, tema), // render/scene-parallax
+  citySkyTex: (T) => themeCitySkyTexture(doc, T), skylineTex: (f, sem) => themeSkylineTexture(doc, f, sem), // ADR-0042: a Cidade é gerada, não baixada
   // `Imagem`/`texturaDeImagem`/`escalaNearest` saíram: eram a carga dos três PNG da Cidade, e com ela a
   // corrida que cada `onload` tinha de conferir (`getCenario() !== theme`). Não há mais o que baixar.
   rm, getCenario: () => CENARIO, getVizMode: () => settingsStore.vizMode,
@@ -894,8 +897,8 @@ const { setCenario } = createSetCenario({
   // Os tiles da Cidade vêm DESENHADOS (render/city-tiles); os outros temas caem nos blocos v3 com `null`.
   // Era `Imagem: Image` + download; virou uma função síncrona, e com ela foram embora a guarda de corrida e
   // os 404 de boot dos quatro temas que nunca tiveram arte própria.
-  getTiles: (tema) => tema === 'cidade' ? cityTiles() : null,
-  worldCanvas, tex, clearWorldTexCache,
+  getTiles: (tema) => tema === 'cidade' ? cityTiles(doc) : null,
+  worldCanvas: (tiles) => worldCanvas(doc, tiles), tex, clearWorldTexCache,
   // O `t` chega `unknown` — a `set-cenario` trata textura como handle opaco, e deve mesmo. A raiz e o
   // unico lugar que sabe o nome dele, e e aqui que ele o recupera.
   setWorldTextures: (cv, t) => { worldCanvasNormal = cv; worldTexNormal = t as PIXI.Texture; }, // `let` declarados ABAIXO (so escritos no .then)
@@ -923,7 +926,7 @@ settingsStore.initVizMode((()=>{ try{ const v=store.get('incl_viz',null); if(v&&
   // antes do TypeScript; `matchMedia` existe desde o IE10 e o alvo do pilar 1 é Chromium.
   return matchMedia('(prefers-contrast: more)').matches ? 'hc-direto' : 'normal'; })()); // prefere-contraste → alto contraste 3:1
 let vizReady=false; // só após todas as dependências de applyViz existirem (evita TDZ no init via setCenario)
-let worldCanvasNormal=worldCanvas();
+let worldCanvasNormal=worldCanvas(doc);
 let worldTexNormal=tex(worldCanvasNormal);
 const worldSprite=new PIXI.Sprite(worldTexNormal); camera.addChild(worldSprite);
 // L6: camadas de decor de TELA da v3 (contra-posicionadas no updateParallax, como o parallax)
@@ -948,7 +951,7 @@ const { parallaxTexFor, treeTexFor, playerVizTex, pixiFilterFor, renderVpOverlay
 // APLICA o cenário que `game/state` já leu do armazenamento (e já migrou de 'noite' para 'espaco'). Ler é
 // de quem guarda o valor; aplicar — texturas, parallax, tema — é do composition root.
 try{ setCenario(CENARIO); }catch(e){ setCenario('cidade'); } // herda a chave de escopo antigo; 'noite' e a migracao mais velha ainda
-const coinCanvasNormal=coinCanvas();
+const coinCanvasNormal=coinCanvas(doc);
 const coinTex=tex(coinCanvasNormal);
 // As texturas NORMAIS ja existem: ligue o alto contraste. worldCanvasNormal/worldTexNormal sao `let`
 // (setCenario os reescreve ao trocar de tema), entao entram por getter e nao por valor.
@@ -967,14 +970,14 @@ let _lastSharedViz: string | null = null; // cache do modo aplicado (otimizacao 
 // e o desenho vinha por import de `render/props` — os dois sairam no item 19: a lista e do jogo, e a arte
 // mudou de camada para `game/props`.
 const PODERES = ['superjump', 'ultrajump', 'turbo', 'fly', 'wallcling', 'key', 'runcane'];
-initTextures({ shapes: SOMASUB_SHAPES.map(s => s.id), powerups: PODERES.map((kind) => ({ kind, canvas: powerupCanvas(kind) })),
+initTextures(doc, { shapes: SOMASUB_SHAPES.map(s => s.id), powerups: PODERES.map((kind) => ({ kind, canvas: powerupCanvas(doc, kind) })),
   disp, directCfg: DIRECT_CFG, directSpriteCanvas });
 const coinContainer=new PIXI.Container(); camera.addChild(coinContainer);
 // coinSprites/rebuildCoins migraram para game/coin-spawning.ts (Onda A). rebuildCoins mantem o contrato
 // SEM argumentos: os nove chamadores (boot, novo round, quatro paineis de acessibilidade, Modo Facil,
 // silabas, restart) nao mudam — so a definicao saiu daqui.
 initCoinSpawning({ rng, coinContainer, createSprite: (t) => new PIXI.Sprite(t as never), coinTexFor: (m) => spriteTexFor('coin', m),
-  shapeTexFor: (id) => SHAPE_TEX[id], letterTexFor: letterTexture, pcolor: PCOLOR,
+  shapeTexFor: (id) => SHAPE_TEX[id], letterTexFor: (ch) => letterTexture(doc, ch), pcolor: PCOLOR,
   getMode: () => MODE(), getOwnerColors: () => settingsStore.ownerColors, invalidateSharedViz: () => { _lastSharedViz=null; },
   powerShort: POWER_SHORT, $ });
 rebuildCoins();
@@ -1004,7 +1007,7 @@ rebuildCoins();
  */
 const PLACA_DO_CLARITY = { col: 26, linha: 46 };
 
-const recTex = createRecyclingTextures();
+const recTex = createRecyclingTextures(doc);
 const recContainer = new PIXI.Container(); camera.addChild(recContainer);
 /** Pontos de COMPORTAMENTO por jogador. Sobrevive ao reinício da volta, de propósito (ADR-0049 §7). */
 const pontosDeComportamento: number[] = [];
@@ -1060,7 +1063,7 @@ const darkRegions=buildDarkRegions(WORLD_W, WORLD_H).map(tiles=>{
 // Texturas do personagem (TEX_*/FLAVORS) migradas p/ render/sprites.js (Fase 2.17).
 // E4: decoração de fundo (árvores) ATRÁS do jogador — sempre visível, NÃO some ao pular
 const decoLayer=new PIXI.Container(); camera.addChild(decoLayer);
-const treeCanvasNormal=treeCanvas(), treeTexNormal=tex(treeCanvasNormal); // árvore = grupo fundo (recolorida no alto contraste)
+const treeCanvasNormal=treeCanvas(doc), treeTexNormal=tex(treeCanvasNormal); // árvore = grupo fundo (recolorida no alto contraste)
 // _treeTexHC/treeTexFor migraram para render/viewports.ts (B2).
 const decoSprites=[];
 (function placeTrees(){ let last=-99; // R-cidade: árvores SÓ na parte mais baixa (por onde o personagem anda)
@@ -1132,7 +1135,7 @@ const chairLayer=new PIXI.Graphics(); camera.addChild(chairLayer); // cadeira de
    Cosmético puro: sem colisão, sem dano (revoada de pombo ≠ susto de perigo). ATRÁS do player.
    Pool de 8, spawn perto da câmera, 2 quadros por bicho; rm.decor (Movimento Reduzido de cena) desliga tudo. */
 const lifeLayer=new PIXI.Container(); camera.addChild(lifeLayer);
-const CITY_TEX=createCityTextures(); // pombos/gatos/caes, silhuetas de adulto e carros (render/city-tex.ts) — I/O de canvas SO aqui, no boot
+const CITY_TEX=createCityTextures(doc); // pombos/gatos/caes, silhuetas de adulto e carros (render/city-tex.ts) — I/O de canvas SO aqui, no boot
 // LIFE_KINDS/creatures/_lifeSpawnT/spawnCreature/stepLife migraram para game/life.ts (Onda A).
 // inDark/lifeSurfaceAt/lifeSurfaceLowAt/streetCols FICAM: render/scene-city usa lifeSurfaceAt tambem.
 function inDark(tx: number,ty: number){ for(const r of darkRegions){ if(r.set.has(tx+','+ty))return true; } return false; } // célula de área secreta?
@@ -1174,12 +1177,12 @@ const skyLayer=new PIXI.Container(); camera.addChild(skyLayer); // ordem pelo zI
 // num lugar só, dentro do helper, em vez de aparecer em cada bloco de arte.
 const NUVEM = 'rgba(225,232,244,0.85)';
 const CLOUD_TEX = [0, 1].map((v) => { const w = v ? 46 : 30, h = v ? 12 : 9;
-  return pixelTexture(w, h, (px) => {
+  return pixelTexture(doc, w, h, (px) => {
     px(4, 4, w - 8, h - 5, NUVEM); px(0, 6, w, h - 7, NUVEM); px(8, 0, w - 20, 6, NUVEM); px(w - 16, 2, 10, 5, NUVEM);
   });
 });
 const PASSARO = '#20242e';
-const BIRD_TEX = [0, 1].map((f) => pixelTexture(7, 4, (px) => {
+const BIRD_TEX = [0, 1].map((f) => pixelTexture(doc, 7, 4, (px) => {
   if (f === 0) { px(0, 0, 3, 1, PASSARO); px(4, 0, 3, 1, PASSARO); px(2, 1, 3, 1, PASSARO); }
   else { px(0, 2, 3, 1, PASSARO); px(4, 2, 3, 1, PASSARO); px(2, 1, 3, 1, PASSARO); }
 }));

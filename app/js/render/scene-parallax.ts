@@ -4,7 +4,7 @@
 // / drawHillBand). The per-frame scroll (`updateParallax`) stays in game.js — it is render-graph glue (moves the
 // TilingSprites + the sky-deco layers). See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
-import { makeCanvas, tex } from '@the-inclusionist/engine/render/canvas.js';
+import { makeCanvas, tex, type CanvasDoc } from '@the-inclusionist/engine/render/canvas.js';
 import { LOGICAL_W, LOGICAL_H } from '@the-inclusionist/engine/core/constants.js';
 import type { CenarioTema, TemaMorros, TemaPredios, FaixaDePredios } from './cenario-data.js';
 
@@ -29,8 +29,8 @@ export function hillHeight(x: number, near: boolean): number {
 }
 
 /** City placeholder backdrop (the 4 v3 themes have their own sky/hills below). */
-export function parallaxPlaceholder(i: number): unknown {
-  const w = LOGICAL_W, h = LOGICAL_H, cv = makeCanvas(w, h), c = cv.getContext('2d')!;
+export function parallaxPlaceholder(doc: CanvasDoc, i: number): unknown {
+  const w = LOGICAL_W, h = LOGICAL_H, cv = makeCanvas(doc, w, h), c = cv.getContext('2d')!;
   const pal = [['#0a1024', '#1b2350'], ['#13284a', '#22406e'], ['#1d3a52', '#356a86']][i]!;
   const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, pal[0]!); g.addColorStop(1, pal[1]!); c.fillStyle = g; c.fillRect(0, 0, w, h);
   c.fillStyle = pal[1]!;
@@ -112,8 +112,8 @@ export function pintarSol(c: CanvasRenderingContext2D, w: number, h: number, sol
 }
 
 /** Theme sky: vertical gradient over `T.sky` (evenly spaced stops), plus the theme's sun when it has one. */
-export function themeSkyTexture(T: CenarioTema): unknown {
-  const w = larguraDoCeu(T), h = LOGICAL_H, cv = makeCanvas(w, h), c = cv.getContext('2d')!;
+export function themeSkyTexture(doc: CanvasDoc, T: CenarioTema): unknown {
+  const w = larguraDoCeu(T), h = LOGICAL_H, cv = makeCanvas(doc, w, h), c = cv.getContext('2d')!;
   const g = c.createLinearGradient(0, 0, 0, h);
   for (const p of paradasDoCeu(T.sky, h)) g.addColorStop(p.y / h, p.cor);
   c.fillStyle = g; c.fillRect(0, 0, w, h);
@@ -425,8 +425,8 @@ export function desenharPredios(c: CanvasRenderingContext2D, w: number, h: numbe
  *
  * É a única camada OPACA das três, e é assim no original — o `c4.png` não tinha transparência nenhuma.
  */
-export function themeCitySkyTexture(T: TemaPredios): unknown {
-  const w = 1280, h = LOGICAL_H, cv = makeCanvas(w, h), c = cv.getContext('2d')!;
+export function themeCitySkyTexture(doc: CanvasDoc, T: TemaPredios): unknown {
+  const w = 1280, h = LOGICAL_H, cv = makeCanvas(doc, w, h), c = cv.getContext('2d')!;
   const g = c.createLinearGradient(0, 0, 0, h);
   for (const p of paradasDoCeu(T.sky, h)) g.addColorStop(p.y / h, p.cor);
   c.fillStyle = g; c.fillRect(0, 0, w, h);
@@ -435,14 +435,14 @@ export function themeCitySkyTexture(T: TemaPredios): unknown {
 }
 
 /** Camadas 1 e 2 da Cidade: prédios sobre TRANSPARÊNCIA, para o céu da camada 0 aparecer atrás. */
-export function themeSkylineTexture(faixa: FaixaDePredios, semente: number): unknown {
-  const w = 1280, h = LOGICAL_H, cv = makeCanvas(w, h), c = cv.getContext('2d')!;
+export function themeSkylineTexture(doc: CanvasDoc, faixa: FaixaDePredios, semente: number): unknown {
+  const w = 1280, h = LOGICAL_H, cv = makeCanvas(doc, w, h), c = cv.getContext('2d')!;
   desenharPredios(c, w, h, faixa, semente);
   return tex(cv);
 }
 
-export function themeHillsTexture(T: TemaMorros, near: boolean, tema = ''): unknown {
-  const w = 1280, h = LOGICAL_H, cv = makeCanvas(w, h), c = cv.getContext('2d')!;
+export function themeHillsTexture(doc: CanvasDoc, T: TemaMorros, near: boolean, tema = ''): unknown {
+  const w = 1280, h = LOGICAL_H, cv = makeCanvas(doc, w, h), c = cv.getContext('2d')!;
   const horizon = Math.round(h * 0.5), baseY = horizon + (near ? 16 : 4);
   const linha = (x: number): number => Math.round(baseY - hillHeight(x, near));
   c.fillStyle = T.hills[near ? 1 : 0];

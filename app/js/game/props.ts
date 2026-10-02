@@ -14,19 +14,19 @@
 //
 // O que fica em `render/canvas` é a primitiva (`makeCanvas`, `pixDisc`, `tex`): desenhar um disco de pixels
 // serve a qualquer jogo; desenhar UMA MOEDA de 11×11 com brilho no canto superior esquerdo, não.
-import { makeCanvas, tex, pixDisc } from '@the-inclusionist/engine/render/canvas.js';
+import { makeCanvas, tex, pixDisc, type CanvasDoc } from '@the-inclusionist/engine/render/canvas.js';
 
-export function coinCanvas(): HTMLCanvasElement {
-  const cv = makeCanvas(11, 11), c = cv.getContext('2d')!;
+export function coinCanvas(doc: CanvasDoc): HTMLCanvasElement {
+  const cv = makeCanvas(doc, 11, 11), c = cv.getContext('2d')!;
   pixDisc(c, 5, 5, 5, '#ffd23f', '#7a5400');                                // disco dourado + contorno
   c.fillStyle = '#fff3b0'; c.fillRect(3, 2, 2, 1); c.fillRect(2, 3, 1, 2);  // brilho (canto sup-esq)
   c.fillStyle = '#e0a82a'; c.fillRect(7, 7, 2, 1); c.fillRect(8, 6, 1, 2);  // sombra (inf-dir)
   return cv;
 }
-export function coinTexture() { return tex(coinCanvas()); }
+export function coinTexture(doc: CanvasDoc) { return tex(coinCanvas(doc)); }
 
-export function treeCanvas(): HTMLCanvasElement { // árvore urbana caprichada (R-cidade): tronco sombreado c/ raízes + copa em 3 tons + luz de borda
-  const cv = makeCanvas(30, 52), c = cv.getContext('2d')!;
+export function treeCanvas(doc: CanvasDoc): HTMLCanvasElement { // árvore urbana caprichada (R-cidade): tronco sombreado c/ raízes + copa em 3 tons + luz de borda
+  const cv = makeCanvas(doc, 30, 52), c = cv.getContext('2d')!;
   c.fillStyle = '#241a0e'; c.fillRect(12, 28, 7, 22); c.fillRect(9, 47, 13, 3); // contorno tronco + raízes
   c.fillStyle = '#5c4033'; c.fillRect(13, 28, 5, 21);                           // tronco
   c.fillStyle = '#7a5a48'; c.fillRect(13, 28, 2, 21);                           // luz do tronco
@@ -40,12 +40,12 @@ export function treeCanvas(): HTMLCanvasElement { // árvore urbana caprichada (
   c.fillStyle = 'rgba(255,255,255,.20)'; c.fillRect(8, 7, 3, 1); c.fillRect(18, 5, 2, 1); // brilhinhos
   return cv;
 }
-export function treeTexture() { return tex(treeCanvas()); }
+export function treeTexture(doc: CanvasDoc) { return tex(treeCanvas(doc)); }
 
 // Ícone 12×12 de power-up/chave por tipo (fundo escuro cantos-cortados + glifo nítido). triU/triR = triângulo ↑
 // e chevron → pixel-perfect (locais). O game.js embrulha em textura e aplica alto-contraste à parte (pupTexFor).
-export function powerupCanvas(kind: string): HTMLCanvasElement {
-  const cv = makeCanvas(12, 12), c = cv.getContext('2d')!;
+export function powerupCanvas(doc: CanvasDoc, kind: string): HTMLCanvasElement {
+  const cv = makeCanvas(doc, 12, 12), c = cv.getContext('2d')!;
   const COL: Record<string, string> = { superjump: '#7fdcff', ultrajump: '#b388ff', turbo: '#34e29b', fly: '#c8a2ff', wallcling: '#ff9a4d', key: '#ffd23f', runcane: '#eaeaea' };
   const col = COL[kind] || '#7fdcff', BG = '#04121a';
   c.fillStyle = BG; c.fillRect(1, 0, 10, 12); c.fillRect(0, 1, 12, 10);   // fundo escuro, cantos cortados (pixel-rounded, sem AA)

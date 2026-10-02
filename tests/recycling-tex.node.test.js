@@ -9,13 +9,13 @@
 //
 // O QUE ESTE ARQUIVO PEGA: isto é ARTE. Retângulo 1px fora do lugar, duas cores trocadas, um pintor que esquece
 // o `fillStyle` — nenhum tipo reclama, nenhum teste de comportamento fica vermelho, e o defeito só aparece na
-// tela de alguém. Mesma técnica de `city-tex.node.test.js`: `document` falsificado, contexto 2D que REGISTRA as
+// tela de alguém. Mesma técnica de `city-tex.node.test.js`: documento falsificado (por parâmetro), contexto 2D que REGISTRA as
 // chamadas, e `pixi.js` mockado para dar para ir da textura de volta ao bitmap.
 //
 // ⚠️ E O CASO QUE MAIS IMPORTA NÃO É DE PIXEL: é o que amarra a cor da lixeira à decisão de acerto. `game/recycling`
 // diz que metal vai na AMARELA; `render/recycling-tex` pinta a amarela. Se as duas listas divergirem, o jogo
 // aceita a lata numa lixeira e desenha outra — e a criança aprende a cor errada, que ela leva para a rua.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('pixi.js', () => ({
   SCALE_MODES: { NEAREST: 'NEAREST' },
@@ -33,7 +33,6 @@ const { MATERIAIS, LIXEIRAS, LIXEIRA_DE } = await import('../app/js/game/recycli
 
 /* ===================== fakes ===================== */
 let criados = [];
-let docAntes;
 
 function fakeCanvas() {
   const ops = [];
@@ -53,12 +52,10 @@ function fakeCanvas() {
   };
 }
 
-beforeEach(() => {
-  criados = [];
-  docAntes = globalThis.document;
-  globalThis.document = { createElement: (t) => { if (t !== 'canvas') throw new Error(t); const cv = fakeCanvas(); criados.push(cv); return cv; } };
-});
-afterEach(() => { globalThis.document = docAntes; });
+// Entra por PARÂMETRO e nenhum `document` global é instalado (engine 11, ADR-0232): um módulo que voltasse a ler
+// o global estoura aqui, em vez de passar por cima do falso.
+const fakeDoc = { createElement: (t) => { if (t !== 'canvas') throw new Error(t); const cv = fakeCanvas(); criados.push(cv); return cv; } };
+beforeEach(() => { criados = []; });
 
 /** Só os retângulos, com a cor vigente — é o desenho, sem o ruído das trocas de `fillStyle`. */
 const retangulos = (cv) => cv.ops.filter((o) => o[0] === 'fillRect').map((o) => o.slice(1));
@@ -174,7 +171,7 @@ describe('render/recycling-tex · a arte existe, tem tamanho e não esquece a co
   });
 
   it('[Interface] `createRecyclingTextures` assa tudo e nada no import', () => {
-    const t = createRecyclingTextures();
+    const t = createRecyclingTextures(fakeDoc);
     expect([...Object.keys(t.lixo)].sort()).toEqual([...MATERIAIS].sort());
     expect([...Object.keys(t.lixeira)].sort()).toEqual([...LIXEIRAS].sort());
     expect(t.placa).toBeTruthy();

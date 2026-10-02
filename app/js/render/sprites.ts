@@ -10,7 +10,7 @@ import * as PIXI from 'pixi.js';
 // da fronteira: `sprites` viaja com o cartucho porque importa `virtual:sprite-atlas`, que só existe dentro do
 // plugin de build DESTE repositório; `canvas` fica na engine e chega pelo pacote. Era `./canvas.js` quando os
 // dois viviam na mesma pasta.
-import { makeCanvas, tex } from '@the-inclusionist/engine/render/canvas.js'; // p/ o tapa-costuras (inpaint 1px) dos frames do PixelLab
+import { makeCanvas, tex, type CanvasDoc } from '@the-inclusionist/engine/render/canvas.js'; // p/ o tapa-costuras (inpaint 1px) dos frames do PixelLab
 // O ATLAS (item 22, X2). Módulo VIRTUAL, gerado por `scripts/vite-plugin-atlas.mjs` no build: `FRAMES` é o
 // manifesto `anim/idx → {x,y,w,h}` e vem DENTRO do bundle, para o boot continuar síncrono. Um `.json` ao lado
 // do PNG seria a segunda requisição, e este item existe para matar requisição.
@@ -93,9 +93,9 @@ function inpaintSeams1px(id: ImageData): void {
  * inteiro aqui não estouraria — produziria um sprite com o personagem inteiro dentro, o que é exatamente o
  * tipo de defeito que passa por build e por teste e só aparece na tela.
  */
-function aplicarInpaint(img: CanvasImageSource, r: { x: number; y: number; w: number; h: number }, arr: PIXI.Texture[], idx: number): void {
+function aplicarInpaint(doc: CanvasDoc, img: CanvasImageSource, r: { x: number; y: number; w: number; h: number }, arr: PIXI.Texture[], idx: number): void {
   try {
-    const cv = makeCanvas(r.w, r.h), c = cv.getContext('2d'); if (!c) return;
+    const cv = makeCanvas(doc, r.w, r.h), c = cv.getContext('2d'); if (!c) return;
     c.imageSmoothingEnabled = false;
     c.drawImage(img, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
     const id = c.getImageData(0, 0, r.w, r.h);
@@ -125,7 +125,7 @@ function aplicarInpaint(img: CanvasImageSource, r: { x: number; y: number; w: nu
  * costuras seguem tapadas. Sem a rede, a falha seria silenciosa e VISUAL — as frestas de 1px voltariam no
  * tronco do personagem e nenhum teste diria nada.
  */
-function inpaintInto(file: string, arr: PIXI.Texture[], idx: number): void {
+function inpaintInto(doc: CanvasDoc, file: string, arr: PIXI.Texture[], idx: number): void {
   const nome = file.replace(/\.png$/, '');
   const r = (FRAMES as Record<string, { x: number; y: number; w: number; h: number } | undefined>)[nome];
   if (!r) return; // quadro fora do atlas: `pngTex` já avisou, e sem retângulo não há o que recortar
@@ -133,12 +133,12 @@ function inpaintInto(file: string, arr: PIXI.Texture[], idx: number): void {
   const doPixi = (): boolean => {
     const src = base?.resource?.source;
     if (!(src instanceof HTMLImageElement) || !src.complete || !src.naturalWidth) return false;
-    aplicarInpaint(src, r, arr, idx);
+    aplicarInpaint(doc, src, r, arr, idx);
     return true;
   };
   const buscarDeNovo = (): void => { // rede: só roda se a imagem do PIXI não estiver acessível
-    const img = new Image();
-    img.onload = () => aplicarInpaint(img, r, arr, idx);
+    const img = doc.createElement('img'); // era `new Image()`: o construtor global amarra ao `document` da janela
+    img.onload = () => aplicarInpaint(doc, img, r, arr, idx);
     img.src = ATLAS_URL; // era o PNG do quadro; hoje é o atlas, e o recorte vem de `r`
   };
   if (doPixi()) return;
@@ -149,7 +149,7 @@ function inpaintInto(file: string, arr: PIXI.Texture[], idx: number): void {
 let _loaded = false;
 // Cria as texturas do personagem (I/O EXPLÍCITO). Idempotente. Chamado uma vez no boot do game.js; NUNCA no import.
 // O alto-contraste REMAPEIA a cor no draw (tint/paleta), não recria a textura.
-export function initCharacterSprites(): void {
+export function initCharacterSprites(doc: CanvasDoc): void {
   if (_loaded) return; _loaded = true;
   TEX_IDLE = A('idle', 4);   // RESPIRAÇÃO por frames (cabeça congelada → sem 'mastigar'; só o tronco respira)
   TEX_WALK = A('andar', 8);  // ANDAR = running-8 (postura ereta/leve) — José pediu manter estes como andar
@@ -163,7 +163,7 @@ export function initCharacterSprites(): void {
   TEX_SWIM = A('nadar', 2); TEX_SWIMIDLE = A('nadar-parado', 2);           // nado MOVENDO / nado PARADO
   // Tapa-costuras (temporário) nos frames que respiram/movem no chão: idle + andar + correr. Assíncrono — substitui a
   // textura crua pela inpaintada quando o PNG termina de carregar (o game.js lê TEX_* por frame). Ver inpaintInto acima.
-  for (let i = 0; i < 4; i++) inpaintInto('idle/' + i + '.png', TEX_IDLE, i);
-  for (let i = 0; i < 8; i++) inpaintInto('andar/' + i + '.png', TEX_WALK, i);
-  for (let i = 0; i < 4; i++) inpaintInto('correr/' + i + '.png', TEX_RUN, i);
+  for (let i = 0; i < 4; i++) inpaintInto(doc, 'idle/' + i + '.png', TEX_IDLE, i);
+  for (let i = 0; i < 8; i++) inpaintInto(doc, 'andar/' + i + '.png', TEX_WALK, i);
+  for (let i = 0; i < 4; i++) inpaintInto(doc, 'correr/' + i + '.png', TEX_RUN, i);
 }

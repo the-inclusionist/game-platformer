@@ -17,8 +17,9 @@
 //
 // SEM I/O NO IMPORT — este é o ponto mais importante do arquivo. As texturas de origem nasciam em IIFE no corpo
 // do main.js, o que funciona lá porque o main.js só roda no navegador; um módulo em `render/` é importado pelo
-// project `node` do Vitest, onde `makeCanvas` toca `document` e explode. Por isso NÃO há constante pronta aqui:
-// há `createCityTextures()`, chamada uma vez pelo main.js no boot. Mesmo precedente de `render/textures`
+// project `node` do Vitest, onde não há `document` nenhum para criar canvas. Por isso NÃO há constante pronta
+// aqui: há `createCityTextures(doc)`, chamada uma vez pelo main.js no boot com o documento DELE (engine 11:
+// `makeCanvas` recebe o `doc` por parâmetro, e nenhum módulo lê o global — ADR-0232). Mesmo precedente de `render/textures`
 // (caches preenchidos por `initTextures`) e `render/viewports` (`initViewports`).
 //
 // A FRONTEIRA COM O JOGO NÃO SE MEXE: `game/life` e `game/traffic` continuam recebendo as texturas por INJEÇÃO
@@ -38,7 +39,7 @@
 //  · Dois quadros por figura, sempre na ordem `[f0, f1]`: `game/life` alterna por índice (`f = f ? 0 : 1`).
 //    Inverter o par não quebra nenhum tipo — quebra a animação, em silêncio.
 
-import { pixelTexture, tex, type PixelBrush, type PixelPainter } from '@the-inclusionist/engine/render/canvas.js';
+import { pixelTexture, tex, type CanvasDoc, type PixelBrush, type PixelPainter } from '@the-inclusionist/engine/render/canvas.js';
 
 type Tex = ReturnType<typeof tex>;
 /** O par de quadros do ciclo de 2 tempos que TODA figura da rua usa. */
@@ -172,14 +173,15 @@ export interface CityTextures {
   carTex: Tex[];                         // → TrafficCtx.CAR_TEX (4 carros)
 }
 
-/** Assa TODA a arte da rua de uma vez. TOCA `document` — chame só no boot do navegador, nunca no import.
+/** Assa TODA a arte da rua de uma vez, em `doc` (o documento que a raiz de composição entrega — este módulo
+ *  nunca lê o `document` global, ADR-0232). Chame só no boot, nunca no import.
  *  Não memoiza de propósito: é chamada uma vez pelo main.js; um cache aqui só esconderia uma segunda chamada. */
-export function createCityTextures(): CityTextures {
+export function createCityTextures(doc: CanvasDoc): CityTextures {
   const pair = (w: number, h: number, paint: (f: Frame) => PixelPainter): TexPair =>
-    [pixelTexture(w, h, paint(0)), pixelTexture(w, h, paint(1))]; // ordem [f0, f1] — game/life alterna por índice
+    [pixelTexture(doc, w, h, paint(0)), pixelTexture(doc, w, h, paint(1))]; // ordem [f0, f1] — game/life alterna por índice
   const lifeTex = {} as Record<CreatureKey, TexPair>;
   for (const k of Object.keys(CREATURE_ART) as CreatureKey[]) { const a = CREATURE_ART[k]; lifeTex[k] = pair(a.w, a.h, a.paint); }
   const adultTex = ADULT_SHAPES.map((v) => pair(ADULT_W, ADULT_H, v));
-  const carTex = CAR_PALETTES.map(([body, dark, top]) => pixelTexture(CAR_W, CAR_H, paintCar(body, dark, top)));
+  const carTex = CAR_PALETTES.map(([body, dark, top]) => pixelTexture(doc, CAR_W, CAR_H, paintCar(body, dark, top)));
   return { lifeTex, adultTex, carTex };
 }

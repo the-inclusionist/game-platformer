@@ -12,6 +12,9 @@ import {
   PIP_IDLE, PIP_WALK,
 } from '../app/js/render/textures.js';
 
+// O documento entra por PARÂMETRO (engine 11, ADR-0232): aqui o teste é a raiz de composição e entrega o real.
+const doc = document;
+
 // Réplica mínima do ctx que game.js injeta: disp honra um letterCase mutável; directCfg/directSpriteCanvas
 // simulam o alto-contraste-direto sem depender do resto do jogo.
 let letterCase = 'lower';
@@ -40,7 +43,7 @@ const ctx = {
     return cv;
   },
 };
-beforeEach(() => { letterCase = 'lower'; resetPupTexCache(); initTextures(ctx); });
+beforeEach(() => { letterCase = 'lower'; resetPupTexCache(); initTextures(doc, ctx); });
 
 describe('initTextures', () => {
   it('[Right] enche SHAPE_TEX com EXATAMENTE as formas injetadas, e PUP_TEX com os 7 power-ups', () => {
@@ -57,42 +60,42 @@ describe('initTextures', () => {
     // "acrescentar". Um segundo consumidor que inicializasse com os poderes dele herdaria os nossos por cima,
     // e o sintoma seria um ícone de bengala de corrida num jogo que não tem corrida.
     const cv = document.createElement('canvas'); cv.width = 12; cv.height = 12;
-    initTextures({ ...ctx, powerups: [{ kind: 'planar', canvas: cv }] });
+    initTextures(doc, { ...ctx, powerups: [{ kind: 'planar', canvas: cv }] });
     expect(Object.keys(PUP_TEX)).toEqual(['planar']);
-    initTextures(ctx); // devolve o estado que o beforeEach promete aos casos seguintes
+    initTextures(doc, ctx); // devolve o estado que o beforeEach promete aos casos seguintes
   });
 
   it('[Interface] injetar OUTRA lista dá outro SHAPE_TEX — a fonte é o ctx, não uma tabela interna', () => {
     // O par do caso acima, e o que fecha a porta de vez: se alguém reintroduzir uma lista fixa no módulo, o
     // caso de cima continuaria passando (a fixa provavelmente seria a mesma dez), mas este reprova.
-    initTextures({ ...ctx, shapes: ['triangulo', 'oval'] });
+    initTextures(doc, { ...ctx, shapes: ['triangulo', 'oval'] });
     expect(Object.keys(SHAPE_TEX).sort()).toEqual(['oval', 'triangulo']);
-    initTextures(ctx); // devolve o estado que o beforeEach promete aos casos seguintes
+    initTextures(doc, ctx); // devolve o estado que o beforeEach promete aos casos seguintes
   });
 });
 
 describe('shapeTexture', () => {
   it('[Right] retorna uma PIXI.Texture 16×16 p/ cada forma conhecida (polígono e arco/elipse/retângulo)', () => {
     for (const id of ['circulo', 'oval', 'quadrado', 'retangulo', 'triangulo', 'losango', 'hexagono']) {
-      const t = shapeTexture(id);
+      const t = shapeTexture(doc, id);
       expect(t.width).toBe(16);
       expect(t.height).toBe(16);
     }
   });
   it('[Error] id desconhecido cai no default (arco) em vez de lançar', () => {
-    expect(() => shapeTexture('id-que-nao-existe')).not.toThrow();
+    expect(() => shapeTexture(doc, 'id-que-nao-existe')).not.toThrow();
   });
 });
 
 describe('letterTexture', () => {
   it('[Right] usa o `disp` injetado — minúscula por padrão', () => {
     letterCase = 'lower';
-    const t = letterTexture('A');
+    const t = letterTexture(doc, 'A');
     expect(t.width).toBe(16); expect(t.height).toBe(16);
   });
   it('[Interface] muda com letterCase (a mesma letra gera texturas distintas em maiúscula/minúscula)', () => {
-    letterCase = 'lower'; const lo = letterTexture('a').baseTexture.resource.source.toDataURL();
-    letterCase = 'upper'; const up = letterTexture('a').baseTexture.resource.source.toDataURL();
+    letterCase = 'lower'; const lo = letterTexture(doc, 'a').baseTexture.resource.source.toDataURL();
+    letterCase = 'upper'; const up = letterTexture(doc, 'a').baseTexture.resource.source.toDataURL();
     expect(up).not.toBe(lo); // "a" x "A" pintam pixels diferentes no glifo
   });
 });
@@ -117,12 +120,12 @@ describe('pupTexFor', () => {
 
 describe('DEFERRED: indexedToCanvas / silhouetteCanvasIdx (PIP_* — trabalho estacionado, não morto)', () => {
   it('[Right] indexedToCanvas pinta um canvas 24×32 a partir de PIP_IDLE sem lançar', () => {
-    const cv = indexedToCanvas(PIP_IDLE);
+    const cv = indexedToCanvas(doc, PIP_IDLE);
     expect(cv.width).toBe(24); expect(cv.height).toBe(32);
   });
   it('[Right] silhouetteCanvasIdx idem, para cada quadro de PIP_WALK', () => {
     for (const frame of PIP_WALK) {
-      const cv = silhouetteCanvasIdx(frame);
+      const cv = silhouetteCanvasIdx(doc, frame);
       expect(cv.width).toBe(24); expect(cv.height).toBe(32);
     }
   });
@@ -130,7 +133,7 @@ describe('DEFERRED: indexedToCanvas / silhouetteCanvasIdx (PIP_* — trabalho es
 
 describe('achado: buildLegacyPlayerTex (TEX/PLAYER_* — zero chamadores, preservado sob demanda)', () => {
   it('[Robustez] reproduz o TEX antigo (idle/walk/climb/hurt) sem lançar, se algum dia for chamada', () => {
-    const t = buildLegacyPlayerTex();
+    const t = buildLegacyPlayerTex(doc);
     expect(Object.keys(t)).toEqual(['idle', 'walk', 'climb', 'hurt']);
     for (const k of Object.keys(t)) { expect(t[k].width).toBe(16); expect(t[k].height).toBe(32); }
   });

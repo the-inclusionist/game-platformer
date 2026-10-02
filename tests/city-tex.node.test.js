@@ -7,14 +7,16 @@
 // figura da rua existe a SEQUÊNCIA EXATA de retângulos, transcrita à mão do bloco original do main.js
 // (`LIFE_TEX`/`ADULT_TEX`/`CAR_TEX`). Se a extração tiver mudado um número, a lista bate de frente.
 //
-// Como se testa canvas no project `node`: `document` é FALSIFICADO por um objeto que devolve um canvas de
-// mentira cujo contexto 2D REGISTRA as chamadas (`fillStyle` e `fillRect`, com o estilo vigente no momento do
-// `fillRect`). É esse registro que prova que o pintor não esqueceu o `fillStyle`. `pixi.js` é falsificado por
+// Como se testa canvas no project `node`: o documento é FALSIFICADO por um objeto (`fakeDoc`) que devolve um canvas
+// de mentira cujo contexto 2D REGISTRA as chamadas (`fillStyle` e `fillRect`, com o estilo vigente no momento do
+// `fillRect`). É esse registro que prova que o pintor não esqueceu o `fillStyle`. 📌 O `fakeDoc` entra POR
+// PARÂMETRO (engine 11, ADR-0232) e NENHUM `document` global é instalado: um módulo que voltasse a ler o global
+// estoura aqui com ReferenceError, em vez de passar por cima do falso sem ninguém notar. `pixi.js` é falsificado por
 // `vi.mock` — a textura vira o próprio canvas embrulhado, o que permite testar `createCityTextures()` inteira
 // (inclusive a ORDEM dos quadros) sem navegador.
 //
 // ZOMBIES + Right-BICEP. Arte verbatim do main.js (Onda D3-a).
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // PIXI de mentira: `tex(cv)` passa a devolver `{ cv, scaleMode }` — dá para ir da textura de volta ao bitmap.
 vi.mock('pixi.js', () => ({
@@ -30,10 +32,9 @@ const {
   createCityTextures,
 } = await import('../app/js/render/city-tex.js');
 
-/* ===================== fakes: document + contexto 2D que registra ===================== */
+/* ===================== fakes: documento + contexto 2D que registra ===================== */
 
 let created = [];      // todo canvas fabricado na chamada corrente
-let prevDocument;      // o `document` que havia antes (normalmente undefined no project node)
 
 function fakeCanvas() {
   const ops = [];      // ['fillStyle', cor] | ['fillRect', x, y, w, h, corVigente]
@@ -51,17 +52,14 @@ function fakeCanvas() {
   };
 }
 
-beforeEach(() => {
-  created = [];
-  prevDocument = globalThis.document;
-  globalThis.document = {
-    createElement(tag) {
-      if (tag !== 'canvas') throw new Error('fake document: só sei criar <canvas>, pediram <' + tag + '>');
-      const cv = fakeCanvas(); created.push(cv); return cv;
-    },
-  };
-});
-afterEach(() => { globalThis.document = prevDocument; });
+const fakeDoc = {
+  createElement(tag) {
+    if (tag !== 'canvas') throw new Error('fake document: só sei criar <canvas>, pediram <' + tag + '>');
+    const cv = fakeCanvas(); created.push(cv); return cv;
+  },
+};
+
+beforeEach(() => { created = []; });
 
 /** Registrador de `px`: devolve os retângulos como "x,y,w,h,cor" na ordem em que foram pedidos. */
 function record(painter) {
@@ -76,28 +74,28 @@ const rectsOf = (cv) => cv.ops.filter((o) => o[0] === 'fillRect').map((o) => [o[
 
 describe('pixelCanvas', () => {
   it('dimensiona o canvas e devolve o próprio canvas (não a textura)', () => {
-    const cv = pixelCanvas(7, 6, (px) => px(0, 0, 1, 1, '#fff'));
+    const cv = pixelCanvas(fakeDoc, 7, 6, (px) => px(0, 0, 1, 1, '#fff'));
     expect(cv).toBe(created[0]);
     expect([cv.width, cv.height]).toEqual([7, 6]);
   });
   it('pinta na ordem pedida, e cada fillRect é PRECEDIDO pelo fillStyle da sua cor', () => {
-    const cv = pixelCanvas(4, 4, (px) => { px(0, 0, 2, 2, '#111'); px(2, 2, 1, 1, '#222'); });
+    const cv = pixelCanvas(fakeDoc, 4, 4, (px) => { px(0, 0, 2, 2, '#111'); px(2, 2, 1, 1, '#222'); });
     expect(cv.ops).toEqual([
       ['fillStyle', '#111'], ['fillRect', 0, 0, 2, 2, '#111'],
       ['fillStyle', '#222'], ['fillRect', 2, 2, 1, 1, '#222'],
     ]);
   });
   it('a cor vigente em cada fillRect é a cor pedida — mesmo repetindo a cor anterior', () => {
-    const cv = pixelCanvas(4, 4, (px) => { px(0, 0, 1, 1, '#abc'); px(1, 1, 1, 1, '#abc'); px(2, 2, 1, 1, '#def'); });
+    const cv = pixelCanvas(fakeDoc, 4, 4, (px) => { px(0, 0, 1, 1, '#abc'); px(1, 1, 1, 1, '#abc'); px(2, 2, 1, 1, '#def'); });
     expect(rectsOf(cv)).toEqual(['0,0,1,1,#abc', '1,1,1,1,#abc', '2,2,1,1,#def']);
   });
   it('pintura vazia = canvas dimensionado e nenhuma operação (ZERO)', () => {
-    const cv = pixelCanvas(3, 3, () => { });
+    const cv = pixelCanvas(fakeDoc, 3, 3, () => { });
     expect(cv.ops).toEqual([]);
     expect([cv.width, cv.height]).toEqual([3, 3]);
   });
   it('pixelTexture embrulha o MESMO canvas e marca NEAREST (pixel art)', () => {
-    const t = pixelTexture(2, 2, (px) => px(0, 0, 2, 2, '#0f0'));
+    const t = pixelTexture(fakeDoc, 2, 2, (px) => px(0, 0, 2, 2, '#0f0'));
     expect(t.cv).toBe(created[0]);
     expect(t.baseTexture.scaleMode).toBe('NEAREST');
     expect(rectsOf(t.cv)).toEqual(['0,0,2,2,#0f0']);
@@ -256,17 +254,17 @@ describe('arte dos carros', () => {
 /* ===================== 5. a fábrica: forma, ordem dos quadros e ZERO I/O no import ===================== */
 
 describe('createCityTextures', () => {
-  // O erro que já custou caro aqui: as texturas nasciam de IIFE no corpo do módulo. Como `makeCanvas` toca
-  // `document`, um módulo assim derruba o project `node` inteiro no import. `resetModules` + reimport com o
-  // document falso instalado é o que torna esta afirmação capaz de ficar VERMELHA (sem isso o módulo já está
-  // em cache e o teste não testaria nada).
+  // O erro que já custou caro aqui: as texturas nasciam de IIFE no corpo do módulo, o que derruba o project
+  // `node` inteiro no import. `resetModules` + reimport é o que torna esta afirmação capaz de ficar VERMELHA
+  // (sem isso o módulo já está em cache e o teste não testaria nada). Sem `document` global, um IIFE que o lesse
+  // reprova aqui pelo import; um que fabricasse pelo `fakeDoc` reprova pelo `created`.
   it('importar o módulo não fabrica canvas nenhum (ZERO I/O no import)', async () => {
     vi.resetModules();
     await import('../app/js/render/city-tex.js');
     expect(created).toEqual([]);
   });
   it('entrega o atlas que LifeCtx/TrafficCtx pedem: 4 bichos × 2, 6 adultos × 2, 4 carros', () => {
-    const { lifeTex, adultTex, carTex } = createCityTextures();
+    const { lifeTex, adultTex, carTex } = createCityTextures(fakeDoc);
     expect(Object.keys(lifeTex).sort()).toEqual(['cao', 'gato', 'pombo', 'pomboFly']);
     for (const k of Object.keys(lifeTex)) expect(lifeTex[k]).toHaveLength(2);
     expect(adultTex).toHaveLength(6);
@@ -275,7 +273,7 @@ describe('createCityTextures', () => {
     expect(created).toHaveLength(4 * 2 + 6 * 2 + 4); // 24 canvases, nem um a mais
   });
   it('cada textura carrega o BITMAP certo, no quadro certo (pega par invertido)', () => {
-    const { lifeTex, adultTex, carTex } = createCityTextures();
+    const { lifeTex, adultTex, carTex } = createCityTextures(fakeDoc);
     for (const k of Object.keys(CREATURE_EXPECT)) for (const f of [0, 1]) {
       expect(rectsOf(lifeTex[k][f].cv), k + ' f' + f).toEqual(CREATURE_EXPECT[k][f]);
       expect([lifeTex[k][f].cv.width, lifeTex[k][f].cv.height]).toEqual(CREATURE_SIZE[k]);
@@ -284,12 +282,12 @@ describe('createCityTextures', () => {
     for (let i = 0; i < 4; i++) expect(rectsOf(carTex[i].cv), 'carro ' + i).toEqual(carExpect(...CAR_PALETTES[i]));
   });
   it('todas as texturas saem NEAREST (pixel art crisp)', () => {
-    const { lifeTex, adultTex, carTex } = createCityTextures();
+    const { lifeTex, adultTex, carTex } = createCityTextures(fakeDoc);
     const todas = [...Object.values(lifeTex).flat(), ...adultTex.flat(), ...carTex];
     for (const t of todas) expect(t.baseTexture.scaleMode).toBe('NEAREST');
   });
   it('duas chamadas devolvem texturas NOVAS (não memoiza — CONFORMANCE do contrato documentado)', () => {
-    const a = createCityTextures(), b = createCityTextures();
+    const a = createCityTextures(fakeDoc), b = createCityTextures(fakeDoc);
     expect(a.carTex[0]).not.toBe(b.carTex[0]);
     expect(rectsOf(a.carTex[0].cv)).toEqual(rectsOf(b.carTex[0].cv));
   });

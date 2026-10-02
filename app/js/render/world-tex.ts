@@ -5,7 +5,7 @@
 // (worldToTextureDirect) + the viz selector (worldTexFor) + animated water/lava (stepTileFx) stay in game.js.
 // See docs/5-Refactoring/plano-modularizacao-mapa.md.
 
-import { makeCanvas, tex } from '@the-inclusionist/engine/render/canvas.js';
+import { makeCanvas, tex, type CanvasDoc } from '@the-inclusionist/engine/render/canvas.js';
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 // ANIM/EASY/TILE_COLOR vieram para casa: sao NUMEROS DESTE JOGO, e a engine nao descreve um jogo (nota 2).
 import { TILE_COLOR } from '../core/game-constants.js';
@@ -26,8 +26,8 @@ export const isGroundType = (t: number): boolean => t === 2 || t === 6;
 export interface Tileset { fill: CanvasImageSource; surface: CanvasImageSource }
 
 /** Build the NORMAL world canvas: theme tileset on ground (if given), else the v3 per-tile drawings. */
-export function worldCanvas(tiles?: Tileset | null): HTMLCanvasElement {
-  const cv = makeCanvas(PXW, PXH), c = cv.getContext('2d')!;
+export function worldCanvas(doc: CanvasDoc, tiles?: Tileset | null): HTMLCanvasElement {
+  const cv = makeCanvas(doc, PXW, PXH), c = cv.getContext('2d')!;
   const solidAt = (x: number, y: number): boolean => y >= 0 && y < H && x >= 0 && x < W && isSolidType(WORLD[y]![x]!);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const t = WORLD[y]![x]!;
@@ -55,6 +55,6 @@ export function worldCanvas(tiles?: Tileset | null): HTMLCanvasElement {
 }
 
 /** The NORMAL world texture (PIXI) from the current level. */
-export function worldToTexture(tiles?: Tileset | null): unknown {
-  return tex(worldCanvas(tiles));
+export function worldToTexture(doc: CanvasDoc, tiles?: Tileset | null): unknown {
+  return tex(worldCanvas(doc, tiles));
 }
