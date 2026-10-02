@@ -49,6 +49,9 @@ const rng = createRng();
 const engine = createGame({
   declaration: cartucho.declaration,
   host: { doc: document, win: window },
+  // O QUE A ENTREGA CARREGA (ADR-0216 §3): e' decisao do CARTUCHO, nao do shell, por isso vem dele. Este jogo
+  // declara `neuralVoice: true`, para o Kokoro ficar como alternativa a voz do aparelho.
+  uses: cartucho.uses,
   ...cartucho.hooks,
 });
 

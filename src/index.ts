@@ -55,6 +55,16 @@ export const declaration = createPlatformerDeclaration(DEPS_VIVAS);
  * ONE PLACE A GAME'S WORDS LIVE», e todo termo que este jogo declara — o preset, as acomodacoes, o HUD —
  * e' chave dele.
  */
+/**
+ * ESTE JOGO LE EM VOZ ALTA — a atividade de alfabetizacao fala cada letra, silaba e palavra — e o Dev decidiu
+ * em 02/10: usar a voz do APARELHO quando houver, cair no Kokoro quando nao houver (ADR-0216 §3). A engine ja
+ * prefere a Web Speech do navegador; declarar `neuralVoice: true` so acrescenta o Kokoro COMO ALTERNATIVA
+ * para o caso de o aparelho nao ter voz na lingua da crianca. Os 371 MiB vem no `heavy/` da entrega e ficam no
+ * cache verificado — a crianca so os paga uma vez, e nunca entre as cartuchos (ADR-0117: a plataforma e' que
+ * paga a conta de banda).
+ */
+export const uses = { neuralVoice: true } as const;
+
 export const hooks: CartridgeHooks = {
   // a pausa (`setPhase`, `getPauseActs`, `setPauseActor`), os dois eixos visuais e o `gamepad` leem a rodada: delegam
   ...GANCHOS_VIVOS,
@@ -92,4 +102,4 @@ export const hooks: CartridgeHooks = {
  * `hooks` daqui, no import. Antes desta versao este ficheiro exportava membros nomeados, e a nota DV conta
  * este jogo entre os cinco que precisavam de os mudar de lugar.
  */
-export default { slug, declaration, dicts, hooks, create };
+export default { slug, declaration, dicts, hooks, uses, create };

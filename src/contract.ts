@@ -71,6 +71,17 @@ export interface Cartridge {
   /** A metade do jogo das opcoes de `createGame` — o tipo e' o da engine, e nao uma copia local. */
   readonly hooks: CartridgeHooks;
   /**
+   * O QUE A ENTREGA PRECISA CARREGAR para este jogo (ADR-0216 §3, ADR-0225, ADR-0255). O shell le-o e passa a
+   * `createGame` como `uses`, para o motor saber se ha Kokoro, idiomas de leitura e familias da biblioteca de
+   * fontes. Opcional porque um jogo sem voz neural, sem reconhecimento de fala e sem fontes de biblioteca
+   * entrega-se mais pequeno — e e' decisao do cartucho, nao do shell.
+   */
+  readonly uses?: {
+    readonly neuralVoice?: boolean;
+    readonly reading?: boolean;
+    readonly fonts?: readonly string[];
+  };
+  /**
    * Nada corre ate isto ser chamado. Sem efeito no escopo do modulo (D14).
    *
    * 🔴 E DEVOLVE UMA PROMESSA, ONDE O DOCUMENTO ESCREVE `GameInstance` DIRETO. O afastamento e' obrigado e
