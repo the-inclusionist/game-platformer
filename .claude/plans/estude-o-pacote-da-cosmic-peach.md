@@ -275,10 +275,19 @@ este bloco deve passar a listar «cada ocorrencia encontrada» como item cumprid
 O Dev apontou-me em 02/10 20h que o plano descrevia o que (A) partia mas nao criava tarefas — por isso o
 loop nao as atacava. Lista agora, com estado:
 - **Mapear teclado abria vazio** → ✓ resolvido em `89a015f` (ver bloco acima).
-- **Mapear controle, Mapear toque abrem vazios?** → por medir no navegador. Mesma causa provavel (`word()`
-  sobre o preset do jogo), mesma correcao se for.
-- **FPS debug HUD aparece em (0,0) sem `?debug=true`** → medido em 02/10 15h, nao atacado. A classe
-  `hud__item hud__fps` nao esta a ser escondida quando o modo debug esta desligado. Item a investigar.
+- **Mapear controle, Mapear toque abrem vazios?** → ✓ medido no navegador em 02/10 20h: ambos abrem corretos.
+  Causa prevista pela leitura confirmada: os tres painéis convergem em `wordsOf(preset, word)` da engine
+  (`core/actions.js:70`), que resolve `labelKey` pelo dicionário do jogo (`word()`, ADR-0010 pilar 3). As 10
+  chaves de `89a015f` destravaram os tres por uma via só. **Mapear controle** abre o wizard pedindo o primeiro
+  botao («Aperte QUALQUER botão...»); **Mapear toque** mostra 9 slots visiveis (4 ocultos — START, L1/R1,
+  L2/R2 — o jogo nao os nomeia) e cada select traz as 8 acoes nomeadas em pt-BR («Subir / escada», «Descer /
+  escada», «Esquerda», «Direita», «Correr / interagir», «Pular», «Especial», «Trocar poder»).
+- **FPS debug HUD aparece em (0,0) sem `?debug=true`** → ✓ medido novamente em 02/10 20h: NAO VAZA. O
+  parent `#topbar-tools.topbar__right` carrega o atributo `hidden`, e a regra global `[hidden] { display:
+  none !important }` esconde o `.hud__fps` dentro. `getBoundingClientRect()` do `.hud__fps` devolve `0×0` em
+  `(0,0)` porque esta dentro de um ancestral sem renderizacao, nao porque esteja a desenhar em (0,0). A
+  medicao de 15h, que diagnosticou «classe nao esta a ser escondida», estava errada — a classe nao precisa
+  de ser escondida porque o ancestral o é.
 - **Jogadores 2–4 nao abrem o cartao de pausa com START/SELECT** → engine 11 `leadsTheScreen === 0`
   (`create-game.js:2520`). Pedido (C) para a sessao da engine.
 - **Painel visual nao oferece as cores por papel do alto contraste** → `offer: { roles: false }`
