@@ -63,7 +63,16 @@ export const declaration = createPlatformerDeclaration(DEPS_VIVAS);
  * cache verificado — a crianca so os paga uma vez, e nunca entre as cartuchos (ADR-0117: a plataforma e' que
  * paga a conta de banda).
  */
-export const uses = { neuralVoice: true } as const;
+/**
+ * ⚠️ `reading` TAMBEM, pedido do Dev (02/10): este jogo precisa de reconhecimento de fala em pt-BR, en-US e
+ * es (MX/AR). Com `reading: true` a engine carrega o modelo de LEITURA do idioma vigente MAIS os de todos os
+ * idiomas que o cartucho declara em `dicts` — e este cartucho declara pt, en e es. Os modelos de COMANDO
+ * (vocabulario curto, navegacao por voz) vem sempre, para os tres («Toda crianca vai experimentar as tres
+ * linguas imediatamente», o Dev no `create-game.js:3408`). O custo em bytes paga-se uma so vez pela origem
+ * (ADR-0117): mesma origem, mesmo `CacheStorage('incl-pesados-v2')`, mesmo ficheiro no cache de qualquer
+ * numero de jogos.
+ */
+export const uses = { neuralVoice: true, reading: true } as const;
 
 export const hooks: CartridgeHooks = {
   // a pausa (`setPhase`, `getPauseActs`, `setPauseActor`), os dois eixos visuais e o `gamepad` leem a rodada: delegam
