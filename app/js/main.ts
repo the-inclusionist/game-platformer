@@ -97,12 +97,10 @@ import { noiseBuffer } from '@the-inclusionist/engine/platform/audio.js'; // o r
 import { gameSay } from '@the-inclusionist/engine/platform/speech.js';
 import { createAudioJingles } from '@the-inclusionist/engine/platform/audio-jingles.js'; // Tier 2 (áudio r1): jingles de vitória/enigma/fogos
 import { createAudioEarcons } from '@the-inclusionist/engine/platform/audio-earcons.js'; // Tier 2 (áudio r2): earcons (sfx) + porta + legendas
-import { createAudioSonar } from '@the-inclusionist/engine/platform/audio-sonar.js'; // item 19: navegacao sonora, a metade que serve a QUALQUER genero
 import { createAudioNav } from './platform/audio-nav.js'; // Tier 2 (áudio r3): bengala e nado cego (a metade que le o mundo)
 import { createAudioGuide } from './platform/audio-guide.js'; // the continuous sound guide — this game's own (ADR-0257)
 import type { Topology } from '@the-inclusionist/engine/core/contract.js'; // the metric the sonar and the guide share
 import { createAudioAmbient } from '@the-inclusionist/engine/platform/audio-ambient.js'; // Tier 2 (áudio r4): trilha de ambiente + trovão
-import { createTts } from '@the-inclusionist/engine/platform/tts.js'; // Tier 2 (#38): narração por voz (Piper neural lazy + fallback Web Speech)
 import { SPR, TEX_IDLE, TEX_WALK, TEX_RUN, FLAVORS, TEX_JUMP_UP, TEX_JUMP_DOWN, TEX_CLIMB, TEX_FLY, TEX_CLING_WALL, TEX_CLING_CEIL, TEX_SWIM, TEX_SWIMIDLE, initCharacterSprites } from './render/sprites.js';
 import { tex, pixelTexture } from '@the-inclusionist/engine/render/canvas.js'; // `makeCanvas` saiu junto: o painter é quem o chama agora
 import { CENARIOS, THEME_FLORA, hexN } from './render/cenario-data.js'; // D2-b: catalogo dos cenarios (folha: dado puro, zero deps)
@@ -777,42 +775,24 @@ const visaoComprometidaDe=(v: VisualState)=> isBlind(v) || isLowVision(v);
 // isso lá vai só o predicado de cima. A diferença é real e está anotada dos dois lados.
 const caneOn=(pl: PlayerView<'visual'>)=> settingsStore.blindMode || visaoComprometidaDe(pl.visual); // predicado de visão (movimento/render) — fica no main.js
 // caneColor extraído p/ render/wheelchair-sprites.js (Estágio 4).
-// TTS (narração por voz: Piper neural lazy + fallback Web Speech) extraído p/ platform/tts.ts (Tier 2, #38). Criado ANTES do
-// audio-nav porque o nav injeta narrate. As funções de painel (populateTTS*/reflectTTS) ficam no main.js (→ #54) e usam get/set.
-// ⚠️ É AQUI QUE O FORNECEDOR DA VOZ NEURAL É NOMEADO, e em mais lado nenhum da árvore (ADR-0094): `main.ts`
-// é a raiz de composição do JOGO e fica FORA do pacote publicado, então o nome — e os 135,4 MB de
-// `onnxruntime-web` que ele arrasta — não viajam para consumidor nenhum. O `import()` continua lazy: o Vite
-// deste repositório faz o code-split, e o chunk só é buscado se a criança escolher o motor neural.
-const tts = createTts({ srSay, srAlert, ensureAC, catNode, audioOut, getSoundOn: () => audio.soundOn, getVolume: () => audio.volume, getAudioCat: () => audio.audioCat,
-  carregarVozNeural: () => import('@mintplex-labs/piper-tts-web') });
-// Pistas espaciais a11y (bengala · sonar · guarda de beirada · guia · nado, por dispositivo) extraídas p/ platform/audio-nav.ts
-// (Tier 2, áudio r3). playerCtx/panFor/needsAudioCues expostos na API porque a guarda de beirada + o gate de movimento os
-// chamam de fora do cluster. SURF_MAT vive agora no módulo. Uso: nav.<fn>. The guide is `platform/audio-guide` (ADR-0257).
-// A NAVEGACAO SONORA, contra o CONTRATO (item 19). As tres perguntas que substituiram `getCoins`+`TILE`:
-//   · `topology()`  — a metrica. Esta plataforma e um espaco CONTINUO com `unit = TILE`, e por isso os
-//     limiares de "muito perto/perto/longe" continuam valendo 4 e 9 TILES, como no original.
-//   · `targetsOf(i)` — onde estao os alvos deste jogador. Era o laco `if (cn.taken || cn.owner !== pl.i)`
-//     dentro do sonar; agora e o JOGO que filtra, e o sonar so compara distancias.
-//   · `nameAt(at)`   — como se chama o que esta ali. Era `t('sr.nav.coin')` cravado.
-// `move: 'free'` porque num espaco continuo a distancia e a reta; `frame: 'clock'` porque isto e uma
-// PLATAFORMA 2D vista de lado, e norte/sul nao querem dizer nada para quem esta a olhar de lado (ADR-0089).
-// The sonar and the guide ask the same two questions, so they are written once.
+/*
+ * A VOZ E O SONAR SÃO OS DA ENGINE (`engine.tts`, `engine.sonar`). Esta raiz construía os seus, e com o
+ * `createGame` a montar os dele seriam duas vozes a narrar e dois sonares a apitar a mesma moeda.
+ *
+ * 🔴 A PORTA DO PIPER FECHA-SE AQUI. Era nesta linha que o fornecedor da voz neural era nomeado (ADR-0094), e o
+ * `import()` lazy do `@mintplex-labs/piper-tts-web` vivia nela. A voz neural da engine 11 é o Kokoro, pedido por
+ * `uses: { neuralVoice: true }` (ADR-0216) — e pedir ou não é decisão do Dev, registada no plano: sem o pedido,
+ * a narração cai na voz do aparelho, que é o primário de verdade fora da nuvem.
+ *
+ * O sonar da engine pergunta à DECLARAÇÃO deste cartucho — `topology()`, `targetsOf(i)`, `nameAt(at)` —, que
+ * responde com as mesmas medidas que o daqui usava (espaço contínuo, `unit = TILE`, só as moedas do próprio
+ * jogador), e lê em voz o que está na tela (ADR-0234). As duas funções abaixo ficam porque o GUIA contínuo é
+ * deste jogo (ADR-0257) e faz as mesmas perguntas.
+ */
+const tts = engine.tts;
 const worldTopology = (): Topology => ({ kind: 'continuous', size: [WORLD_PX_W, WORLD_PX_H], unit: TILE, move: 'free', frame: 'clock' });
 const coinTargetsOf = (i: number) => coins.filter((cn) => !cn.taken && cn.owner === i).map((cn) => ({ x: cn.x, y: cn.y }));
-const sonarNav = createAudioSonar({
-  topology: worldTopology,
-  targetsOf: coinTargetsOf,
-  nameAt: () => ({ text: t('hud.nome.moeda'), gender: 'f', plural: false }),
-  tonePan, srSay, narrate: tts.narrate,
-  // ⚠️ A ENGINE PEDE A RESPOSTA, E JÁ NÃO A TABELA (#104): recebia `VIZ_BY_KEY` e atravessava-a com
-  // `pl.viz`; agora pergunta se ESTA criança tem a visão comprometida. Quem sabe é esta raiz, que
-  // conhece os dois eixos — `platform/` não pode importar de `render/` sem inverter uma camada.
-  // O `pl` do sonar só carrega `i/x/y`, então o estado visual vem do jogador desta lista.
-  visaoComprometida: (pl) => { const p = players[pl.i]; return !!p && visaoComprometidaDe(p.visual); },
-  getModoCego: () => settingsStore.blindMode, LOGICAL_W,
-  getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
-  getAudioCtx: () => audio.audioCtx, getSoundOn: () => audio.soundOn, getAudioCat: () => audio.audioCat,
-});
+const sonarNav = engine.sonar;
 // `held` adaptado: `input/state.held` estreitou para `Action` na 8.0.0 e `audio-nav` ainda declara
 // `act: string` — a mesma costura do `kbFor` acima. O cast é seguro por medição: este módulo só passa
 // 'up' e 'down' (audio-nav.js:64 e :75), duas ações reais.
