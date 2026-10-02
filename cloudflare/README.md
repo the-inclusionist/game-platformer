@@ -9,34 +9,87 @@ Pages Function em `functions/game-platformer/heavy/[[path]].ts` traduz `/game-pl
 em chave do bucket via `MIRROR_FOLDERS` da engine. O cache do navegador fica em `incl-pesados-v2` (nomeado
 pela engine) e, ao servir OUTROS jogos da **mesma origem**, reutiliza o que já está lá, sem rede (ADR-0117).
 
-## Pré-requisitos (uma vez na máquina)
+## A via certa: Git Integration (deploy a cada `git push`)
+
+Com o repo em `github.com/the-inclusionist/game-platformer`, o Pages observa o GitHub, constrói e implanta
+sozinho a cada push para `main`. Cada PR tem o seu preview deployment próprio. Não é preciso `wrangler`
+instalado nem corrido na máquina.
+
+### 1. Criar o projeto Pages ligado ao GitHub
+
+Dashboard do Cloudflare → `Workers & Pages` → `Create` → `Pages` → `Connect to Git` → GitHub →
+autorizar a conta → escolher o repo `the-inclusionist/game-platformer`.
+
+Depois na página de configuração do build:
+
+| campo | valor |
+|---|---|
+| Project name | `game-platformer` |
+| Production branch | `main` |
+| Framework preset | `None` (o Vite é configuração nossa, não default do CF) |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Root directory | `/` *(deixar vazio)* |
+
+Em **Environment variables (Production)** adicionar:
+
+| nome | valor |
+|---|---|
+| `INCL_BASE` | `/game-platformer/` |
+
+O `vite.config.ts` lê esta variável no build (`base: process.env.INCL_BASE || '/'`). Sem ela, os assets
+nascem com paths de raiz e nada se encontra sob `/game-platformer/`.
+
+Clicar **Save and Deploy**. O Pages faz `git clone`, `npm install`, `npm run build`, e serve `dist/`.
+
+### 2. Ligar o bucket `the-inclusionist-lfs` à Pages Function
+
+Mesmo projeto → `Settings` → `Functions` → `R2 bucket bindings` → `Add binding`:
+
+| campo | valor |
+|---|---|
+| Variable name | `LFS` |
+| R2 bucket | `the-inclusionist-lfs` |
+
+Guardar. Fazer o **próximo push qualquer** para re-deploy com o binding ativo (basta `git commit --allow-empty
+-m "trigger: bind LFS"` seguido de `git push`), ou usar o botão `Redeploy` do dashboard.
+
+### 3. Domínio personalizado
+
+`Settings` → `Custom domains` → `Set up a custom domain` → entrar `o-inclusionista.jrocha.dev.br`. O
+Cloudflare cria o CNAME automaticamente se o domínio já está na conta. Certificado TLS automático.
+
+Quando o DNS propagar (minutos no mesmo tenant Cloudflare), `o-inclusionista.jrocha.dev.br/game-platformer/`
+serve o jogo.
+
+### A partir daqui
+
+Qualquer `git push` para `main` lança um build-e-deploy novo (visível em `Workers & Pages` →
+`game-platformer` → `Deployments`). PRs ganham previews em `<branch>.game-platformer.pages.dev`.
+
+## Alternativa: Direct Upload (manual, para emergências)
+
+Útil quando o GitHub está em baixo, quando queres testar um build local sem fazer push, ou para investigar
+um deploy que o CF rejeitou.
 
 PowerShell:
 ```powershell
 npm i -g wrangler
-wrangler login            # autenticar na conta Cloudflare onde o bucket vive
-```
-
-Git Bash (equivalente):
-```bash
-npm i -g wrangler && wrangler login
-```
-
-## 1. Build de produção
-
-PowerShell:
-```powershell
+wrangler login
 $env:INCL_BASE = '/game-platformer/'
 npx vite build
+wrangler pages deploy dist --project-name=game-platformer
 ```
 
 Git Bash (nota: `MSYS_NO_PATHCONV=1` para o Git Bash não traduzir o `/game-platformer/` para um caminho do
 Windows):
 ```bash
+npm i -g wrangler && wrangler login
 MSYS_NO_PATHCONV=1 INCL_BASE=/game-platformer/ npx vite build
+wrangler pages deploy dist --project-name=game-platformer
 ```
 
-Em qualquer das duas, verifica rápido que o build ficou com os caminhos corretos:
+Verificação rápida de que o build ficou com os caminhos certos:
 
 PowerShell:
 ```powershell
@@ -48,44 +101,7 @@ Git Bash:
 grep -o '"/game-platformer/[^"]*"' dist/index.html | head
 ```
 
-📌 No Pages (deploy no servidor) a variável `INCL_BASE` vem do `wrangler.toml` e nenhum destes truques é
-preciso — isto é só para builds locais.
-
-## 2. Primeiro deploy (cria o projeto Pages)
-
-```bash
-wrangler pages project create game-platformer --production-branch=main
-wrangler pages deploy dist --project-name=game-platformer
-```
-
-Isto devolve um URL `https://<hash>.game-platformer.pages.dev`. **Nesta fase a Pages Function responde 500**
-porque o binding do R2 ainda não existe (passo 3).
-
-## 3. Ligar o bucket `the-inclusionist-lfs` ao projeto Pages
-
-No **dashboard do Cloudflare** → `Workers & Pages` → `game-platformer` → `Settings` → `Functions` →
-`R2 bucket bindings` → `Add binding`:
-
-- **Variable name**: `LFS`
-- **R2 bucket**: `the-inclusionist-lfs`
-
-Guardar. **Re-deploy** para o binding entrar em vigor:
-
-```bash
-wrangler pages deploy dist --project-name=game-platformer
-```
-
-(O `wrangler.toml` deste repo já declara o binding, mas o Pages aceita bindings de R2 só pelo dashboard na
-UI atual — o CLI aceita a declaração mas o dashboard tem prioridade.)
-
-## 4. Domínio personalizado
-
-Dashboard → `Workers & Pages` → `game-platformer` → `Custom domains` → `Set up a custom domain` →
-`o-inclusionista.jrocha.dev.br`. CNAME e TLS automáticos.
-
-Quando o DNS propagar, `o-inclusionista.jrocha.dev.br/game-platformer/` serve o jogo.
-
-## 5. Verificar (do browser do Dev, DevTools)
+## Verificação pós-deploy (DevTools na aba servida)
 
 ```js
 // A Function devolve o Kokoro:
@@ -114,9 +130,9 @@ arquitetura (ADR-0140 §3).
 A `MIRROR_FOLDERS` da Pages Function é cópia da `platform/heavy-mirror.MIRROR_FOLDERS` da engine 11.0.0. Ao
 subir para uma versão nova, verificar a tabela:
 
-```bash
+```powershell
 node -e "import('@the-inclusionist/engine/platform/heavy-mirror.js').then(m => console.log(JSON.stringify(m.MIRROR_FOLDERS, null, 2)))"
 ```
 
-Se a tabela mudou, atualizar o `functions/game-platformer/heavy/[[path]].ts` e re-deploy. O comentário no
+Se a tabela mudou, atualizar o `functions/game-platformer/heavy/[[path]].ts` e fazer push. O comentário no
 topo da Function explica porque a tabela foi copiada em vez de importada.
