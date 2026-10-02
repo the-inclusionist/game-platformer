@@ -19,6 +19,7 @@
 // cada vez (`mount`/`unmount`). Dois cartuchos simultâneos na mesma página não são o que aquele registro
 // desenhou, e o dia em que forem, é o `mount` que decide qual declaração está viva — não este ficheiro.
 import type { CartridgeHooks } from '@the-inclusionist/engine';
+import type { Player } from '@the-inclusionist/engine/core/entity.js';
 import type { DeclarationDeps } from './platformer-declaration.js';
 
 /** As medidas de um mundo que ainda não foi carregado. O lado do tile é o deste jogo e não muda com o nível. */
@@ -73,6 +74,19 @@ export const DEPS_VIVAS: DeclarationDeps = {
   t: (chave, params) => (suporte.vivo ?? MUNDO_VAZIO).t(chave, params),
   seletorDoMundo: MUNDO_VAZIO.seletorDoMundo,
 };
+
+/* ===================== OS ASSENTOS =====================
+ *
+ * O ARRAY QUE A ENGINE LÊ COMO `cartridge.players`, e é um só durante a vida do cartucho. A engine relê-o a
+ * cada chamada (`create-game.js:770`), então a declaração estática pode entregá-lo vazio no import e a rodada
+ * preenchê-lo no lugar — o mesmo truque do suporte acima, mas por identidade em vez de por delegação, porque o
+ * campo é um VALOR e não uma função. Por ele chegam à engine os jogadores em que ela escreve: a trava de marcha
+ * de cada transporte (`pressedBy`, ADR-0249), a saída de áudio própria e o ☝️ da barra.
+ *
+ * ⚠️ Esvaziá-lo no `teardown()` é o que impede o cartucho seguinte de herdar assentos de um mundo morto.
+ */
+export const JOGADORES_VIVOS: Player[] = [];
+export function soltarJogadores(): void { JOGADORES_VIVOS.length = 0; }
 
 /* ===================== A MESMA COISA PARA OS GANCHOS =====================
  *

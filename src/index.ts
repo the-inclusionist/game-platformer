@@ -7,7 +7,7 @@
 // estado de escopo de modulo sobrevive ao `teardown()` e vaza para o jogo seguinte na mesma pagina.
 import { create } from '../app/js/main.js';
 import { createPlatformerDeclaration } from '../app/js/declaration/platformer-declaration.js';
-import { DEPS_VIVAS, GANCHOS_VIVOS } from '../app/js/declaration/live.js';
+import { DEPS_VIVAS, GANCHOS_VIVOS, JOGADORES_VIVOS } from '../app/js/declaration/live.js';
 import { ACOMODACOES } from '../app/js/declaration/accommodations.js';
 import { platformerPreset } from '../app/js/game/platformer-preset.js';
 import type { CartridgeHooks } from '@the-inclusionist/engine';
@@ -59,6 +59,11 @@ export const hooks: CartridgeHooks = {
   accommodations: ACOMODACOES,
   dictionaries: dicts,
   preset: platformerPreset(),
+  // OS ASSENTOS, vazios no import e preenchidos pela rodada no lugar (ver `declaration/live`).
+  // ⚠️ O `as`: o gancho pede `ctrl: KeyScheme` e o jogador deste jogo declara `KeyScheme | null`, porque nasce
+  // sem esquema e o recebe no `assignControls` do arranque — que corre dentro do `create()`, antes de a
+  // rodada pôr o primeiro jogador ao alcance de quem lê. É afirmação sobre ESSA ordem, não sobre dado de fora.
+  players: JOGADORES_VIVOS as unknown as NonNullable<CartridgeHooks['players']>,
 };
 
 /**

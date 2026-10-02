@@ -57,7 +57,7 @@ import type { RenderTextureLike, SpriteLike, GraphicsLike } from '@the-inclusion
 import type { MotionSceneKey, MotionSceneFlags, MotionCharDef } from '@the-inclusionist/engine/ui/settings-motion.js'; // as quatro chaves de movimento reduzido
 import { quizLevel, setQuizLevelValue, coins, setCoins, initGameState } from './game/state.js'; // item 19: o estado DESTE jogo
 import type { GameCtx, GameInstance } from '../../src/contract.js'; // o contrato do cartucho, deste lado
-import { ligarDeclaracao, desligarDeclaracao, ligarGanchos, desligarGanchos } from './declaration/live.js'; // o contrato do cartucho, deste lado
+import { ligarDeclaracao, desligarDeclaracao, ligarGanchos, desligarGanchos, JOGADORES_VIVOS, soltarJogadores } from './declaration/live.js'; // o contrato do cartucho, deste lado
 // `startLoop` e `criarAvisoDeQueda` sairam daqui com o laco: sao do SHELL (ADR-0139), e vivem em src/standalone.ts
 import { initDebugPanel, type CharacterSample } from '@the-inclusionist/engine/ui/debug-panel.js'; // painel ?debug (Tier 1)
 import { createAttract } from './game/attract.js'; // modo demonstração (Tier 1)
@@ -261,7 +261,9 @@ const getLqT = () => engine.lq.t();
  */
 const t = ctx.t;
 
-const rodada = createRunState<Powerup>({ aoTrocarJogadores: (n) => settingsStore.emit('numPlayers', n) });
+// `jogadores`: o MESMO array que a declaração estática entrega à engine como `hooks.players` (ver
+// `declaration/live`). A rodada preenche-o no lugar, e a engine passa a ver os assentos em que escreve.
+const rodada = createRunState<Powerup>({ jogadores: JOGADORES_VIVOS, aoTrocarJogadores: (n) => settingsStore.emit('numPlayers', n) });
 // `players` é um APELIDO, não uma cópia: a lista da rodada nunca é reatribuída (só mutada no lugar), então
 // um `const` aponta para o mesmo array para sempre — e as 44 leituras deste arquivo seguem escritas igual.
 // Ver a nota do campo em `core/run-state`, que é onde essa garantia está declarada.
@@ -2274,6 +2276,7 @@ function teardown(): void {
   // A declaração volta a dizer a verdade do mundo vazio, que é o que ela é depois de um `unmount`.
   desligarDeclaracao();
   desligarGanchos();
+  soltarJogadores();
   try { app.destroy(true, { children: true }); } catch (e) { /* ja destruido */ }
   try { delete (window as unknown as Record<string, unknown>).__incl; } catch (e) { /* nao enumeravel */ }
 }

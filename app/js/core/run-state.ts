@@ -140,6 +140,13 @@ export interface RunState<P> extends ExtrasDoNivel<P> {
 export interface OpcoesDaRodada {
   /** Chamado depois de `setNumPlayers`. Na raiz de composição é `(n) => emit('numPlayers', n)`. */
   aoTrocarJogadores?: (n: number) => void;
+  /**
+   * A LISTA DE JOGADORES a adotar, em vez de nascer uma vazia. Existe porque o cartucho declara os seus
+   * assentos à engine (`hooks.players`) num objeto ESTÁTICO, lido antes de a rodada existir: a engine lê
+   * `cartridge.players` a cada chamada, então basta que seja o MESMO array que a rodada preenche no lugar.
+   * Ausente, a rodada cria a sua — um teste não precisa de saber disto.
+   */
+  jogadores?: Player[];
 }
 
 /**
@@ -157,7 +164,7 @@ export function createRunState<P>(opcoes: OpcoesDaRodada = {}): RunState<P> {
     gate: null,
     gateOpen: true,
     wcSolid: new Set<string>(),
-    players: [],
+    players: opcoes.jogadores ?? [],
     numPlayers: 1,
     setLevelExtras(x: ExtrasDoNivel<P>): void {
       r.powerups = x.powerups;
