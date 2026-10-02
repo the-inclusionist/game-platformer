@@ -87,7 +87,7 @@ const $ = <T extends Element = HTMLElement>(sel: string): T | null => document.q
 import { cityTiles } from './render/city-tiles.js'; // #16: os tiles da Cidade como dados, não como PNG // 7º menu: Comunicação Aumentada e Alternativa (ADR-0028)
 import { initTitle } from '@the-inclusionist/engine/ui/title.js';
 import { createTitleScene } from './render/title-scene.js'; // Fase 2.27: atalho de querySelector (Tier 1)
-import { shortLabellerFrom, presetActions, wordsOf, type Action } from '@the-inclusionist/engine/core/actions.js';
+import { shortLabellerFrom, wordsOf, type Action } from '@the-inclusionist/engine/core/actions.js';
 import { playerPrefix } from '@the-inclusionist/engine/ui/mobility-choices.js'; // o prefixo «Jogador N» dos anúncios em multi-tela
 import { platformerPreset } from './game/platformer-preset.js';
 import { isBlind, isLowVision, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js'; // os dois eixos (8.0.0): quem responde ao sonar
@@ -129,8 +129,6 @@ import { initScreenPipeline } from '@the-inclusionist/engine/render/screen-pipel
 import { initSecretAreas } from './game/secret-areas.js'; // D3-c: area secreta revelada por presenca + anuncio ao leitor de tela
 import { initPhysics, stepPlayer as stepPhysics } from './game/physics.js'; // B1: fisica do jogador (ancorada nas trajetorias-ouro)
 import { initQuiz } from './game/quiz.js'; // B3: o desafio educativo (geracao + markup + efeito)
-import { showReachNotice } from '@the-inclusionist/engine/ui/reach-notice.js'; // #112: diz ANTES quando o controle nao alcanca
-import { reach, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { initViewports } from '@the-inclusionist/engine/render/viewports.js'; // B2: fabrica de imagem dos modos de visao
 import { initSession } from './game/session.js'; // C2: o ciclo de vida da RODADA (MODE_LABELS/MODES saíram com o #opt-mode)
 import { initDraw } from './render/draw.js'; // C1: camera + o quadro + a escolha de quadro do personagem
@@ -528,52 +526,16 @@ setCoins(pickCoins(COIN_TARGET, coinPools())); // coins: mega-var 7 em core/stat
 /* ===================== input ===================== */
 // O REGISTRO DE OVERLAYS É O DA ENGINE (`engine.overlays`): os painéis são dela, e o `initSettingsPanel` desta raiz
 // — uma segunda pilha de z e uma segunda cadeia de Escape sobre o mesmo documento — saiu com a pausa por tela.
-// ⚠️ A ARMADILHA DE FOCO (issue #109). Nao existia em lado nenhum da engine, e `index.html` promete o
-// contrario: todo `.overlay__card` diz `aria-modal="true"`, que anuncia a tecnologia assistiva que o resto da
-// pagina esta inerte. O Tab discordava — saia do dialogo e entrava no tabuleiro por baixo, e quem usa leitor
-// de tela ficava num jogo cujo estado nao percebe, sem volta que perceba. Vai aqui e nao so no `createGame`
-// porque esta raiz NAO passa por ele.
+// O AVISO DE ALCANCE (issue #112) É DA ENGINE: o `createGame` mostra-o sozinho a partir do `preset` deste
+// cartucho e do `holdsAtOnce()` da declaração (`create-game.js:2007-2020`), e apaga o anterior antes. Esta raiz
+// chamava o seu, de quando NÃO passava pelo `createGame` — e o `showReachNotice` cria um `div` de id fixo, então
+// eram dois avisos iguais na página. A conta dos TRÊS (direção + correr + pular, medida na física) mora agora
+// onde a engine a lê: `declaration/platformer-declaration.holdsAtOnce`. A resposta ao aviso continua deste
+// jogo: a trava do botão de correr, que `travaDeCorrerNoToque` liga sozinha no toque.
 // A ARMADILHA DE FOCO E DA ENGINE (ADR-0253): o `createGame` chama `initFocusTrap` sozinho. Esta raiz
 // montava a sua porque NAO passava por ele — a razao acabou, e com ela a chamada.
 
 function ehToque(){ try{ return matchMedia('(pointer:coarse)').matches && matchMedia('(hover:none)').matches; }catch(e){ return 'ontouchstart' in window; } }
-// O AVISO DE ALCANCE (issue #112). Ligado aqui pelo mesmo motivo dos outros dois fios: esta raiz NAO passa
-// por `createGame`.
-// ⚠️ ELE PASSOU A DISPARAR NO TOQUE, E A FRASE QUE ESTAVA AQUI ESTAVA CERTA PELA PERGUNTA ERRADA. Dizia que
-// não dispara «porque este preset declara NOVE ações e o controle de tela tem exatamente nove LUGARES» — e
-// contar lugares responde se as ações CABEM, não se a criança consegue segurá-las ao mesmo tempo. A engine
-// 8.0.0 acrescentou a segunda pergunta (`seguraPedidas`), e é ela que este jogo reprova.
-//
-// TRÊS, medido na física e não estimado: correr para a direita e saltar são `right` + `action1` + `action2`
-// ao mesmo tempo. Direção segura-se (physics.ts:194,197), correr segura-se (:359,:362,:390) e pular
-// segura-se (:290 flutuar no fácil, :292 braçada na água, :167 trampolim).
-//
-// O acorde trocar+especial (:243) NÃO levanta a conta: tem rota alternativa — segurar trocar ~0,3s
-// sozinho. O campo pergunta o que o jogo EXIGE; contar uma conveniência relataria uma barreira que não há.
-//
-// E a conta é da ROTA PADRÃO, de propósito. Com a trava de corrida cai para dois, com as duas travas para
-// um — mas declarar dois seria declarar como exigência o que só é verdade depois de a criança ACHAR e
-// LIGAR a acomodação. O aviso é para quem ainda não a achou.
-//
-// 📏 Consequência, e ela é visível: só o toque declara teto (`SEGURA_TOQUE = 2`, transports.js:60);
-// teclado e pad não declaram nenhum. Então num tablet ou telemóvel o aviso aparece — e a resposta a ele é
-// a trava do botão de correr (`#opt-togglerun`), que põe a exigência em dois. Ver a nota de
-// `travaDeCorrerNoToque` mais abaixo, que é quem a liga sozinha no toque.
-showReachNotice(
-  { find: (sel) => $<HTMLElement>(sel), create: (tag) => document.createElement(tag), t, srAlert },
-  reach(defaultTransports({
-    gamepad: () => { try { return [...(navigator.getGamepads?.() ?? [])].some(Boolean); } catch (e) { return false; } },
-    // ⚠️ A MESMA pergunta que o `isCoarsePointer` do ctx de `game/session` faz (linha ~1324), escrita aqui e
-    // nao reutilizada: aquele e definido MAIS ABAIXO neste ficheiro, e chama-lo daqui cairia em TDZ e
-    // derrubaria o boot. A duplicacao e de UMA expressao e esta anotada dos dois lados.
-    touch: ehToque,
-    keyboard: () => !ehToque(),
-    // ⚠️ O RATO NÃO É UM TRANSPORTE À PARTE (ADR-0112): sozinho não carrega as catorze posições. Ele é o
-    // SINAL CONTÍNUO ao lado do teclado, e por isso entra como pergunta de DISPOSITIVO — medida como as
-    // outras três, e não deduzida de `!ehToque()`: um portátil com ecrã táctil tem os dois.
-    mouse: () => { try { return matchMedia('(pointer:fine)').matches; } catch (e) { return false; } },
-  }), presetActions(platformerPreset()), 3),
-);
 // As seis flags `*Open` que moravam aqui morreram: quem sabe se um painel esta aberto e o proprio DOM, e o
 // registro de ui/settings-panel le de la (D1). `jumpEdge` estava nesta mesma linha e tambem morreu: era
 // global sem leitor nenhum — a borda de pulo que o jogo usa e `p.jumpEdge`, campo do jogador, outra coisa.

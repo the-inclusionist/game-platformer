@@ -2,15 +2,17 @@
 // O AVISO DE ALCANCE, DO LADO DO JOGO (issue #112, ADR-0091).
 //
 // ⚠️ ESTE FICHEIRO VEIO DA ENGINE NA SEPARACAO DO CARTUCHO (issue #111), e o motivo da mudanca e' o que ele
-// afere: as duas asseercoes falam do JOGO, nao da engine. Uma le o fonte de `main.ts` — que e' a raiz de
-// composicao deste repositorio — e a outra afirma que o preset REAL do plataforma tem NOVE acoes.
+// afere: as asseercoes falam do JOGO, nao da engine — o que este cartucho entrega ao aviso (o preset REAL,
+// com OITO acoes, e a declaracao a pedir TRES seguradas) e que a raiz ja nao mostra um segundo.
 //
-// Com o cartucho fora da engine, nenhuma das duas era aferivel la', e falsificar o preset teria apagado
-// exatamente o que elas provam. O TEXTO do aviso continua a ser gate da engine, onde sempre foi.
+// Com o cartucho fora da engine, nada disto era aferivel la', e falsificar o preset teria apagado exatamente
+// o que estes casos provam. O TEXTO do aviso continua a ser gate da engine, onde sempre foi.
 import { describe, it, expect } from 'vitest';
 import { reach, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { presetActions } from '@the-inclusionist/engine/core/actions.js';
 import { platformerPreset } from '../app/js/game/platformer-preset.js';
+import { createPlatformerDeclaration } from '../app/js/declaration/platformer-declaration.js';
+import { DEPS_VIVAS } from '../app/js/declaration/live.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -21,15 +23,22 @@ const sempre = () => true;
 // pergunta da `Disponibilidade` na engine 8.0.0 (ADR-0112) — um rato sozinho nao carrega as catorze posicoes.
 const soToque = () => defaultTransports({ gamepad: nunca, keyboard: nunca, touch: sempre, mouse: nunca });
 
-describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', () => {
-  // Ler o fonte pelo mesmo motivo do `loop-crash`: `main.ts` arranca PixiJS, audio e o documento inteiro, e
-  // nao entra num teste. Mas e' ele quem monta a engine a mao, e a alternativa a ler o fonte era nao aferir
-  // nada — que foi o estado em que `input/transports` ficou sem consumidor nenhum.
-  const FONTE = readFileSync(join(process.cwd(), 'app', 'js', 'main.ts'), 'utf8');
+describe('o aviso e da engine, e este cartucho entrega-lhe as duas respostas que ele pede', () => {
+  // ⚠️ ATE 02/10 ESTE CASO PROVAVA O CONTRARIO: que `main.ts` chamava `showReachNotice` ele mesmo, porque a raiz
+  // nao passava por `createGame`. Passou a passar, e o `createGame` mostra o aviso sozinho a partir do `preset` e
+  // do `holdsAtOnce()` (`create-game.js:2007-2020`) — com a chamada da raiz eram DOIS avisos de id igual. Ler o
+  // fonte continua a ser a unica forma de aferir a raiz, que arranca PixiJS e nao entra num teste.
+  const RAIZ = readFileSync(join(process.cwd(), 'app', 'js', 'main.ts'), 'utf8');
+  const CARTUCHO = readFileSync(join(process.cwd(), 'src', 'index.ts'), 'utf8');
 
-  it('[Right] a raiz chama o aviso com as acoes do PROPRIO preset', () => {
-    expect(FONTE).toContain('showReachNotice');
-    expect(FONTE).toContain('presetActions(platformerPreset())');
+  it('[Right] o cartucho entrega o PROPRIO preset nos ganchos, e a declaracao pede TRES', () => {
+    expect(CARTUCHO).toMatch(/preset:\s*platformerPreset\(\)/);
+    // TRES e literal: direcao + correr + pular, medido na fisica (ver `holdsAtOnce` na declaracao).
+    expect(createPlatformerDeclaration(DEPS_VIVAS).holdsAtOnce()).toBe(3);
+  });
+
+  it('[Wrong] a raiz ja nao mostra um segundo aviso', () => {
+    expect(RAIZ).not.toMatch(/showReachNotice\s*\(/);
   });
 
   // OITO, e eram nove: o `start` saiu do preset quando a pausa passou a ser da engine, que recusa um preset que
@@ -58,13 +67,9 @@ describe('a raiz deste jogo mostra o aviso, e ela nao passa por `createGame`', (
 
   it('[Right] com a trava do botao de correr, a exigencia cai para duas e o toque alcanca', () => {
     // E o que torna `#opt-togglerun` a RESPOSTA ao aviso, e nao um ajuste qualquer: com a corrida engatada
-    // sobram direcao e pulo. Quem liga a trava sozinha no toque e' o `onTouchControlsShown` de `main.ts`.
+    // sobram direcao e pulo. Quem liga a trava sozinha no toque e' o `travaDeCorrerNoToque` de `main.ts`.
     expect(reach(soToque(), presetActions(platformerPreset()), 2).ok).toBe(true);
   });
-
-  it('[Interface] a raiz declara TRES, e nao um numero qualquer', () => {
-    // O terceiro argumento de `alcance` e' a declaracao deste jogo sobre a barreira que a crianca encontra.
-    // Aferido no fonte pelo mesmo motivo do caso de cima: `main.ts` nao entra num teste.
-    expect(FONTE).toMatch(/presetActions\(platformerPreset\(\)\),\s*3\)/);
-  });
+  // (O caso «a raiz declara TRES» saiu: o TRES passou da chamada da raiz para `holdsAtOnce()` da declaracao, e o
+  //  primeiro caso deste bloco afere-o la', no objeto, em vez de numa expressao regular sobre o fonte.)
 });
