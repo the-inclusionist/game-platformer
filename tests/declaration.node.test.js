@@ -140,3 +140,15 @@ describe('a topologia acompanha o mundo', () => {
     expect(arreio().tick).toBe('clock');
   });
 });
+
+// 🔴 O MUNDO VAZIO TEM DE PASSAR NO CONTRATO, e este caso nasceu de o jogo NAO ARRANCAR. A declaracao estatica
+// (ADR-0253) responde antes de `create()` a partir do suporte de `declaration/live`, e o `createGame` le-a no
+// arranque, antes da fabrica. Em 27/09 o mundo vazio media 0x0 — «nao ha mundo», verdade — e o contrato recusa
+// extensao zero (`topology.size: every extent must be positive`): a pagina parava ali, e nenhum teste o via,
+// porque todos os outros casos deste ficheiro montam um arreio com mundo de verdade.
+describe('a declaracao do cartucho, antes de a fabrica correr', () => {
+  it('[Right] o mundo vazio cumpre o contrato da engine', async () => {
+    const { DEPS_VIVAS } = await import('../app/js/declaration/live.js');
+    expect(conformanceProblems(createPlatformerDeclaration(DEPS_VIVAS))).toEqual([]);
+  });
+});

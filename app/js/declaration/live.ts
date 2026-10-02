@@ -12,7 +12,7 @@
 // vazio**.
 //
 // 📌 ANTES DE `create()`, ESTAS SÃO RESPOSTAS HONESTAS e não espera-reservada: não há alvo nenhum, não há
-// criança em nenhum assento, e o mundo tem o tamanho de um nível que ainda não foi carregado. É exatamente
+// criança em nenhum assento, e o mundo tem o tamanho de uma tela, porque o nível ainda não foi carregado. É exatamente
 // o que o checador precisa de poder perguntar, e é o que ele vai ouvir.
 //
 // ⚠️ O SUPORTE É ÚNICO, e isso é coerente com o `ADR-0142` e não apesar dele: a engine monta UM cartucho de
@@ -21,6 +21,7 @@
 import type { CartridgeHooks } from '@the-inclusionist/engine';
 import type { Player } from '@the-inclusionist/engine/core/entity.js';
 import type { DeclarationDeps } from './platformer-declaration.js';
+import { LOGICAL_W, LOGICAL_H } from '@the-inclusionist/engine/core/constants.js';
 
 /** As medidas de um mundo que ainda não foi carregado. O lado do tile é o deste jogo e não muda com o nível. */
 const TILE_DO_JOGO = 16;
@@ -29,13 +30,17 @@ const TILE_DO_JOGO = 16;
  * O que este jogo responde ANTES de a fábrica correr. Cada linha é uma afirmação verdadeira sobre o estado
  * «nada montado», e nenhuma é um valor de enchimento:
  *
- * · o mundo tem tamanho zero porque o ficheiro do nível ainda não chegou da rede;
+ * · o mundo tem o tamanho de UMA TELA, porque o ficheiro do nível ainda não chegou da rede e o que existe para
+ *   a criança é o ecrã lógico. 🔴 Era zero, e zero recusava o arranque: `core/contract` exige toda extensão
+ *   positiva (`topology.size: every extent must be positive`), e o `createGame` lê a declaração ANTES de a fábrica
+ *   correr. Zero dizia «não há mundo», que é verdade; a tela diz «o mundo que há é este», que também é — e é a
+ *   única das duas que o contrato aceita;
  * · não há tile em lado nenhum, e `null` é como esta declaração diz «fora da grade»;
  * · não há alvo a colher nem criança a olhar para lado nenhum;
  * · o progresso é zero de zero — e não zero de dez, que seria inventar um objetivo.
  */
 const MUNDO_VAZIO: DeclarationDeps = {
-  mundo: () => ({ larguraPx: 0, alturaPx: 0, tile: TILE_DO_JOGO }),
+  mundo: () => ({ larguraPx: LOGICAL_W, alturaPx: LOGICAL_H, tile: TILE_DO_JOGO }),
   tipoDoTile: () => null,
   ehSolido: () => false,
   alvosDe: () => [],
