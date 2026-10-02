@@ -1,0 +1,22 @@
+# Router Worker — ver `README.md` neste diretorio.
+name = "o-inclusionista-router"
+main = "src/index.js"
+compatibility_date = "2024-11-15"
+
+# As rotas que este Worker intercepta no zone `jrocha.dev.br`. Tudo o que nao casa com estes padroes passa
+# para o projeto Pages do site, inalterado — o Worker nem sequer corre.
+
+[[routes]]
+pattern = "o-inclusionista.jrocha.dev.br/game-platformer/*"
+zone_name = "jrocha.dev.br"
+
+[[routes]]
+pattern = "o-inclusionista.jrocha.dev.br/heavy/*"
+zone_name = "jrocha.dev.br"
+
+# ⚠️ UMA ROTA POR JOGO. Para acrescentar `game-chess`, descomenta-se a linha aqui E a entrada em `GAMES`
+# dentro de `src/index.js`. Nao e' preciso tocar em nenhum repo de jogo nem no do site.
+#
+# [[routes]]
+# pattern = "o-inclusionista.jrocha.dev.br/game-chess/*"
+# zone_name = "jrocha.dev.br"
