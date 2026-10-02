@@ -11,25 +11,45 @@ pela engine) e, ao servir OUTROS jogos da **mesma origem**, reutiliza o que já 
 
 ## Pré-requisitos (uma vez na máquina)
 
-```bash
+PowerShell:
+```powershell
 npm i -g wrangler
 wrangler login            # autenticar na conta Cloudflare onde o bucket vive
 ```
 
+Git Bash (equivalente):
+```bash
+npm i -g wrangler && wrangler login
+```
+
 ## 1. Build de produção
 
+PowerShell:
+```powershell
+$env:INCL_BASE = '/game-platformer/'
+npx vite build
+```
+
+Git Bash (nota: `MSYS_NO_PATHCONV=1` para o Git Bash não traduzir o `/game-platformer/` para um caminho do
+Windows):
 ```bash
 MSYS_NO_PATHCONV=1 INCL_BASE=/game-platformer/ npx vite build
 ```
 
-A variável `MSYS_NO_PATHCONV` é para o Git Bash não traduzir o `/game-platformer/` para um caminho do
-Windows. No Pages a variável vem do `wrangler.toml` e isto não acontece.
+Em qualquer das duas, verifica rápido que o build ficou com os caminhos corretos:
 
-Verifica rápido que o build ficou com os caminhos corretos:
+PowerShell:
+```powershell
+Select-String -Path dist\index.html -Pattern '/game-platformer/' | Select-Object -First 5
+```
 
+Git Bash:
 ```bash
 grep -o '"/game-platformer/[^"]*"' dist/index.html | head
 ```
+
+📌 No Pages (deploy no servidor) a variável `INCL_BASE` vem do `wrangler.toml` e nenhum destes truques é
+preciso — isto é só para builds locais.
 
 ## 2. Primeiro deploy (cria o projeto Pages)
 
