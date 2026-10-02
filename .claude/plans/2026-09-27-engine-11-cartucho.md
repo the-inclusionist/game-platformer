@@ -121,6 +121,51 @@ pergunta, não renomeação.
 
 ⚠️ **E a árvore está vermelha de propósito**, com duas barras e dois cartões de pausa enquanto a deleção
 não terminar: o `createGame` já monta a pilha e este jogo ainda desenha a sua.
+
+### Estado em 02/10, 14h
+
+Seis commits novos, nenhum empurrado (o Dev empurrou os treze anteriores). **129 erros de tipo**, todos em
+`app/js/main.ts` — fora dele o compilador está limpo. Três agentes trabalharam em ficheiros disjuntos e cada
+um correu só os seus testes, com mutação a provar que os casos novos mordem: as telas passaram a nascer no
+documento que a raiz entrega (`cd2ed42`); o estado persistido, o *juice* e os menus recebem loja e barramento,
+com as chaves gravadas idênticas byte a byte às da 9.0.0 (`c4de960`); cenas, física, quiz e guia sonoro falam a
+11 (`ab3f350`), e isso destapou um defeito real — os geradores «puros» do quiz liam um `t` de módulo que só o
+`initQuiz` preenche. O build do cartucho passou a ser o `defineGameBuild` da engine (`9194aa5`, passo 6). E a
+raiz deixou de possuir o que o `createGame` possui (`deb1dc8`, `641fc15`): a loja de ajustes — uma segunda
+guardava valores próprios em memória, e o alto contraste ligado na barra não chegava ao jogo —, os singletons
+de módulo, os sete painéis de ajustes e o runtime de teclado. O que só este jogo faz quando um ajuste muda
+ficou, como escuta na loja da engine que o `teardown()` solta.
+
+**O que a execução descobriu e muda o resto do trabalho.** Uma raiz de `createGame` desenha **uma** tela: um
+cartão de pausa (`#vp-pause-0`), uma barra e um HUD, todos do assento 0 (`create-game.js:2508-2519`, `:2133`).
+O ADR-0144 diz que telas separadas são raízes separadas, cada uma com a sua pausa; e se quatro raízes podem
+conviver numa página é desconhecido, porque a raiz procura `#vp-pause-0` e `#game-region` no documento
+inteiro. Este jogo é de tela dividida para um a quatro jogadores, com pausa e HUD por tela. Por isso as
+quatro peças que ainda faltam — a pausa, a barra, o HUD e o `initShell` (que na 11 continua a exigir
+`openTypo`, `openAudio`, `buildScreenPause`: é a casca antiga deste jogo mantida viva na engine, e o
+`createGame` não a usa) — não se resolvem por deleção mecânica. Dependem da decisão abaixo.
+
+**Também por medir, e não adivinhado:** as cores por papel do alto contraste não têm evento na loja, e com o
+painel da engine não se sabe ainda como o jogo fica a saber que mudaram; a trava de correr no toque passou a
+perguntar ao aparelho, porque a engine não avisa quando mostra o pad. As duas ficam para o navegador.
+
+### A decisão que falta: a pausa e o HUD numa tela dividida
+
+**(A) Adotar a pausa e o HUD da engine, uma tela.** O cartão é um só, aberto pelo START de qualquer
+jogador, e o `setPauseActor` diz à engine de que assento são os ajustes que se editam ali — o mundo é um só,
+então pausar já parava os quatro. O HUD da engine cobre o assento 0; as moedas dos assentos 1–3 ficam
+desenhadas pelo jogo na tela de cada um, ou saem. **Consequência:** cumpre o pedido de 07/09 («todo jogo da
+engine deve ter o mesmo menu de pausa e ícones») e a verificação «uma barra e um cartão», e os jogadores 2–4
+perdem o cartão próprio na sua tela. É o caminho que recomendo.
+
+**(B) Manter a pausa e o HUD por tela deste jogo ao lado do `createGame`.** **Consequência:** duas pausas na
+página — a da engine, que não se desliga (ADR-0120/0122), e a deste jogo —, contra o pedido de 07/09; e a
+casca antiga continua a pedir os painéis que a engine já monta.
+
+**(C) Pedir à engine cartões e HUD por assento numa raiz só.** **Consequência:** é trabalho do repositório da
+engine (outra sessão), e este jogo espera ou faz (A) enquanto isso. Pode somar-se a (A) depois, se a pausa por
+tela fizer falta às crianças.
+
 ## Passos
 
 1. **Subir e deixar o compilador enumerar.** `peerDependencies`/`devDependencies` para `^11.0.0`; `npm ci`
@@ -177,3 +222,6 @@ módulos que vieram para casa **ficam** — não voltam para a engine.
 - Cada acomodação, uma a uma.
 - `uses.fonts` (depois de medir se o jogo desenha fora das famílias da engine), `genero`, `uses.neuralVoice`.
 - Publicar o pacote — e o `git push`, que nunca é meu.
+- A pausa e o HUD numa tela dividida: (A), (B) ou (C) acima.
+- Se o cartucho recebe o armazenamento pelo `ctx` em vez de abrir o `localStorage` (hoje abre um invólucro
+  sem memória sobre o mesmo armazenamento da engine; mudar é mexer no contrato do cartucho).
