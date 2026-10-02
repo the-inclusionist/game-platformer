@@ -13,16 +13,24 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CVD_KEYS, CVD_MATRIX, CVD_SVG_ID, installCvdFilters } from '@the-inclusionist/engine/render/cvd-matrices.js';
 import { initViewports } from '@the-inclusionist/engine/render/viewports.js';
-import { initHighContrast } from '@the-inclusionist/engine/render/high-contrast.js';
+import { createHighContrast } from '@the-inclusionist/engine/render/high-contrast.js';
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // outlineFg > 0 → directSpriteTexture realmente contorna (com 0 ela devolve a origem e o teste do cache de
 // player não poderia falhar). Os campos de mundo/moeda não são exercitados aqui.
-initHighContrast({
-  W: 1, H: 1, outlineFg: () => 1, outlineBg: () => 0,
+// ENGINE 11 (ADR-0232): o alto contraste deixou de ser estado de MÓDULO (`initHighContrast`) e virou uma INSTÂNCIA
+// por mundo (`createHighContrast`), que o `initViewports` recebe em `ctx.hc` — paleta e caches moram no fechamento
+// dela, e dois mundos na mesma página não partilham nada. O arreio faz o papel da raiz: UMA instância para o
+// ficheiro (como era o estado de módulo), com o documento passado (`doc`), um `tileAt` que não é perguntado aqui e
+// um store SÓ SEU (`memoryBackend()`) de onde as cores de papel voltam nos padrões.
+const hc = createHighContrast({
+  doc: document,
+  W: 1, H: 1, tileAt: () => 0, outlineFg: () => 1, outlineBg: () => 0,
   getWorldCanvasNormal: () => null, getWorldTexNormal: () => null,
   sprites: () => ({}), roleOf: () => null,
+  store: createStorage(memoryBackend()),
 });
 
 const flatCanvas = (w, h, css) => {
@@ -43,10 +51,14 @@ function mkCtx(over = {}) {
     parallaxTexNormal: [fakeTex(flatCanvas(8, 8, '#3060c0')), fakeTex(flatCanvas(8, 8, '#20a040')), fakeTex(flatCanvas(8, 8, '#c04020'))],
     getTreeTexNormal: () => treeTexNormal,
     getLvOverlaySpr: () => spr,
-    // `renderer` virou a CAPACIDADE `renderizarEm` (Fase D): o módulo pede o verbo, não o objeto do PixiJS.
-    renderizarEm: (obj, alvo, limpar) => rendered.push([obj, { renderTexture: alvo, clear: limpar }]),
+    // `renderer` virou a CAPACIDADE `renderizarEm` (Fase D): o módulo pede o verbo, não o objeto do PixiJS. Na
+    // engine 11 o verbo se chama `renderInto` (`RenderInto` de `render/port`), com os mesmos três argumentos.
+    renderInto: (obj, alvo, limpar) => rendered.push([obj, { renderTexture: alvo, clear: limpar }]),
     getVpTex: () => ['RT0', 'RT1'],
     cvdDefsHost: null,
+    // O documento das canvases do overlay — passado, nunca o global (ADR-0232); aqui é o do Chromium.
+    doc: document,
+    hc,
     ...over,
   };
   return { ctx, rendered, spr, treeTexNormal };

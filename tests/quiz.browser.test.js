@@ -22,7 +22,23 @@ const players = rodada.players;
 const setNumPlayersValue = (n) => rodada.setNumPlayers(n);
 
 import { setActivityValue } from '../app/js/game/state.js'; // GAME desde a Fase B (ADR-0038)
-import { setCoins, coins, setQuizLevelValue } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
+import { setCoins, coins, setQuizLevelValue, initGameState } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
+
+// ENGINE 11 (ADR-0232 D4): `game/state` não lê mais `localStorage` no import nem emite pelo barramento de módulo — a
+// raiz entrega os dois em `initGameState`, e os setters (`setQuizLevelValue`, `setActivityValue`) LANÇAM antes
+// disso. O arreio faz o papel da raiz com um armazenamento SÓ SEU (`memoryBackend()`: nada vai ao `localStorage`
+// do Chromium) e um barramento mudo, porque nada aqui assina eventos; quem afere eventos e chaves é
+// `tests/state-bus.node.test.ts`.
+initGameState({ store: createStorage(memoryBackend()), bus: { emit() { /* ninguém assina neste arreio */ } } });
+// O TRADUTOR DA RAIZ (ADR-0232 D3, nota CV): `initQuiz` traduz pelo `ctx.t`, e os geradores de matemática o
+// recebem por `MathDeps.t` — sem ele, gerar uma pergunta devolvia a CHAVE no lugar da frase. Um tradutor de
+// verdade, com os dicionários do jogo por cima dos da engine (o que o `createGame` faz), porque os casos afirmam
+// frases em português; as expectativas seguem LITERAIS, não lidas da mesma tabela.
+const tradutor = createTranslator();
+for (const [lingua, frases] of Object.entries(DICIONARIOS)) tradutor.registerDict(lingua, frases);
 
 
 const $ = (sel) => document.querySelector(sel);
@@ -36,6 +52,7 @@ function makeCtx(over = {}) {
   const log = { srSay: [], srAlert: [], gameSay: [], narrate: [], sfx: [], puzzle: 0, sparkle: [], hideTouch: 0, updateHud: 0, win: [], respawn: [], sync: [] };
   const ctx = {
     rng,
+    t: tradutor.t,
     getPlayers: () => rodada.players, getNumPlayers: () => rodada.numPlayers,
     $,
     getScreen: (i) => document.querySelector(`#screen-${i}`),

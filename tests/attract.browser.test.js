@@ -4,6 +4,19 @@
 // (getters p/ bindings vivos). Ver docs/5-Refactoring/plano-modularizacao-mapa.md (Tier 1, game/attract).
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createAttract } from '../app/js/game/attract.js';
+import { createStorage } from '@the-inclusionist/engine/platform/storage.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
+
+// ENGINE 11 (ADR-0232 D4): o store chega pelo ctx (`AttractCtx.store`), e o arreio faz o papel da raiz. O
+// backend é o `localStorage` DE VERDADE do Chromium, e não um `memoryBackend()`, de propósito: dois casos semeiam
+// e leem a chave CRUA pelos literais (`incl_attract_campo` → `incl.inclusionist.attract_campo`), e é isso que prova
+// a herança da chave antiga e o nome da nova sem ler a tabela `KEYS` que o módulo também lê.
+const store = createStorage(localStorage);
+// O TRADUTOR DA RAIZ (ADR-0232 D3, nota CV): `createAttract` guarda o `ctx.t` na fábrica e o chama no anúncio da
+// demo e no da gravação; sem ele o caso morre num `undefined is not a function` que nada tem a ver com a demo.
+const tradutor = createTranslator();
+for (const [lingua, frases] of Object.entries(DICIONARIOS)) tradutor.registerDict(lingua, frases);
 
 function setup(over = {}) {
   document.body.innerHTML = '<div id="title-overlay"></div><div id="game-region"></div>';
@@ -12,6 +25,8 @@ function setup(over = {}) {
   const keys = new Set();
   const said = [], alerted = [];
   const ctx = {
+    t: tradutor.t,
+    store,
     CENARIOS: { campo: { nome: 'Campo' }, floresta: { nome: 'Floresta' } },
     keys,
     getPlayers: () => [player],

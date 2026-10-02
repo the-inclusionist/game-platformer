@@ -6,7 +6,7 @@
 // vira botão clicável, que o rodapé de descrição escreve no `.tm-desc` do PRÓPRIO submenu (via closest), que
 // navTitle move o document.activeElement, e que o rótulo abreviado anima no hover. Injeção por closure (mesmo
 // padrão de ui/settings-motion): ctx com spies; `core/state.ts`, `educational/activities-registry.ts` e
-// `platform/storage.ts` são os módulos REAIS, que initActivitiesMenu importa direto.
+// `platform/storage.ts` são os módulos REAIS — o store chega pelo ctx desde a engine 11 (ADR-0232 D4), não por import.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { initActivitiesMenu, attachAbbr, TITLE_MENU_ORDER } from '../app/js/ui/activities-menu.js';
 import { createRunState } from '../app/js/core/run-state.js';
@@ -26,22 +26,39 @@ let ACTIVITY = 'alf1'; // literal, e não `DEFAULT_ACTIVITY_ID`: ao contrário d
                        // não importa o catálogo — e importá-lo só para semear um valor seria acoplar o gate
                        // a uma tabela que ele não testa.
 // ⚠️ O SETTER GRAVA, e nao e' detalhe: o `setActivityValue` de `game/state` fazia
-//   `activity = id; store.set(store.KEYS.activity(JOGO), id); emit(...)`
+//   `activity = id; store.set(KEYS.activity(JOGO), id); emit(...)`
 // e cinco casos deste ficheiro afirmam contra o ARMAZENAMENTO, nao contra a variavel. Um falso que so
 // atribuisse deixaria `store.get(...)` a devolver null e os casos a reprovar por um motivo que nada tem
 // a ver com o que eles testam. O `emit` fica de fora porque nenhum caso aqui o observa.
-const setActivityValue = (v) => { ACTIVITY = v; store.set(store.KEYS.activity(JOGO), v); };
+const setActivityValue = (v) => { ACTIVITY = v; store.set(KEYS.activity(JOGO), v); };
 import { modeForActivity } from '@the-inclusionist/engine/educational/activities-registry.js';
-import * as store from '@the-inclusionist/engine/platform/storage.js';
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
+import { KEYS } from '@the-inclusionist/engine/platform/storage-keys.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
+
+// ENGINE 11 (ADR-0232 D4): `platform/storage` não tem mais `get/set/KEYS` de módulo — exporta `createStorage`, e o
+// registro de chaves mora em `platform/storage-keys`. O arreio faz o papel da raiz com um store SÓ SEU
+// (`memoryBackend()`: nada vai ao `localStorage` do Chromium, nenhuma chave vaza de outro ficheiro) e o entrega no
+// ctx; os casos afirmam contra ESTE store, com os nomes reais de `KEYS`.
+const store = createStorage(memoryBackend());
+// O TRADUTOR É O DA RAIZ (ADR-0232 D3, nota CV): um tradutor de verdade, com os dicionários do jogo por cima dos da
+// engine (o que o `createGame` faz), porque os casos afirmam frases em português ('Tabuada', 'Divisão', a
+// descrição da notação) — uma identidade devolveria as CHAVES e reprovaria por outro motivo.
+const tradutor = createTranslator();
+for (const [lingua, frases] of Object.entries(DICIONARIOS)) tradutor.registerDict(lingua, frases);
+// O ÍNDICE "N de M" é um ajuste da criança (`settings.menuIndexOn`), lido pelo getter a cada anúncio.
+let INDICE = true;
 
 const $ = (sel) => document.querySelector(sel);
 
 function markup() {
   // Espelha o index.html: um overlay com os 6 submenus (só o tm-main visível) — os 5 dinâmicos são escritos
-  // por buildTitleMenus(); o tm-main é estático, com o seletor de nº de jogadores.
+  // por buildTitleMenus(); o tm-main é estático, com o seletor de nº de jogadores. TITLE_MENU_ORDER é um
+  // `ReadonlySet` na engine 11: a ordem de inserção É a do menu, e o espalhamento a preserva.
   document.body.innerHTML = `
     <div id="title-overlay">
-      ${TITLE_MENU_ORDER.map((id) => `<div id="${id}" class="title-menu"${id === 'tm-main' ? '' : ' hidden'}></div>`).join('')}
+      ${[...TITLE_MENU_ORDER].map((id) => `<div id="${id}" class="title-menu"${id === 'tm-main' ? '' : ' hidden'}></div>`).join('')}
     </div>`;
   $('#tm-main').innerHTML = `
     <button class="title-btn" data-tm="ludico" type="button">Lúdico</button>
@@ -53,7 +70,10 @@ function markup() {
 function makeCtx(over = {}) {
   const calls = { said: [], alerted: [], shown: [], mode: [], quizLevel: [], cenario: [], numPlayers: [], restart: 0, phase: [], hideTips: 0, fullscreen: 0 };
   const ctx = {
+    t: tradutor.t,
     gameId: JOGO, // ADR-0080: quem sabe o id do jogo e o jogo
+    store, // ADR-0232 D4: o store da raiz, por injeção
+    menuIndexOn: () => INDICE,
   getPlayers: () => rodada.players, getNumPlayers: () => rodada.numPlayers,
     $,
     getActiveElement: () => document.activeElement,
@@ -84,7 +104,8 @@ function clickAndSettle(el) { el.click(); vi.advanceTimersByTime(230); }
 
 beforeEach(() => {
   markup();
-  store.remove(store.KEYS.tabsel(JOGO)); store.remove(store.KEYS.fracnot(JOGO));
+  store.remove(KEYS.tabsel(JOGO)); store.remove(KEYS.fracnot(JOGO));
+  INDICE = true;
   setActivityValue('ludico');
   players.length = 0; players.push({ alfWins: 3 });
   setNumPlayersValue(1);
@@ -193,11 +214,11 @@ describe('seleção persistida sobrevive à reconstrução do menu', () => {
     expect($('#tm-tab button[data-tab-n="3"]').getAttribute('aria-pressed')).toBe('false');
     clickAndSettle($('#tm-mat button[data-act-id="mat6"]')); // rebuild do submenu
     expect($('#tm-tab button[data-tab-n="3"]').getAttribute('aria-pressed')).toBe('false');
-    expect(store.getJSON(store.KEYS.tabsel(JOGO))).not.toContain(3);
+    expect(store.getJSON(KEYS.tabsel(JOGO))).not.toContain(3);
   });
 
   it('a notação ligada aparece realçada no markup reconstruído', () => {
-    store.setJSON(store.KEYS.fracnot(JOGO), { v: 0, d: 0, dec: 1, pct: 0, mix: 0 });
+    store.setJSON(KEYS.fracnot(JOGO), { v: 0, d: 0, dec: 1, pct: 0, mix: 0 });
     const { ctx } = makeCtx();
     initActivitiesMenu(ctx);
     // O estado deixou de ser SÓ cor de fundo (`.tab-on`) e passou a ter marca visível e `aria-checked` —
@@ -212,7 +233,7 @@ describe('seleção persistida sobrevive à reconstrução do menu', () => {
     // O buraco que este caso fecha era meu: eu gateei o MARKUP INICIAL (`fracNotsHtml`) e não a ALTERNÂNCIA.
     // O handler continuou escrevendo `tab-on`/`aria-pressed` — os atributos de antes —, então o estado mudava
     // por dentro e a tela não dizia nada. MEDIDO no navegador: clicar não mexia em marca nenhuma.
-    store.setJSON(store.KEYS.fracnot(JOGO), { v: 1, d: 1, dec: 1, pct: 0, mix: 0 });
+    store.setJSON(KEYS.fracnot(JOGO), { v: 1, d: 1, dec: 1, pct: 0, mix: 0 });
     const { ctx } = makeCtx();
     initActivitiesMenu(ctx);
     const pct = $('#tm-fr button[data-fnot="pct"]');
