@@ -125,4 +125,25 @@ export const GANCHOS_VIVOS: GanchosVivos = {
   setPauseActor: (i, ...resto) => ganchos.vivos?.setPauseActor?.(i, ...resto),
   setPlayerTheme: (i, tema) => ganchos.vivos?.setPlayerTheme?.(i, tema),
   setPlayerCorrection: (i, correcao) => ganchos.vivos?.setPlayerCorrection?.(i, correcao),
+  /*
+   * O QUE SÓ ESTE JOGO SABE DO GAMEPAD (`GamepadGameHooks`): a engine monta o transporte e lê os pads sozinha; daqui
+   * saem o título, a demonstração, o desafio, quem entra e quem renasce, o selo e o desenho do assistente.
+   *
+   * ⚠️ DECLARADOS TODOS, e o mundo vazio responde por cada um: nada corre, ninguém entra, não há desafio aberto.
+   * Um campo ausente teria o significado escrito pela engine («o mundo corre sempre que o cartão não está aberto»),
+   * e antes de `create()` isso seria mentira.
+   */
+  gamepad: {
+    worldRunning: () => ganchos.vivos?.gamepad?.worldRunning?.() ?? false,
+    navTitle: (k) => ganchos.vivos?.gamepad?.navTitle?.(k),
+    attractActive: () => ganchos.vivos?.gamepad?.attractActive?.() ?? false,
+    stopAttract: () => ganchos.vivos?.gamepad?.stopAttract?.(),
+    hasModal: (i) => ganchos.vivos?.gamepad?.hasModal?.(i) ?? false,
+    modalInput: (i, intent) => ganchos.vivos?.gamepad?.modalInput?.(i, intent),
+    joinPlayer: (pad) => ganchos.vivos?.gamepad?.joinPlayer?.(pad) ?? false,
+    respawnPlayer: (i) => ganchos.vivos?.gamepad?.respawnPlayer?.(i),
+    clearWaitingBadge: (i) => ganchos.vivos?.gamepad?.clearWaitingBadge?.(i),
+    wizardStep: (posicao) => ganchos.vivos?.gamepad?.wizardStep?.(posicao),
+    wizardTick: () => ganchos.vivos?.gamepad?.wizardTick?.(),
+  },
 };

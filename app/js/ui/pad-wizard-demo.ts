@@ -7,9 +7,9 @@
  * para o platformer»). The ORDER of the questions is the engine's; the sprites and the moves are this game's, and an
  * engine that describes one game's boy is the defect ADR-0228 removes.
  *
- * ⚠️ NOT WIRED YET, on purpose: this repository pins engine 9.0.0, whose `initGamepad` still draws the demonstration
- * itself from `spriteBase`. The engine version that asks for `wizardStep`/`wizardTick` is the day these two are
- * passed — and it is the compiler that will ask, the same way the `tileAt` port waited in `initHighContrast`.
+ * 📌 WIRED since engine 11, through the cartridge's `gamepad.wizardStep`/`wizardTick` hooks (`ligarGanchos` in
+ * `main.ts`). The engine mounts `#padwiz` with its own markup, so the root creates the `#padwiz-demo` box inside the
+ * engine's card the first time the wizard asks for a step.
  */
 import './pad-wizard-demo.css';
 
@@ -29,7 +29,7 @@ export const PADWIZ_ANIM: Readonly<Record<string, WizAnimDef>> = Object.freeze({
 });
 
 export interface PadWizardDemoCtx {
-  /** The page's element lookup — the demonstration lives in `#padwiz-demo`, in this game's `index.html`. */
+  /** The page's element lookup — the demonstration lives in `#padwiz-demo`, inside the engine's `#padwiz` card. */
   $: <T extends Element>(sel: string) => T | null;
   /** Where this game's sprites are served from, ending in `/`. */
   spriteBase: string;

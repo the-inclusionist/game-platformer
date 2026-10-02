@@ -54,7 +54,7 @@ import type { Player, PlayerView } from '@the-inclusionist/engine/core/entity.js
 import type { GamePlayer, ControlledGamePlayer } from './game/entity.js'; // as deste JOGO — ver `jogadores`/`controlados`
 import type { ModalIntent, ControlsSnapshot } from '@the-inclusionist/engine/input/keydown.js'; // a intenção direcional do ADR-0033
 import type { RenderTextureLike, SpriteLike, GraphicsLike } from '@the-inclusionist/engine/render/screen-pipeline.js'; // o ctx de lá declara estes
-import type { MotionSceneKey, MotionSceneFlags, MotionCharDef } from '@the-inclusionist/engine/ui/settings-motion.js'; // as quatro chaves de movimento reduzido
+import type { MotionSceneKey, MotionSceneFlags } from '@the-inclusionist/engine/ui/settings-motion.js'; // as quatro chaves de movimento reduzido
 import { quizLevel, setQuizLevelValue, coins, setCoins, initGameState } from './game/state.js'; // item 19: o estado DESTE jogo
 import type { GameCtx, GameInstance } from '../../src/contract.js'; // o contrato do cartucho, deste lado
 import { ligarDeclaracao, desligarDeclaracao, ligarGanchos, desligarGanchos, JOGADORES_VIVOS, soltarJogadores } from './declaration/live.js'; // o contrato do cartucho, deste lado
@@ -83,16 +83,15 @@ import { FONT_GROUPS } from '@the-inclusionist/engine/ui/fonts.js'; // Fase 2: t
  * estreitam-se para a regiao — e ai deixam de poder alcançar o que nao e' deste cartucho.
  */
 const $ = <T extends Element = HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
-const $$ = <T extends Element = HTMLElement>(sel: string): T[] => [...document.querySelectorAll<T>(sel)];
+// (o `$$` saiu com o `initSettingsPanel` desta raiz, o seu único leitor: a pilha de overlays é a da engine)
 import { cityTiles } from './render/city-tiles.js'; // #16: os tiles da Cidade como dados, não como PNG // 7º menu: Comunicação Aumentada e Alternativa (ADR-0028)
 import { initTitle } from '@the-inclusionist/engine/ui/title.js';
 import { createTitleScene } from './render/title-scene.js'; // Fase 2.27: atalho de querySelector (Tier 1)
-import { labellerFrom, shortLabellerFrom, presetActions, wordsOf, type Action } from '@the-inclusionist/engine/core/actions.js';
+import { shortLabellerFrom, presetActions, wordsOf, type Action } from '@the-inclusionist/engine/core/actions.js';
 import { playerPrefix } from '@the-inclusionist/engine/ui/mobility-choices.js'; // o prefixo «Jogador N» dos anúncios em multi-tela
 import { platformerPreset } from './game/platformer-preset.js';
 import { isBlind, isLowVision, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js'; // os dois eixos (8.0.0): quem responde ao sonar
 import { VIZ_MODES, VIZ_BY_KEY, VIZ_CYCLE } from '@the-inclusionist/engine/render/viz-modes.js'; // Fase 2: modos visuais de a11y (dados)
-import { PAD_DESIGNS } from '@the-inclusionist/engine/input/devices.js'; // Fase 2: rótulos de gamepad/toque (dados)
 import { gameSay, type GameVoice } from '@the-inclusionist/engine/platform/speech.js';
 import { createAudioJingles } from '@the-inclusionist/engine/platform/audio-jingles.js'; // Tier 2 (áudio r1): jingles de vitória/enigma/fogos
 import { createAudioEarcons } from '@the-inclusionist/engine/platform/audio-earcons.js'; // Tier 2 (áudio r2): earcons (sfx) + porta + legendas
@@ -116,21 +115,20 @@ import { initTextures, SHAPE_TEX, letterTexture, pupTexFor, resetPupTexCache } f
 import { DIRECT_CFG, createHighContrast } from '@the-inclusionist/engine/render/high-contrast.js'; // Onda A: Renderizacao Direta (alto contraste)
 import { initCoinSpawning, rebuildCoins, showPower, getCoinSprites } from './game/coin-spawning.js'; // Onda A: materializacao dos sprites de moeda
 import { puTaken } from './game/powerups.js'; // item 19: a regra "chave e global, o resto e por jogador" saiu do render/draw
-import { initTouchBindings } from '@the-inclusionist/engine/input/touch-bindings.js'; // D3-b: gesto de toque -> entrada (traducao + geometria)
 import { initKeydown } from '@the-inclusionist/engine/input/keydown.js'; // D2-a: o roteador de teclado (a cadeia de precedencia) // Onda A: esquema de teclas por jogador
-import { padLayoutFromId } from '@the-inclusionist/engine/input/touch.js'; // Onda A: geometria fisica do pad + config de toque
-import { initGamepad } from '@the-inclusionist/engine/input/gamepad.js'; // Onda A: leitura da Gamepad API + assistente de mapeamento
 import { initActivitiesMenu, attachAbbr, QL_NAME } from './ui/activities-menu.js'; // the title menu is this game's (engine ADR-0174)
-import { PM_BTNS, PM_OPTIONS_BTNS } from '@the-inclusionist/engine/ui/pause-buttons.js'; // the pause card's buttons stay the engine's
-import { initPauseIcons, iconsMarkup } from '@the-inclusionist/engine/ui/pause-icons.js';
-import { initShell, pauseLegendHtml } from '@the-inclusionist/engine/ui/shell.js'; // C3: a casca — em que TELA o jogo esta (fase, pausa, legenda do titulo)
-import { initMenuNav } from '@the-inclusionist/engine/ui/menu-nav.js'; // C3: navegacao universal de menus (teclado/controle/olhos/fala) // Onda A: menu de pausa por tela + barra de icones de a11y
-import { initHud } from '@the-inclusionist/engine/ui/hud.js'; // Onda A: HUD por tela (moedas/poder/abandono/selo de espera)
+// 📌 DECISÃO A DO DEV (02/10): a pausa, a barra, a navegação de menus, o toque e o gamepad são do `createGame`.
+// Saíram daqui `initPauseIcons`, `initShell`, `initMenuNav`, `initHud`, `initTouchBindings` e `initGamepad`; ficam
+// a TELA DE TÍTULO e o HUD das telas que a engine não desenha, que são deste jogo.
+import { createTitleScreen } from './ui/title-screen.js';
+import { createSeatHud } from './ui/seat-hud.js';
+import { createPadWizardDemo } from './ui/pad-wizard-demo.js';
+import { keyName } from '@the-inclusionist/engine/ui/control-choices.js';
+import { createPadMaps } from '@the-inclusionist/engine/input/pad-wizard.js';
 import { initScreenPipeline } from '@the-inclusionist/engine/render/screen-pipeline.js'; // D3-c: topologia do render por tela (grade, render-textures, molduras, bolinhas)
 import { initSecretAreas } from './game/secret-areas.js'; // D3-c: area secreta revelada por presenca + anuncio ao leitor de tela
 import { initPhysics, stepPlayer as stepPhysics } from './game/physics.js'; // B1: fisica do jogador (ancorada nas trajetorias-ouro)
 import { initQuiz } from './game/quiz.js'; // B3: o desafio educativo (geracao + markup + efeito)
-import { initSettingsPanel } from '@the-inclusionist/engine/ui/settings-panel.js'; // B4: o que as cascas dos paineis realmente compartilham
 import { showReachNotice } from '@the-inclusionist/engine/ui/reach-notice.js'; // #112: diz ANTES quando o controle nao alcanca
 import { reach, defaultTransports } from '@the-inclusionist/engine/input/transports.js';
 import { initViewports } from '@the-inclusionist/engine/render/viewports.js'; // B2: fabrica de imagem dos modos de visao
@@ -240,12 +238,9 @@ const srAlert = (texto: string): void => engine.alert(texto);
 const ensureAC = () => audio.ensureAC();
 const audioOut = () => audio.audioOut();
 const catNode = (cat: string) => audio.catNode(cat);
-const setCatGain = (cat: string) => audio.setCatGain(cat);
 const tone: typeof audio.tone = (...a) => audio.tone(...a);
 const tonePan: typeof audio.tonePan = (...a) => audio.tonePan(...a);
 const noiseHit: typeof audio.noiseHit = (...a) => audio.noiseHit(...a);
-const setSoundOn = (v: boolean) => audio.setSoundOn(v);
-const setVolume = (v: number) => audio.setVolume(v);
 const setHearingLossGraph = (on: boolean) => audio.setHearingLossGraph(on);
 const setMasterMuted = (m: boolean) => audio.setMasterMuted(m);
 const held: typeof input.held = (pl, act) => input.held(pl, act);
@@ -280,14 +275,19 @@ const players = rodada.players;
    topo, draw de baixo para cima, input só no topo — continuam sendo os `if (!mundoRodando) return`
    espalhados. Encaminhar o quadro pela pilha muda o laço principal, e misturar isso com "quem pergunta o
    quê" tornaria qualquer regressão inatribuível. Fica para a fatia seguinte. */
-// O `aoTrocar` é ARROW e não valor, e isso é o que o torna válido aqui: `shell` é um `const` declarado
+// O `aoTrocar` é ARROW e não valor, e isso é o que o torna válido aqui: `telaDeTitulo` é um `const` declarado
 // ~1.500 linhas abaixo, e só a resolução na hora da chamada o tira da TDZ. A primeira troca de cena é o
-// `setPhase('title')` do boot, lá embaixo, depois de a casca existir. (Mesmo padrão do ctx da pausa.)
-const cenas = criarCenasDoJogo(() => shell.applyScene());
+// `setPhase('title')` do boot, lá embaixo, depois de a tela de título existir.
+const cenas = criarCenasDoJogo(() => telaDeTitulo.applyScene());
 const fatosDaCena = (): SceneFacts => cenas.fatos();
 // A ESCALA DO PALCO é uma instância desta raiz (`createLayout`), e não mais um singleton ligado por
 // `initLayout`. `afterScale` é a ancoragem da scanline do CRT da engine, que o módulo antes chamava por import.
 // 📌 O nome `layout` fica, como o `srSay` lá em cima: o resize, o ctx da sessão e o `__incl` seguem iguais.
+// ⚠️ FICA AO LADO DA ESCALA DA ENGINE, e não é duplicata: as duas fazem a MESMA conta (`stageScale` sobre
+// `screenBaseSize(n)`, escrita por `applyScale` no `#game-region`), mas a da engine (`applyResolution`,
+// `create-game.js:2064`) só corre no arranque e no `resize` — e a base muda quando muda o número de telas
+// (1 → 320×180, 2 → 640×180, 3–4 → 640×360). Quem entra no meio da partida (`joinPlayer`) chama esta, e sem ela o
+// canvas de duas telas ficaria na escala de uma até a janela mudar de tamanho.
 const palco = createLayout({ doc, win: window, numPlayers: () => rodada.numPlayers,
   afterScale: () => engine.crt.scanVars(), debug: () => /[?&]debug=true/.test(location.search) });
 const layout = (): void => palco.layout();
@@ -309,17 +309,7 @@ const layout = (): void => palco.layout();
 function rotuloCurto(acao: string): string | null {
   return shortLabellerFrom(wordsOf(platformerPreset(), t))(acao as Action);
 }
-
-// ⚠️ `Action` E JÁ NÃO `string`: a engine 8.0.0 estreitou `SettingsControlsCtx.acoesDoJogo`, e o conserto
-// foi APAGAR o `as string` que alargava de volta o que `presetActions` já devolvia certo. O alargamento
-// era antigo e custava a recusa de tecla duplicada, que casa a posição pela PALAVRA da ação.
-function acoesDoJogo(): readonly { readonly acao: Action; readonly rotulo: string }[] {
-  const preset = platformerPreset();
-  const rotulo = labellerFrom(wordsOf(preset, t));
-  return presetActions(preset)
-    .map((a) => ({ acao: a, rotulo: rotulo(a) || '' }))
-    .filter((x) => x.rotulo !== '');
-}
+// (`acoesDoJogo` saiu: alimentava o painel de controles desta raiz, e o painel é o da engine, que lê o `preset`.)
 if(typeof window!=='undefined') window.__tiles = tiles; // hook de teste (Preview); world.js passa a usar na etapa 2
 initCharacterSprites(doc); // cria as texturas do personagem no boot — o import de sprites.js é PURO (sem I/O). Fase 2.24
 // O MIXER E DA ENGINE: `createGame` chama `initAudioMixer` e devolve o audio em `engine.audio`.
@@ -427,11 +417,8 @@ for(let y=0;y<WORLD_H;y++)for(let x=0;x<WORLD_W;x++){ const tile=WORLD[y][x]; //
 // hcOutlineFg/hcOutlineBg migraram para core/state.js (#50), com a saturação 0..2 e a leitura do
 // armazenamento numa passada só — aqui eram um `let` provisório seguido de duas reatribuições.
 // HC_ROLE_DEF/HC_ROLE/saveHcRole (color-blocking por papel, customizavel e persistido) migraram para
-// render/high-contrast.ts (Onda A). rgbHex foi junto e nao voltou: tinha ZERO chamadores aqui.
-// A tupla é declarada, não inferida: a função devolve SEMPRE três casas, e o destino (`HC_ROLE`, uma
-// `Record<HcRoleKey, [number, number, number]>`) exige exatamente três. Inferido como `number[]`, o valor
-// certo não entrava no lugar certo.
-const hexRgb=(h: string): [number, number, number] | null =>{ const m=/^#?([0-9a-f]{6})$/i.exec(h); if(!m)return null; const n=parseInt(m[1],16); return [n>>16&255,n>>8&255,n&255]; };
+// render/high-contrast.ts (Onda A). rgbHex foi junto e nao voltou: tinha ZERO chamadores aqui. O `hexRgb`
+// também saiu: lia as cores por papel do painel de alto contraste desta raiz, que é o da engine agora.
 // _roleOf/worldToTextureDirect/directBgTexture/directSpriteCanvas/directSpriteTexture migraram para
 // render/high-contrast.ts (Onda A).
 // Alto contraste (re-adicionado): recolore cada tile pela PALETA do grupo (gradient-map por matiz, mantém claro-escuro).
@@ -539,14 +526,8 @@ setCoins(pickCoins(COIN_TARGET, coinPools())); // coins: mega-var 7 em core/stat
 // 'phase' agora vem de core/state.js (Fase 2, mega-variável 1). Leitura = binding vivo; escrita só via setPhase().
 
 /* ===================== input ===================== */
-/* B4: o que as nove cascas de painel REALMENTE compartilham — empilhamento de overlay, o rodape de
-   explicacao, e o registro que substitui a tabela de fechamento e a cadeia de Escape. As nove funcoes
-   de abrir e fechar FICAM: elas sao as diferencas (o que renderizam antes, o que focam,
-   para onde o foco volta), e uma casca generica precisaria de seis parametros de excecao para cobri-las.
-   AQUI e nao la embaixo: frontOverlay deixou de ser declaracao icada e a 1a leitura dele e o ctx do
-   initGamepad, avaliado eager. */
-const overlays = initSettingsPanel({ $, $$, doc: document, computedZ: (el)=>+getComputedStyle(el).zIndex||0 });
-const { frontOverlay } = overlays;
+// O REGISTRO DE OVERLAYS É O DA ENGINE (`engine.overlays`): os painéis são dela, e o `initSettingsPanel` desta raiz
+// — uma segunda pilha de z e uma segunda cadeia de Escape sobre o mesmo documento — saiu com a pausa por tela.
 // ⚠️ A ARMADILHA DE FOCO (issue #109). Nao existia em lado nenhum da engine, e `index.html` promete o
 // contrario: todo `.overlay__card` diz `aria-modal="true"`, que anuncia a tecnologia assistiva que o resto da
 // pagina esta inerte. O Tab discordava — saia do dialogo e entrava no tabuleiro por baixo, e quem usa leitor
@@ -576,8 +557,8 @@ function ehToque(){ try{ return matchMedia('(pointer:coarse)').matches && matchM
 //
 // 📏 Consequência, e ela é visível: só o toque declara teto (`SEGURA_TOQUE = 2`, transports.js:60);
 // teclado e pad não declaram nenhum. Então num tablet ou telemóvel o aviso aparece — e a resposta a ele é
-// a trava do botão de correr (`#opt-togglerun`), que põe a exigência em dois. Ver a nota do
-// `onTouchControlsShown` mais abaixo, que é quem a liga sozinha no toque.
+// a trava do botão de correr (`#opt-togglerun`), que põe a exigência em dois. Ver a nota de
+// `travaDeCorrerNoToque` mais abaixo, que é quem a liga sozinha no toque.
 showReachNotice(
   { find: (sel) => $<HTMLElement>(sel), create: (tag) => document.createElement(tag), t, srAlert },
   reach(defaultTransports({
@@ -610,10 +591,8 @@ showReachNotice(
 // respostas para «de quem é esta tecla».
 const kbRuntime = engine.keyboard;
 const kbFor = (i: number) => kbRuntime.kbFor(i);
-// controls/KJUMP..KRUN/GAME_KEYS nao moram mais aqui (D1): eram oito copias de kbRuntime.computeControlsState(),
-// e `applyControls` existia so para refaze-las. A memoria foi para dentro de input/keyboard-runtime, que e quem
-// faz a conta; aqui sobrou o gatilho de invalidacao, que e o que o painel de controles precisa chamar.
-function applyControls(){ kbRuntime.refreshControls(); }
+// controls/KJUMP..KRUN/GAME_KEYS nao moram mais aqui (D1): eram oito copias de kbRuntime.computeControlsState().
+// O gatilho de invalidacao que sobrava (`applyControls`) era do painel de controles desta raiz, que e o da engine.
 // Tint distintivo por jogador (P1 = normal). L2: paleta CB-SAFE opcional (Okabe & Ito 2008 — laranja/azul-céu/
 // amarelo distinguíveis em protan/deutan/tritan) SÓ para jogadores/itens/efeitos — o CENÁRIO fica com cores naturais.
 const PCOLOR_DEF=[0xffffff,0xff9a9a,0x8affc0,0xffe08a], PCOLOR_CB=[0xffffff,0xe69f00,0x56b4e9,0xf0e442];
@@ -627,7 +606,7 @@ assignControls();
    `decideKeydown(evento, estado)` e pura e roda no project `node`; so o envelope toca o mundo.
    `keyup` foi junto (e a outra metade do `keys.add`); `blur` NAO — ele limpa codigos que o toque e a webcam
    tambem injetam, e e rede de ciclo de vida da JANELA, nao do teclado.
-   TODO o ctx e LAZY de proposito: attractCtl/ctrlPanel/gamepadApi/hud/navTitle/activateScreens/togglePause/
+   TODO o ctx e LAZY de proposito: attractCtl/seatHud/navTitle/activateScreens/
    hideTouchControls/quiz* sao `const`/`function` declarados centenas de linhas ABAIXO daqui. O ouvinte
    original so funcionava porque o corpo dele nunca era lido antes da primeira tecla, e e essa preguica que as
    setas preservam — passar qualquer um deles por VALOR derruba o boot em TDZ.
@@ -637,29 +616,15 @@ assignControls();
 // pede agora loja e `holdsKeys`, e a engine já monta o SEU, único, na porta do controle virtual
 // (`create-game.js:3790`, `pressedBy`): é lá que a trava de cada transporte se resolve. Uma segunda cópia
 // aqui resolveria a mesma trava duas vezes por tecla. É também o que a engine entrega ao toque e ao pad dela.
-// 📌 O nome `arestaDoJogador` fica para os ctx do pad e do toque, que esperam decisão do Dev.
-const arestaDoJogador: typeof input.playerEdge = (p, o) => input.playerEdge(p, o);
+// (`arestaDoJogador` saiu com os ctx do pad e do toque desta raiz: os dois transportes são da engine agora.)
 
 /*
- * ⚠️ DUAS ADAPTAÇÕES QUE EXISTEM POR UMA COSTURA DA ENGINE, e não por desleixo daqui — medido na 9.0.0:
- *
- *   · `input/keyboard-runtime.kbFor(i)` PRODUZ `KeyScheme` = `Record<Action, readonly string[] | null>`;
- *   · `ui/shell.KbCtx.kbFor` CONSOME `Record<string, string[]>`;
- *   · `input/keydown.ControlsSnapshot` CONSOME `string[]` mutável, enquanto `ControlsState` produz `readonly`.
- *
- * A 8.0.0 alargou o `KeyScheme` (leitura só, e a posição pode ser `null`) e deixou estes dois consumidores
- * na forma velha. Ninguém tinha notado porque `createGame` NÃO chama `initShell` nem passa `kbFor` — a
- * costura só é alcançável por um consumidor que monta a raiz à mão, e este é o único.
- *
- * Enquanto a engine não unifica, a conversão mora AQUI, num sítio só e com nome, em vez de um `as` espalhado.
- * `null` vira lista vazia: para quem lê, "a posição não tem tecla" e "a posição tem zero teclas" são o mesmo
- * fato, e nenhum dos dois consumidores escreve de volta.
+ * ⚠️ UMA ADAPTAÇÃO QUE EXISTE POR UMA COSTURA DA ENGINE, e não por desleixo daqui — medido na 9.0.0:
+ * `input/keydown.ControlsSnapshot` CONSOME `string[]` mutável, enquanto `ControlsState` produz `readonly`.
+ * Enquanto a engine não unifica, a conversão mora AQUI, num lugar só e com nome, em vez de um `as` espalhado.
+ * (A segunda, `esquemaLargo`, saiu com o `initShell` desta raiz, o consumidor dela: a legenda do título lê o
+ * `KeyScheme` como ele é.)
  */
-function esquemaLargo(k: ReturnType<typeof kbRuntime.kbFor>): Record<string, string[]> {
-  const fora: Record<string, string[]> = {};
-  for (const [acao, teclas] of Object.entries(k)) fora[acao] = teclas ? [...teclas] : [];
-  return fora;
-}
 function instantaneoDosControles(): ControlsSnapshot {
   const c = kbRuntime.controlsState();
   // `controls` NÃO entra: o `ControlsSnapshot` são as sete listas e mais nada — o `KeyScheme` inteiro é do
@@ -692,9 +657,13 @@ const keydownApi = initKeydown({
   // O assistente de mapeamento do pad é um overlay da engine (`padwiz`): fechar é pedir-lhe pelo id.
   closePadWiz: () => { engine.overlays.closeById('padwiz'); },
   hideTouchControls: (r) => hideTouchControls(r), srSay: (m) => srSay(m),
-  navTitle: (k) => navTitle(k), activateScreens: (n) => activateScreens(n), togglePause: () => togglePause(),
+  navTitle: (k) => navTitle(k), activateScreens: (n) => activateScreens(n),
+  // ⚠️ NADA, e de propósito (decisão A do Dev, 02/10): START (Enter), SELECT (F) e o Escape no cartão são da
+  // ENGINE (`create-game.js:2545-2598`), que abre a pausa e pede `setPhase('paused')` ao jogo. Pausar daqui também
+  // seria a mesma tecla a pausar duas vezes — e um Escape em jogo a abrir uma pausa que já não é deste jogo.
+  togglePause: () => {},
   modalInput: (i, intent) => modalInput(i, intent), hasModal: (i) => temModal(i),
-  clearWaitingBadge: (i) => hud.clearWaitingBadge(i),
+  clearWaitingBadge: (i) => seatHud.clearWaitingBadge(i),
   win: window,
 });
 keydownApi.attach();
@@ -703,10 +672,8 @@ addEventListener('blur',()=>input.keys.clear(), SOLTAR);
 
 /* ===================== a11y ===================== */
 // O MODO PESSOA SURDA é da engine (`engine.deafMode`): ela liga o intérprete à fala sozinha, então o
-// `setVlibrasSay` que estava aqui não tem substituto — e não precisa de ter.
-// 📌 Os dois nomes velhos ficam para o ctx da pausa, que espera decisão do Dev.
-const vlibrasOpen = (): boolean => engine.deafMode.isOn();
-const toggleLibras = (): void => engine.deafMode.toggle();
+// `setVlibrasSay` que estava aqui não tem substituto — e não precisa de ter. (`vlibrasOpen`/`toggleLibras`
+// saíram com o ctx da pausa por tela, o seu único leitor: o 🦻 da barra é da engine.)
 
 /* ===== E9: áudio (WebAudio) + legendas (C1) + assistência (C2) ===== */
 let capTimer: ReturnType<typeof setTimeout> | null = null; // `settingsStore.captionsOn` migrou para core/state.js (#50); soundOn/volume/audioCtx vêm de platform/audio.js
@@ -720,21 +687,14 @@ const anyEasy=()=>players.some(p=>p.easy); // efeitos de MUNDO do Fácil (moedas
 // desenha. Como texto solto, um erro de digitação aqui só apareceria em execução — como uma linha de menu
 // que simplesmente não aparece.
 const RM_KEYS: readonly MotionSceneKey[] = ['parallax', 'decor', 'items', 'particles']; // animações de CENA (globais)
-// `lbl` guarda a CHAVE i18n, nao o texto: ui/settings-motion resolve com t() na hora de desenhar a linha.
-// Era texto em portugues repetido palavra por palavra na RM_LABEL daquele modulo — tres tabelas dos mesmos
-// rotulos (esta, a de la, e uma TERCEIRA morta aqui embaixo), e mudar um rotulo pedia tres edicoes.
-// O campo `k` SAIU: ninguém o lê. Os dois consumidores (`ui/settings-motion` e `ui/pause-icons`) usam só
-// `prop` e `lbl`, e o tipo que eles declaram — `MotionCharDef` — nem sequer o tem. Era mais um resto do
-// monólito, como o argumento descartado de `applyLetra`.
-const RM_CHAR: readonly MotionCharDef[] = [ {prop:'rmWalk',lbl:'rm.walk'},
-  {prop:'rmBreath',lbl:'rm.breath'}, {prop:'rmFlavor',lbl:'rm.flavor'} ]; // animações do PERSONAGEM (por jogador)
+// (`RM_CHAR` e `saveRM` saíram com o ctx da pausa por tela, os seus leitores: os três alvos do PERSONAGEM e a
+// gravação dos de cena são do painel de animação da engine.)
 // O padrão ganhou nome em core/state (defaultReducedMotion) porque o reset do painel precisa do MESMO valor.
 // O `as MotionSceneFlags` nos dois acumuladores abaixo: o laço preenche EXATAMENTE as quatro chaves de
 // `RM_KEYS`, que é o que o tipo exige — mas o objeto nasce vazio, e o compilador não acompanha um
 // preenchimento por laço. É afirmação sobre o laço logo ao lado, não sobre dado de fora.
 const rm=(()=>{ const s=store.getJSON(KEYS.reducedMotion,null); if(s&&typeof s==='object'){ const o = {} as MotionSceneFlags; RM_KEYS.forEach(k=>o[k]=!!s[k]); return o; }
   const o = {} as MotionSceneFlags; RM_KEYS.forEach(k=>o[k]=defaultReducedMotion(matchMedia)); return o; })();
-function saveRM(){ store.setJSON(KEYS.reducedMotion,rm); }
 // Movimento por alternância (1 dedo): tocar a direção trava a marcha; segurar acelera; pulo não interrompe. Persistido.
 function loadPlayerA11y(p: Player,i: number){ const v=store.get(KEYS.vizP(i)); if(v&&VIZ_BY_KEY[v])p.viz=v;
   p.audioSink=store.get(KEYS.sinkP(i))||null; // saída de áudio própria do jogador (setSinkId)
@@ -748,13 +708,9 @@ function loadPlayerA11y(p: Player,i: number){ const v=store.get(KEYS.vizP(i)); i
   p.rmWalk=store.getBool(KEYS.rmWalkP(i),rmDef); p.rmBreath=store.getBool(KEYS.rmBreathP(i),rmDef); p.rmFlavor=store.getBool(KEYS.rmFlavorP(i),rmDef);
   if(i===0){ const ov=store.get(KEYS.viz); if(ov&&VIZ_BY_KEY[ov]&&store.get(KEYS.vizP(0))==null)p.viz=ov; // migra chaves antigas
     if(store.getBool(KEYS.toggleMoveLegacy)&&store.get(KEYS.toggleMoveP(0))==null)p.toggleMove=true; } }
-// AUTOMÁTICA NO TOQUE (pedido do Dev): no controle de tela ninguém "segura" um botão virtual com conforto —
-// o dedo que segura é o mesmo que precisa alcançar os outros. Ligar sozinha ali é o padrão certo, e continua
-// desligável: o valor SALVO vence, então quem desligou de propósito não a vê voltar.
-function setToggleRun(i: number,on: boolean){ const p=players[i]; if(!p)return; p.toggleRun=on; store.setBool(KEYS.toggleRunP(i),on); if(!on)p.runLatch=false;
-  srSay(playerPrefix(t,i,rodada.numPlayers)+t(on?'sr.motor.toggleRunOn':'sr.motor.toggleRunOff')); }
-function setToggleMove(i: number,on: boolean){ const p=players[i]; if(!p)return; p.toggleMove=on; store.setBool(KEYS.toggleMoveP(i),on); if(!on)p.walkDir=0;
-  srSay(playerPrefix(t,i,rodada.numPlayers)+t(on?'sr.motor.toggleMoveOn':'sr.motor.toggleMoveOff')); }
+// (`setToggleRun`/`setToggleMove` saíram: os escritores das duas travas eram dos painéis e da pausa desta raiz, e
+// as travas moram no ☝️ e no painel motor da engine. A trava de correr AUTOMÁTICA no toque continua deste jogo —
+// ver `travaDeCorrerNoToque`.)
 function showCaption(txt: string){ const el=$('#caption'); if(!el||!txt)return; el.textContent=txt; el.classList.add('show'); if(capTimer!==null)clearTimeout(capTimer); capTimer=setTimeout(()=>{el.classList.remove('show'); el.textContent='';},1300); }
 // Earcons + ponte com legendas extraídos p/ platform/audio-earcons.ts (Tier 2, áudio rodada 2). captionsOn/showCaption
 // VIVEM aqui (UI alterna captionsOn; win() reusa showCaption) → entram por injeção. Chamado como earcons.sfx(...).
@@ -1286,113 +1242,30 @@ function ensureSprites(){
   allPSprites.forEach((s,i)=>{ s.visible=i<rodada.numPlayers; s.tint=PCOLOR[i]||0xffffff; if(i<rodada.numPlayers)players[i].sprite=s; });
 }
 let vpTex: RenderTextureLike[] = [], vpSpr: SpriteLike[] = [], vpFrames: GraphicsLike | null = null, vpDots: GraphicsLike[] = [];
-// HUD por jogador em DOM SOBREPOSTO (alta definição, não pixela): moedas (1ª coluna) + poder (2ª coluna), por viewport.
-let vpBars: HTMLElement[] = [];  // as BARRAS RÁPIDAS por tela (ADR-0044, item 7) — REATRIBUÍDA por buildGameHud
-let vpPause: HTMLElement[] = []; // `pauseActor` migrou para core/state.js (#50). gameHudEl/vpHudDom/vpQuitDom/vpScreens -> ui/hud.ts
-// Menu de pausa POR TELA (Etapa 2): um por jogador, dentro da .player-screen dele.
-// Barra de atalhos de a11y no topo da pausa (por tela). Sons (cego/TTS) só com saída própria; webcam/voz em construção.
-/* ===================== PAUSA POR TELA + ICONES DE A11Y -> ui/pause-icons.ts =====================
-   PAUSE_ICONS, calmMode, buildScreenPause, hasPrivateOutput, applyCalm, iconAct, iconLabel,
-   reflectIconBtn e reflectPauseIcons migraram. `pauseActor` FICA aqui (seis leitores fora do modulo,
-   e o ctx do gamepad ja o escreve); o modulo so escreve, por setPauseActor. `pauseActs` entra por
-   GETTER porque e um const ~1200 linhas abaixo — passa-lo direto explodiria na TDZ no boot. */
-const pauseIcons = initPauseIcons({
+/* ===================== O HUD DAS TELAS -> ui/seat-hud.ts =====================
+   📌 DECISÃO A DO DEV (02/10): a pausa por tela, a barra rápida por tela e o `ui/hud` da engine que as montava
+   saíram (o `ui/hud` exigia `buildScreenPause`). A engine desenha as moedas do assento 0 na faixa da missão
+   (gancho `hud`, em `src/index.ts`); daqui sai o resto do que cada tela mostrava: as moedas dos assentos 1–3, o
+   poder de todos, o selo de abandono e o de «aperte para entrar» — e a `.player-screen` onde o desafio multi-tela
+   se pendura (`getScreen`, lido por `game/quiz`). */
+const seatHud = createSeatHud({
+  t, $,
   getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
-  srSay, srAlert,
-  pmButtons: PM_BTNS,
-  optionsButtons: PM_OPTIONS_BTNS,
-  // O ROTULO PRONTO de um botao dinamico (item 19). A frase era montada dentro do `ui/pause-icons` — que e
-  // ENGINE — a partir do `quizLevel` e da tabela `QL_NAME`, e trazia "Nivel" em pt-BR CRU. Agora quem monta
-  // e o jogo, que sabe o que e um nivel, como ele se chama e em que idioma dize-lo.
-  dynLabel: (b) => (b.nivel ? (t('pause.nivel', { n: quizLevel, nome: QL_NAME[quizLevel] })) : null),
-  getPauseActs: () => pauseActs,            // LAZY: pauseActs e const bem abaixo (TDZ)
-  setPauseActor: (i) => rodada.setPauseActor(i),
-  getA11yBars: () => vpBars,                // idem: `let` reatribuido a cada remontagem do HUD
-  getModoCego: () => settingsStore.blindMode, setModoCego,
-  getAudioCat: () => audio.audioCat, setCatGain,
-  reflectTtsPanel: () => audioPanel.reflectTts(), // LAZY: audioPanel e const bem abaixo
-  // LIGADO. Estava morto desde que reflectTTS foi extraida para ui/settings-audio: a guarda
-  // `typeof reflectTTS==='function'` virou sempre falsa e ninguem notou. O sintoma existe e nao e
-  // cosmetico — o painel de audio e o icone da pausa ficam ambos VISIVEIS ao mesmo tempo, entao
-  // ligar o TTS pelo icone deixava o botao do painel dizendo 'Desligado' com aria-pressed=false,
-  // ou seja, mentindo o estado para leitor de tela.
-  reflectTtsPanelEnabled: true,
-  // ⚠️ TRUE, E MEDIDO: este jogo segura direção (physics.ts:194,197), correr (:359,:362,:390) e pular
-  // (:290 flutuar no fácil, :292 braçada na água, :167 trampolim). Responder `false` ESCONDERIA a linha
-  // `#opt-altmove` — que existe em `index.html:211` e é a acomodação de quem não consegue manter tecla
-  // pressionada. Um controle escondido a quem depende dele é pior que um controle ausente.
-  //
-  // FUNÇÃO e não valor: a engine 9.0.0 trocou `boolean` por `() => boolean` porque o ícone estava a
-  // descrever o jogo que arrancou primeiro. Aqui a resposta não muda, e é função à mesma — o contrato é
-  // que manda, não a nossa estabilidade.
-  seguraTeclas: () => true,
-  isLibrasOn: vlibrasOpen, toggleLibras,
-  rm, saveRM, rmKeys: RM_KEYS, rmChar: RM_CHAR,
-  setToggleMove,
-  // ⚠️ PASSADO PREGUIÇOSAMENTE, e o motivo é um aviso do compilador que eu NÃO consegui explicar.
-  //
-  // `setPlayerViz` é desestruturado de `viz` ~380 linhas ABAIXO, e o `tsc` acusa TS2448 — uso antes da
-  // declaração. Reproduzi o padrão isolado no navegador e ele estoura mesmo: "Cannot access 'setPlayerViz'
-  // before initialization". Só que o jogo BOOTA, e `window.__incl.setPlayerViz` é uma função — ou seja, na
-  // prática esta linha não estoura, e eu não sei dizer por quê. (Cheguei a comparar a ordem no bundle, mas
-  // a comparação era inválida: eu media posições de strings que também existem dentro dos módulos.)
-  //
-  // Envolver num lambda adia a leitura do binding para a hora da CHAMADA, que é sempre depois do boot. Isso
-  // é correto nos dois cenários — no que eu entendo e no que eu não entendo — e é por isso que está assim
-  // em vez de um `as` ou de uma reordenação que eu justificaria com uma história inventada.
-  setPlayerViz: (...a: Parameters<typeof setPlayerViz>) => setPlayerViz(...a),
-  //
-  // 🔴 OS DOIS ESCRITORES DE EIXO, E A FALTA DELES ERA UM CONTROLE MORTO. Medido no navegador depois da
-  // subida para a 9.0.0: os ícones 🌗 (alto contraste) e 🚥 (correção de daltonismo) apareciam na barra e
-  // NÃO FAZIAM NADA — dois cliques reais, e nem `p.visual` nem o rótulo `aria-label` mudavam.
-  //
-  // A causa é a divisão do eixo visual em dois (#104). Na 7.0.1 o ícone chamava `ctx.setPlayerViz`, que
-  // esta raiz passa desde sempre; da 8.0.0 em diante ele chama `setTemaDoJogador`/`setCorrecaoDoJogador`,
-  // e `pause-icons.js:545,552` faz `if (!ctx.setTemaDoJogador) return;` — sai em silêncio. O `tsc` não
-  // acusa nada porque os dois campos são OPCIONAIS no contexto, e nenhum teste os cobria.
-  //
-  // ⚠️ Um controle que a criança vê, aciona e não obtém resposta é PIOR que um ausente: ela desiste
-  // achando que o jogo não tem a acomodação, em vez de procurá-la noutro sítio. É o que o ADR-0106 §5
-  // proíbe, e foi esta subida de versão que o introduziu aqui.
-  setTemaDoJogador: (...a: Parameters<typeof setTemaDoJogador>) => setTemaDoJogador(...a),
-  setCorrecaoDoJogador: (...a: Parameters<typeof setCorrecaoDoJogador>) => setCorrecaoDoJogador(...a),
-});
-const reflectPauseIcons = () => pauseIcons.reflectPauseIcons();
-function reflectTitleIcons(){ pauseIcons.reflectIconsIn($('#title-icons'),0); } // icones do SPLASH (escopo do J1)
-// Contêiner "tela do jogador" por viewport (Etapa 1): hospeda o HUD; nas próximas etapas, a pausa e os menus.
-/* ===================== HUD POR TELA -> ui/hud.ts =====================
-   O painel de pausa NAO e do HUD: entra como fabrica injetada e o modulo so anexa o retorno — foi isso
-   que permitiu extrair os dois em paralelo sem se tocarem. Os paineis criados dentro do laco voltam
-   pelo gancho, porque `vpPause` e binding daqui e modulo nao reatribui binding alheio. */
-const hud = initHud({
-  getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
-  // O OBJETIVO deste jogo, na forma do campo 5 do contrato (core/contract.Objective). O HUD nao sabe mais o
-  // QUE se junta: quem declara e a raiz de composicao, ou seja, o jogo. O nome segue em pt-BR porque ele
-  // atravessa como PARAMETRO (pilar 3), e o genero/plural existem para as frases que precisam concordar.
-  hudObjective: (i) => ({
-    // Resolvido a CADA quadro, e nao no boot: uma tabela lida uma vez ficaria congelada no idioma do boot —
-    // o mesmo defeito que o item 14 tirou dos rotulos de poder.
+  // O OBJETIVO deste jogo, resolvido a CADA quadro: uma tabela lida uma vez ficaria no idioma do arranque.
+  objective: (i) => ({
     name: { text: t('hud.nome.moedas'), gender: 'f', plural: true },
     have: (players[i] && players[i].collected) || 0,
     need: COIN_TARGET,
   }),
-  hudIcon: '🪙',
-  $, powerShort: POWER_SHORT,
-  buildScreenPause: (i) => pauseIcons.buildScreenPause(i),
-  buildQuickBar: (i) => pauseIcons.buildQuickBar(i),
-  onBarsBuilt: (bars) => { vpBars = bars; },
-  onScreensBuilt: (panes) => { vpPause = panes;
-    // No 1o build do init, LETRA/PAD_DESIGNS ainda estao em TDZ — o try/catch ignora e o fluxo de init
-    // preenche logo depois. Preservado verbatim, inclusive o engolir de qualquer erro.
-    // O `false` que estava aqui alimentava um parâmetro que `applyLetra` não tem — ele vinha sendo
-    // DESCARTADO em silêncio desde que a função perdeu a assinatura antiga, e um argumento ignorado sugere
-    // um comportamento que não existe. O `try/catch` continua verbatim: ele é a proteção real, contra o TDZ
-    // do primeiro build, e é isso que o comentário acima preserva.
-    try{ applyLetra(); }catch(e){}
-    try{ renderPauseLegend(); }catch(e){} },
+  icon: '🪙',
+  powerShort: POWER_SHORT,
 });
-const buildGameHud  = () => hud.buildGameHud();
-const updateGameHud = () => hud.updateGameHud();
+// ⚠️ O `applyLetra()` depois de remontar NÃO é enfeite: ele vinha no `onScreensBuilt` do `ui/hud` da engine. Remontar
+// apaga as `.player-screen`, e com elas o desafio multi-tela pendurado nelas; o `applyLetra` re-renderiza o desafio
+// de quem tem um aberto, agora na tela nova. O `try/catch` de antes protegia o TDZ do primeiro build, que hoje
+// acontece depois de tudo declarado (ver a nota junto de `buildGameHud()`, lá embaixo).
+const buildGameHud  = () => { seatHud.buildGameHud(); applyLetra(); };
+const updateGameHud = () => seatHud.updateGameHud();
 /* ===================== O PIPELINE DE RENDER POR TELA -> render/screen-pipeline.ts (D3-c) =====================
    A TOPOLOGIA do render saiu inteira (quantas render-textures, onde cada tela fica, moldura e bolinha). Aqui
    fica so o ENVOLUCRO — declaracao de funcao, portanto icada, porque initSession o recebe por REFERENCIA.
@@ -1416,8 +1289,7 @@ function configureRender(){ screenPipeline.configureRender(); }
 
 // E5: minimapa estilo Metroid (canto inferior esquerdo, fixo na tela, fog-of-war)
 initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1): container + fog-of-war (markSeen/redrawMinimapIfDirty/drawMinimapPlayer/resetMinimap/setMinimapCorner/…)
-// ⚠️ A MONTAGEM DO HUD SAIU DAQUI E DESCEU PARA DEPOIS DE `pauseActs` — ver a nota lá em baixo. Movê-la
-// de volta para cá derruba o arranque inteiro, e o `tsc` não o vê.
+// A MONTAGEM DO HUD (`buildGameHud()`) mora lá embaixo, junto da tela de título — ver a nota lá.
 
 /* ===================== física (por jogador — E11) -> game/physics.ts (B1) =====================
    sampleFeatures/resolveX/resolveY/triggerLava e o CORPO de fisica do stepPlayer moram no modulo, ancorados
@@ -1543,7 +1415,7 @@ function draw(){ drawApi.drawFrame(); }
 /* ===================== quiz -> game/quiz.ts (B3) =====================
    As 29 funcoes do desafio moram no modulo, em tres camadas: geracao (pura, so RNG), apresentacao
    (string->string) e efeito. Aqui ficam so os ENVOLUCROS — declaracao de funcao, portanto icados, para que
-   os chamadores de cima (update, keydown, initGamepad, restartGame, applyLetra, window.__incl) nao mudem.
+   os chamadores de cima (update, keydown, o gancho do gamepad, restartGame, applyLetra, window.__incl) nao mudem.
    respawnFigure NAO foi junto: apesar de colada ao bloco e chamada so pelo quiz, ela re-sorteia a posicao
    da moeda — e do slice de moedas, e entra no quiz por injecao. */
 function openQuiz(pl: Parameters<typeof quizApi.openQuiz>[0],coinIndex: number,shapeId: Parameters<typeof quizApi.openQuiz>[2]){ quizApi.openQuiz(pl,coinIndex,shapeId); }
@@ -1595,6 +1467,7 @@ function respawnFigure(i: number){
    estaveis entram por valor. `reapplyVizAll` e `const` declarado ABAIXO (viz-setters), por isso vem embrulhado
    numa seta — passado direto, cairia em TDZ e derrubaria o boot. */
 const sessionApi = initSession({
+  t,
   getPlayers: () => players, getNumPlayers: () => rodada.numPlayers, setNumPlayers: (n) => rodada.setNumPlayers(n),
   $, librasReserve: ()=>0, // o intérprete NÃO empurra mais a tela (ver ui/vlibras + ui/layout); fica p/ o overlay sob demanda
   isCoarsePointer: ()=>{ try{ return matchMedia('(pointer:coarse)').matches && matchMedia('(hover:none)').matches; }catch(e){ return 'ontouchstart' in window; } },
@@ -1669,14 +1542,14 @@ const activitiesMenu = initActivitiesMenu({
 const { actCat, setActivity, navTitle, tabSel, fracNot } = activitiesMenu;
 // B3: o desafio educativo. So entra aqui o que um import nao alcanca: as `let` do main.js, as instancias
 // criadas no boot (audio/HUD/menu) e os efeitos de outros slices (moeda, HUD, vitoria, toque). Os
-// callbacks sao arrows de proposito: touchCtl, respawnFigure, win e updateHud nascem mais abaixo.
+// callbacks sao arrows de proposito: respawnFigure, win e updateHud nascem mais abaixo.
 // A VOZ DO LETRAMENTO: o `gameSay` já não segura nada e pede a voz e a LÍNGUA da palavra (engine 11, nota DS).
 // As palavras dos desafios deste jogo são pt-BR — a língua da palavra, não a da página.
 const vozDoLetramento: GameVoice = { synth: () => window.speechSynthesis ?? null,
   utterance: (tx) => new SpeechSynthesisUtterance(tx), soundOn: () => audio.soundOn, volume: () => audio.volume };
 const quizApi = initQuiz({
   t, rng,
-  $, getScreen: (i) => hud.getScreen(i),
+  $, getScreen: (i) => seatHud.getScreen(i),
   getNumPlayers: () => rodada.numPlayers,
   disp, isModoCego: () => settingsStore.blindMode,
   actCat, tabSel, fracNot, QL_NAME,
@@ -1693,48 +1566,31 @@ const quizApi = initQuiz({
 // escrita, e o que a issue #54 reproduziu. Com o MODE derivado ele não teria o que ciclar. Era superfície
 // de depuração, dentro de `#topbar-tools hidden`, revelada só por `?debug=true`; quem troca de atividade é
 // o menu de atividades, que grava `activity` e reinicia a rodada — e o MODE segue sozinho.
-// Mapa padrão (Gamepad API "standard"): 0=pulo/sim · 1=especial/não · 2=correr/interagir (X/esquerda) · 3=troca ·
-// D-pad 12-15 + analógico esq. · RB/RT também correm · 9=START (pausa). Controles fora do padrão → wizard de mapeamento.
-// Direções pelas FONTES PADRÃO (stick 0/1, D-pad botões 12-15, POV hat em eixos altos ≥6): o controle tem
-// DOIS direcionais — quem mapeou só o stick continua com o D-pad vivo (menus!) e vice-versa.
-// stdDirs/padActions/pollPads + o assistente de mapeamento inteiro migraram para input/gamepad.ts (Onda A).
-// A Gamepad API entra como ADAPTADOR (getGamepads), que e o que torna o assistente testavel sem navegador.
-// spriteBase e dependencia DECLARADA: era o `SPR` que o main.js usava como se fosse global e derrubava o
-// assistente ao abrir (ver o commit de correcao).
-const gamepadApi = initGamepad({
-  getGamepads: () => (navigator.getGamepads ? navigator.getGamepads() : []), $, srSay, srAlert, frontOverlay,
-  // ⚠️ A PALAVRA VEM DO JOGO, e o preset resolve-se A CADA CHAMADA para acompanhar o idioma vigente.
-  // Era uma constante em português dentro de `input/gamepad.ts` — o defeito do ADR-0074 na forma mais
-  // visível que ele tinha. Ver `game/platformer-preset.ts`.
-  rotuloDaAcao: (acao) => labellerFrom(platformerPreset())(acao as Action),
-  mundoRodando: () => fatosDaCena().worldRunning, menuDePausa: () => fatosDaCena().pauseMenu,
-  pausar: () => setPhase('paused'), retomar: () => setPhase('playing'),
-  isAttractActive: () => attractCtl.isAttract(), stopAttract: () => attractCtl.stopAttract(),
-  isTouchMode: () => document.body.classList.contains('touch-mode'), hideTouchControls: () => hideTouchControls(),
-  getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
-  // A MESMA instância do teclado e do toque — ver o bloco acima de `initKeydown`.
-  arestaDoJogador,
-  navTitle, sharedDialogOpen, navDialog, getPauseMenu: (i) => vpPause[i], navPause,
-  // O modo `accessibility` do ADR-0044 (item 7): o direcional dirige a barra rapida em vez do personagem.
-  naBarraDe: (i) => pauseIcons.naBarraDe(i),
-  navBar: (i, k, temStart) => pauseIcons.navBar(i, k, temStart),
-  setPauseActor: (i) => rodada.setPauseActor(i),
-  modalInput, hasModal: temModal,
-  joinPlayer, respawnPlayer,
-  clearWaitingBadge: (i) => hud.clearWaitingBadge(i),
-  spriteBase: SPR,
-});
+// O GAMEPAD É DA ENGINE (ADR-0224): o `createGame` monta o transporte, lê os pads no próprio quadro e conduz o
+// assistente de mapeamento. O `initGamepad` desta raiz e o `pollPads` do quadro saíram — dois leitores do mesmo pad
+// dariam duas arestas por botão. O que só este jogo sabe (título, demonstração, desafio, entrar, renascer, o selo e o
+// desenho do assistente) vai pelo gancho `gamepad`, ligado em `ligarGanchos` no fim desta fábrica.
+//
+// A DEMONSTRAÇÃO DO ASSISTENTE (`ui/pad-wizard-demo`, nota CD): o menino a fazer o que cada posição faz. A caixa
+// `#padwiz-demo` saiu do `index.html` com o resto do painel (o `#padwiz` é montado pela engine com a marcação dela),
+// então ela nasce aqui, dentro do cartão da engine, na primeira vez que o assistente pede um passo.
+const demoDoAssistente = createPadWizardDemo({ $, spriteBase: SPR });
+function caixaDaDemo(): void {
+  if ($('#padwiz-demo')) return;
+  const cartao = $('#padwiz .overlay__card') ?? $('#padwiz');
+  if (!cartao) return; // sem o painel da engine não há onde desenhar — e o assistente fala sozinho, que é o padrão dele
+  const caixa = doc.createElement('div'); caixa.id = 'padwiz-demo'; caixa.setAttribute('aria-hidden', 'true');
+  const fx = doc.createElement('span'); fx.id = 'padwiz-demo-fx';
+  const img = doc.createElement('img'); img.id = 'padwiz-demo-img'; img.alt = '';
+  caixa.append(fx, img);
+  // antes da frase do assistente, como estava no `index.html`: primeiro o que se vê, depois o que se pede
+  const frase = cartao.querySelector('#padwiz-prompt');
+  if (frase) cartao.insertBefore(caixa, frase); else cartao.prepend(caixa);
+}
 // Desconectar NÃO abandona o jogo: o teclado é sempre fallback. Só solta a associação do pad.
 addEventListener('gamepaddisconnected',(e)=>{ try{ const owner=players.findIndex(p=>p.pad===e.gamepad.index);
   if(owner>=0){ players[owner].pad=-1; srAlert(t('sr.pad.disconnected',{n:owner+1})); }
   delete input.padCur[e.gamepad.index]; }catch(err){} }, SOLTAR);
-
-/* ===== L1: wizard de mapeamento de gamepad (DirectInput e controles fora do padrão) =====
-   Captura botões por índice; analógicos como limiar por eixo/sinal ({ax,s}); D-pad "POV hat" do
-   DirectInput como VALOR de eixo ({av,v}, casamento por proximidade ±0.13 — os 8 passos do hat
-   distam ~0.286). Mapa salvo por gamepad.id em localStorage → vale p/ aquele modelo de controle. */
-// O assistente de mapeamento (padMapFor/bindActive/padWiz*/PADWIZ_STEPS + a fiacao do #padwiz-cancel)
-// migrou inteiro para input/gamepad.ts (Onda A).
 
 const optTelasBtn=$('#opt-telas'); // botão único: cicla 1→2→3→4 telas
 // Pelo activateScreens, e nao pelo setNumPlayers cru: o botao e o Alt+N sao o MESMO pedido por dois caminhos,
@@ -1840,8 +1696,6 @@ const viz = initVizSetters({
 // engine agora.
 const { applySharedTextures, updateVpDots, applyVpFilters, setPlayerViz,
         applyVizGlobal, reapplyVizAll, setPlayerTheme, setPlayerCorrection } = viz;
-// 📌 Os dois nomes velhos ficam só para o ctx da pausa, que espera decisão do Dev; somem com ele.
-const setTemaDoJogador = setPlayerTheme, setCorrecaoDoJogador = setPlayerCorrection;
 const _rebakeDirect = viz.rebakeDirect;
 // renderVpOverlay migrou para render/viewports.ts (B2).
 // updateVpDots/applyVpFilters migraram para render/viz-setters.ts (Onda A).
@@ -1928,15 +1782,9 @@ vizReady=true; applyVizGlobal(players[0].visual); // estado inicial (solo) — o
 // ABBR_MID/attachAbbr migraram para ui/activities-menu.ts (Onda A). A VARREDURA abaixo fica onde
 // esta: ela e sensivel a quando os .pm-btn existem.
 document.querySelectorAll<HTMLElement>('.mode-btn, .pm-btn').forEach(attachAbbr); // `attachAbbr` lê `.title`/`.dataset`
-function simNaoGlyphs(){ const d=store.get('incl_paddesign','generic'); const set=PAD_DESIGNS[d]||PAD_DESIGNS.generic; const inv=(d==='sony'||d==='nintendo');
-  return { sim:set[inv?'1':'0'], nao:set[inv?'0':'1'] }; }
-// A MONTAGEM saiu daqui e virou `pauseLegendHtml` em ui/shell (ADR-0044, item 4). Não foi só mudança de casa:
-// a legenda carregava `aria-hidden="true"` e era invisível justamente para quem não vê o glifo. Agora os chips
-// ficam visíveis e MUDOS e uma frase `sr-only` diz a mesma coisa em palavras — e a montagem virou testável em
-// node, que é o que permite o gate `tests/pause-legend.node.test.js` existir.
-function renderPauseLegend(){ const g=simNaoGlyphs();
-  const html=pauseLegendHtml(t, g.sim as [string,string], g.nao as [string,string]);
-  document.querySelectorAll('.pause-legend').forEach(el=>{ el.innerHTML=html; }); } // todas as pausas por tela
+// A LEGENDA SIM/NÃO DO CARTÃO (`renderPauseLegend`) saiu: escrevia no `.pause-legend` de cada pausa por tela, e o
+// cartão é o da engine, que diz os botões na própria legenda de rodapé (ADR-0164 regra 3). Escrever no cartão dela
+// seria um módulo a desenhar na tela de outro.
 
 /* ===================== FPS ===================== */
 let fpsAccum=0,fpsFrames=0,fpsMin=Infinity,fpsWarm=0;
@@ -1952,7 +1800,8 @@ function fpsTick(){ const fps=app.ticker.FPS; fpsWarm++; fpsAccum+=fps; fpsFrame
 /* ===================== loop ===================== */
 // O QUADRO DESTE CARTUCHO. Era o corpo do `startLoop`; agora e' o `update(dt)` que a instancia devolve, e
 // quem o chama e' o shell — ver a nota no topo da fabrica.
-function quadro(dt: number): void { gamepadApi.pollPads(); update(dt); draw();
+// O `pollPads` saiu do quadro: quem lê os pads é a engine, no quadro dela (`create-game.js:3955-3977`).
+function quadro(dt: number): void { update(dt); draw();
   titleG.visible=fatosDaCena().titleScreen; if(titleG.visible)titleScene.draw(); // cena do título da v3 cobre o mundo
   attractCtl.titleIdleTick(titleG.visible); // attract após 60s parado no menu (José)
   setMinimapVisible(!titleG.visible&&rodada.numPlayers<=1); document.body.classList.toggle('at-title',titleG.visible); // HUD/minimapa não vazam no menu
@@ -1966,7 +1815,7 @@ function quadro(dt: number): void { gamepadApi.pollPads(); update(dt); draw();
 // ⚠️ O `maxDt` E O `aoFalhar` SAIRAM COM O LACO, e nao foram perdidos: o ADR-0054 poe o aviso de queda no
 // shell, que e' quem sabe que o laco parou. Um cartucho que rebenta tem de parar a si proprio sem parar a
 // plataforma, e isso so quem corre o laco pode garantir.
-window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,pollPads:()=>gamepadApi.pollPads(),update,openPadWiz:()=>gamepadApi.openPadWiz(),padWizTick:()=>gamepadApi.padWizTick(),padMapFor:(id: Parameters<typeof gamepadApi.padMapFor>[0])=>gamepadApi.padMapFor(id),get padWiz(){return gamepadApi.getPadWiz();},get phase(){return cenas.fase();},get padPrev(){return input.padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[settingsStore.vizMode]||{}).kind==='hcnew';} /* derivado de settingsStore.vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return audio.footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return guide.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
+window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,update,get phase(){return cenas.fase();},get padPrev(){return input.padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[settingsStore.vizMode]||{}).kind==='hcnew';} /* derivado de settingsStore.vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return audio.footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return guide.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
   get mmSeen(){return minimapSeenCount();},get MODE(){return MODE();},get letterCase(){return settingsStore.letterCase;},brailleText,tileAt,WORLD_W,WORLD_H,TUNE,
   JUICE,addShake,addHitstop,burstSparkle,puffDust,draw,get particles(){return getParticles();},get hitstopT(){return getHitstopT();},get shakeT(){return getShakeT();},get CRT(){return engine.crt.cfg;},applyCrt:()=>engine.crt.apply(),setLq,get lqT(){return getLqT();},
   // As cores por papel (`setRoleColor`/`resetRoleColors`) e a tipografia (`setGameFont`/`openTypo`/`fontKey`) saíram com
@@ -1998,186 +1847,74 @@ addEventListener('resize', layout, SOLTAR);
 layout(); requestAnimationFrame(layout); setTimeout(layout, 1500);
 window.__incl.layout=layout;
 
-/* ===================== E14: shell — título/splash + pausa -> ui/shell.ts (C3) =====================
-   setPhase/pauseActs/pauseSelect/printMode/togglePause/updateTitleLegend migraram. O que fica aqui sao
-   ENVELOPES ICADOS (`function`), e nao `const`: `setPhase` ja esta nos ctx de game/session, input/gamepad,
-   game/attract e ui/activities-menu, montados em outros pontos do arquivo — so o icamento faz aquelas quatro
-   fiacoes continuarem valendo sem serem tocadas. Mesmo padrao de hideTouchControls/restartGame/quitGame.
-   Tudo o que a tabela de pausa chama entra como CALLBACK, nao como valor: motor/motion/empathy/hud sao
-   `const` declarados ABAIXO, e so a resolucao na hora da chamada os tira da TDZ. (selVizPlayer saiu desta
-   lista: migrou para core/state no #50, e um import nao tem TDZ para escapar.) */
-const shell = initShell({
-  rotuloCurto,
-  fatosDaCena, retomarJogo: () => setPhase('playing'),
-  getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
-  $, win: window, setMasterMuted, srSay, srAlert,
-  getPauseScreens: () => vpPause,                  // `let` REATRIBUIDO por buildGameHud -> getter
-  getPauseActor: () => rodada.pauseActor,          // seis leitores -> um campo da RODADA
-  hideTouchControls: () => hideTouchControls(),
-  reflectPauseIcons: () => reflectPauseIcons(),
+/* ===================== A TELA DE TÍTULO -> ui/title-screen.ts =====================
+   📌 DECISÃO A DO DEV (02/10): a pausa é a da ENGINE — um cartão (`#vp-pause-0`), aberto por START/SELECT/☰ e
+   fechado por «Continuar»/Escape, e a engine pede a este jogo `setPhase('paused'|'playing'|'title')` (o gancho, em
+   `ligarGanchos`). O `initShell` daqui fazia isso E projetava a cena; ficou só a projeção, que é deste jogo: o
+   `#title-overlay`, o som calado fora do jogo, o foco, e a legenda dos botões do título.
+   Saíram com a pausa por tela: `initPauseIcons` (o cartão, a barra rápida e a barra do splash — o `#title-icons`
+   é preenchido pela engine), `initMenuNav` e os seus invólucros (a navegação é a `engine.nav`), os
+   `overlays.register` (os painéis registam-se sozinhos no `engine.overlays`) e a tabela `pauseActs`. */
+const telaDeTitulo = createTitleScreen({
+  t, $,
+  sceneFacts: fatosDaCena,
+  setMasterMuted,
+  getNumPlayers: () => rodada.numPlayers,
+  padOfPlayer1: () => { const p = players[0]; return p && typeof p.pad === 'number' && p.pad >= 0 ? p.pad : -1; },
   getGamepads: () => (navigator.getGamepads ? navigator.getGamepads() : []),
+  // ⚠️ UMA LEITURA FRESCA a cada legenda, e não uma instância guardada: o `createPadMaps` guarda os mapas em memória,
+  // e o assistente que os grava é o da ENGINE, sobre a instância DELA. Uma cópia feita aqui responderia o mapa de
+  // antes do assistente — e só a legenda do título lê isto, nunca o quadro do jogo.
+  padMapFor: (id) => createPadMaps(store).padMap(id),
+  keysOfPlayer1: () => kbFor(0),
+  keyName: (code) => keyName(t, code),
+  shortLabel: (acao) => rotuloCurto(acao),
   isTouchMode: () => document.body.classList.contains('touch-mode'),
-  padLayoutFromId, padMapFor: (id) => gamepadApi.padMapFor(id), kbFor: (i) => esquemaLargo(kbFor(i)), keyName,
-  openCaa: () => caa.open(),
-  setQuizLevel, getQuizLevel: () => quizLevel,
-  openTypo: () => openTypo(), openAudio: () => openAudio(), openMovement: () => openMovement(),
-  openVisual: () => openVisual(), openHelp: () => openHelp(), quitGame: () => quitGame(),
-  fitsN: (n) => fitsN(n), joinPlayer: (padIdx) => joinPlayer(padIdx),
-  showWaitingBadge: (i) => hud.showWaitingBadge(i),
-  setMotorPlayer: (i) => motor.setSelPlayer(i),
-  setMotionPlayer: (i) => setSelectedMotionPlayer(i),
-  openMotion: () => motion.open(), openEmpathy: () => empathy.open(),
-  setSelVizPlayer: (i) => rodada.setSelVizPlayer(i),
 });
-/* `setPhase`/`togglePause` são ENVELOPES ICADOS sobre `game/cenas`. Continuam como `function` e não `const`
-   pelo mesmo motivo de sempre: eles já estão nos ctx de game/session, input/gamepad, game/attract e
-   ui/activities-menu, montados acima desta linha — só o içamento faz aquelas fiações valerem sem serem
-   tocadas. A REGRA de cada transição (pausar empilha, sair da pausa desempilha, o título não alterna) mora
-   lá, onde tem teste; aqui fica só o encaminhamento. */
+/* `setPhase` é ENVELOPE IÇADO sobre `game/cenas`. Continua `function` e não `const` pelo motivo de sempre: já está
+   nos ctx de game/session, game/attract e ui/activities-menu, montados acima desta linha — só o içamento faz
+   aquelas fiações valerem sem serem tocadas. A REGRA de cada transição (pausar empilha, sair da pausa desempilha)
+   mora lá, onde tem teste; aqui fica só o encaminhamento.
+   ⚠️ É o caminho do PRÓPRIO jogo e nunca chama a engine de volta: quem abre e fecha o cartão é ela, e é ela quem
+   pede a fase — ver o `setPhase` de `ligarGanchos`. */
 function setPhase(p: Fase){ cenas.irPara(p); }
-function togglePause(){ cenas.alternarPausa(); }
-function updateTitleLegend(){ shell.updateTitleLegend(); }
-// NAVEGAÇÃO UNIVERSAL de menus: qualquer menu aberto (pausa OU submenu) é navegável por up/down/left/right/
-// sim/não — as MESMAS ações valem para teclado, controle, olhos e fala. sim = confirma/alterna/entra;
-// não = volta ao menu anterior (na raiz, volta ao jogo = Continuar). left/right ajustam select/slider.
-// A ORDEM aqui E a cadeia de Escape (verbatim do encadeamento anterior). touchcfg e help entram sem
-// flag: ficam fora da cadeia, exatamente como estavam.
-overlays.register('options',  { close:()=>closeOptions(),  inEscapeChain:true });
-overlays.register('movement', { close:()=>closeMovement(), inEscapeChain:true });
-overlays.register('animation',{ close:()=>motion.close(),  inEscapeChain:true });
-overlays.register('visual',   { close:()=>closeVisual(),   inEscapeChain:true });
-overlays.register('empathy',  { close:()=>empathy.close(), inEscapeChain:true });
-overlays.register('audio',    { close:()=>closeAudio(),    inEscapeChain:true });
-overlays.register('caa',      { close:()=>caa.close(),     inEscapeChain:true });
-overlays.register('typo',     { close:()=>closeTypo(),     inEscapeChain:true });
-// Estes dois ficavam FORA da cadeia — heranca do monolito, onde nunca tiveram flag `*Open`. Media no
-// navegador: com o jogo pausado o Escape nem chega aqui, porque menu-nav o consome na fase de CAPTURA e da
-// stopPropagation. Ou seja, o comportamento certo de hoje vinha de uma rede acidental, e a cadeia — que e o
-// recuo — estava errada. Agora os nove estao nela. Para o #touchcfg isso ainda melhora o fechamento: pela
-// cadeia passa por closeTouchCfg(), que devolve o foco, em vez do ramo do roteador, que so escondia.
-overlays.register('touchcfg', { close:()=>touchCtl.closeTouchCfg(), inEscapeChain:true });
-overlays.register('help',     { close:()=>closeHelp(),              inEscapeChain:true });
-const pauseActs = shell.pauseActs; // tabela de acoes dos .pm-btn -> ui/shell.ts (ui/pause-icons le por getPauseActs)
+function updateTitleLegend(){ telaDeTitulo.updateTitleLegend(); }
 
-// 🔴 O HUD MONTA-SE AQUI, E A POSIÇÃO É O CONTRATO. Estava ~770 linhas acima, logo a seguir ao minimapa, e
-// com a engine 8.0.0 isso passou a rebentar o arranque com «Cannot access 'pauseActs' before initialization»
-// — um ReferenceError que o `tsc` NÃO vê, porque a leitura mora dentro do fecho `getPauseActs: () =>
-// pauseActs`, o que é legal para o compilador e fatal em execução.
-//
-// A cadeia, medida no navegador e não deduzida: `buildGameHud()` → `ui/hud.buildGameHud` →
-// `buildScreenPause` → `ui/pause-icons.buildScreenPause` → `refrescarItensDaPausa` → `getPauseActs()`.
-// A engine passou a perguntar O QUE O JOGO ACCIONA na hora de CONSTRUIR o cartão, porque o ADR-0106 §5
-// manda esconder o item que ninguém aciona — e a nota dela diz-lo com todas as letras: «o §5 vale já na
-// montagem, e não só na primeira abertura» (pause-icons.js:800).
-//
-// Responder `{}` cedo e deixar o `reflectPauseIcons()` corrigir depois FUNCIONARIA, e é o conserto errado:
-// o cartão nasceria com os quinze itens escondidos, e a criança que o abrisse antes do primeiro reflect
-// veria um menu vazio. A tabela tem de existir quando o cartão se constrói.
-buildGameHud(); // HUD por jogador no init (single-screen; configureRender só roda ao trocar nº de telas)
-// Roteamento de input por jogador: cada tecla é do jogador dono dela (kbFor). Genéricas → jogador 0.
-const actionOf = (code: Parameters<typeof kbRuntime.actionOf>[0],pi: number) => kbRuntime.actionOf(code,pi);
-const whichPlayer = (code: Parameters<typeof kbRuntime.whichPlayer>[0]) => kbRuntime.whichPlayer(code);
-/* ===================== NAVEGACAO UNIVERSAL de menus -> ui/menu-nav.ts (C3) =====================
-   sharedDialogOpen/menuItems/menuFocus/dialogBack/navDialog/pauseSetSel/navPause/menuNavKey migraram.
-   `sharedDialogOpen` agora e ALIAS de overlays.topVisibleOverlay: as duas eram a MESMA funcao escrita duas
-   vezes — mesmo escopo, mesmo filtro, mesma ordenacao por z-index. Os envelopes abaixo sao `function`
-   (icadas) porque o ctx de input/gamepad, montado bem acima, referencia sharedDialogOpen/navDialog/navPause
-   por NOME; e closeTypo/closeHelp chamam menuFocus(sharedDialogOpen()) de mais acima ainda. */
-const menuNav = initMenuNav({
-  $, getActiveElement: () => document.activeElement,
-  isNavigable: () => fatosDaCena().pauseMenu, // aqui menu e' coisa de pausa; noutro jogo pode ser sempre (ver o ctx)
-  // O modo `accessibility` (ADR-0044, item 7) roda com o jogo ANDANDO, e por isso e' perguntado antes do
-  // guarda de "navegavel". Quem sabe quem esta nele e' `ui/pause-icons`, dono da barra.
-  srSay,
-  comIndice: () => settingsStore.menuIndexOn,
-  naBarraDe: (i) => pauseIcons.naBarraDe(i),
-  navBar: (i, k) => pauseIcons.navBar(i, k),
-  topVisibleOverlay: () => overlays.topVisibleOverlay(), closeById: (id) => overlays.closeById(id),
-  getPauseMenu: (i) => vpPause[i],                 // `let vpPause` REATRIBUIDO por buildGameHud -> getter
-  setPhase: (p) => setPhase(p),
-  setPauseActor: (i) => rodada.setPauseActor(i),
-  isCapturing: () => ctrlPanel.isCapturing(),
-  closePadWiz: (save) => gamepadApi.closePadWiz(save), // LAZY: quebra o ciclo menu-nav <-> input/gamepad
-  whichPlayer, actionOf,
-  win: window,
-});
-function sharedDialogOpen(){ return menuNav.sharedDialogOpen(); }
-function menuFocus(menu: Parameters<typeof menuNav.menuFocus>[0]){ menuNav.menuFocus(menu); }
-function navDialog(menu: Parameters<typeof menuNav.navDialog>[0],k: Parameters<typeof menuNav.navDialog>[1]){ menuNav.navDialog(menu,k); }
-function navPause(menu: Parameters<typeof menuNav.navPause>[0],pi: number,k: Parameters<typeof menuNav.navPause>[2]){ menuNav.navPause(menu,pi,k); }
-menuNav.attach(); // addEventListener('keydown', menuNavKey, true) — MESMA fase de CAPTURA
-/* ===== Menu inicial (v3): principal → submenus de atividade → (tabuada/divisão) seletor de números ===== */
-// _tabFor/titleButtons/navTitle/buildTitleMenus migraram para ui/activities-menu.ts (Onda A).
-// updateTitleLegend migrou para ui/shell.ts (C3) — e legenda da TELA de titulo, nao navegacao de menu; o
-// envelope icado fica la em cima, junto do resto da casca. padKind() foi APAGADO: input/touch.ts ja exporta
-// a mesma funcao desde a Onda A e a copia daqui nao tinha chamador nenhum (codigo morto duplicado).
+// O HUD das telas no arranque (uma tela; `configureRender` só o refaz ao trocar o número de telas).
+// 📌 A POSIÇÃO DEIXOU DE SER CONTRATO: ela existia porque o `buildScreenPause` da pausa por tela lia `pauseActs`
+// ao construir o cartão (TDZ). Sem cartão por tela, o HUD não lê nada declarado abaixo dele.
+buildGameHud();
+// A legenda do título descreve o aparelho: um pad que liga ou desliga troca as duas linhas.
 addEventListener('gamepadconnected',()=>{ if(fatosDaCena().titleScreen)updateTitleLegend(); }, SOLTAR);
 addEventListener('gamepaddisconnected',()=>{ if(fatosDaCena().titleScreen)updateTitleLegend(); }, SOLTAR);
-// O despachante do menu do titulo (teclado do #np-btn, rodape de descricao e o click) migrou para
-// ui/activities-menu.ts, que liga os proprios ouvintes no #title-overlay. Sobrou aqui a barra de
-// icones de a11y do splash, que e do slice de pausa.
-(function titleIconsSetup(){ const ov=$('#title-overlay'); if(!ov)return;
-  // Icones de a11y da pausa TAMBEM no topo do splash (mesmas acoes, escopo do Jogador 1)
-  const ti=$('#title-icons'); if(ti){ ti.innerHTML=iconsMarkup(); // fonte unica do markup (antes copiado aqui e no modulo)
-    // ⚠️ O `<HTMLElement>` no `closest` é para o `dataset` da linha de baixo ser tipado. O comentário que
-    // explicava isso ficou NO MEIO da linha em 2026-08-25 (d889254) e comeu o resto dela — as duas chamadas
-    // abaixo passaram 36 commits comentadas, e nada acusou. Comentário de fim de linha fica em linha própria.
-    ti.addEventListener('click',(e)=>{ const ib=(e.target as Element | null)?.closest<HTMLElement>('.pi-btn'); if(!ib)return;
-      rodada.setPauseActor(0); pauseIcons.iconAct(ib.dataset.pi||'',0);
-      reflectTitleIcons(); if(typeof reflectPauseIcons==='function')reflectPauseIcons(); srSay(ib.getAttribute('aria-label')||''); });
-    reflectTitleIcons(); }
-})();
+/*
+ * O "VOLTAR" DE QUEM NAVEGA O TÍTULO PELA ENGINE. O `#title-overlay` é um `.overlay` dentro do `#game-region`, e a
+ * engine trata o `.overlay` visível do topo como diálogo: o gamepad dela o conduz (`menuWithDpad`,
+ * `create-game.js:2634`) e o «não» de um diálogo SEM registro faz `menu.hidden = true` (`ui/menu-nav` `dialogBack`) —
+ * esconderia a tela de título e deixaria a criança diante da cena vazia. Registado, o «não» é o voltar DESTE menu:
+ * o mesmo botão «voltar» do submenu aberto que o `navTitle` aperta. Fora da cadeia do Escape, que é a dos painéis.
+ */
+engine.overlays.register('title-overlay', {
+  close: () => navTitle({ no: true }),
+  inEscapeChain: false,
+});
 (function shellSetup(){
-  // (O ajudante `wire` e a chamada `wire('btn-pause', …)` SAÍRAM em 2026-08-26. O id nunca existiu no
-  //  documento — o botão saiu da barra e a fiação ficou "guardada p/ compat", ligando um ouvinte a nada. O
-  //  `noUnusedLocals`, ligado hoje, mostrou que o ajudante existia SÓ para essa chamada. Quem pausa por
-  //  toque é o `#touch-start`, e é nele que o `aria-pressed` passa a cair — ver `ui/shell`.)
   // Barra de topo (título da PÁGINA + ferramentas): só com ?debug=true. O jogo já mostra o título no splash,
   // então a barra fica oculta por padrão (CSS body:not(.dbg) .topbar) e libera a vertical p/ o canvas.
   if(/[?&]debug=true/.test(location.search))document.body.classList.add('dbg');
   const tools=$('#topbar-tools'); if(tools){ if(/[?&]debug=true/.test(location.search))tools.hidden=false;
     const db=$('#btn-debug'); if(db)db.addEventListener('click',()=>{ const p=$('#debug-panel'); if(p){ p.hidden=!p.hidden; db.setAttribute('aria-pressed',String(!p.hidden)); } }); } // abre/fecha o painel de afinação
-  // Menu de pausa: agora é POR TELA (buildScreenPause + pauseActs no escopo do módulo). Nada aqui.
   setPhase('title'); // estado inicial: tela de título
-  // (o `initI18n()` que ficava aqui subiu para o TOPO do arquivo — ver a nota la'. Ficar por ultimo era o
-  //  defeito: a interface toda ja tinha sido montada no idioma errado.)
 })();
 
-/* ===================== E13: controles de toque (mobile) ===================== */
-// oculta os botões de toque (chamado quando o jogador usa teclado/controle, p/ não atrapalhar)
-// minimapa: no toque vai pro canto SUPERIOR DIREITO (o direcional, embaixo à esq., não o cobre); senão, inferior esquerdo
-// setMinimapCorner extraído p/ render/minimap.js (Estágio 4, Tier 1).
-// teclado/controle → esconde os botões e devolve o minimapa ao canto inferior esquerdo
-// hideTouchControls/showTouchControls migraram para input/touch.ts (Onda A).
-// DECLARACOES de funcao, nao const: o setPhase('title') do boot chama hideTouchControls antes desta linha,
-// e so o icamento faz isso funcionar — era assim no original. O corpo so toca touchCtl na hora da chamada.
-// ⚠️ `reason?: string` escrito à mão, e NÃO `Parameters<typeof …>[0]`: aquele idioma perde a OPCIONALIDADE.
-// O delegado declara `hideTouchControls(reason?: string)`, mas `Parameters<>[0]` devolve `string | undefined`
-// como parâmetro OBRIGATÓRIO — e os três pontos que chamam sem argumento pararam de compilar. O idioma
-// continua certo para parâmetro obrigatório; para opcional, ele mente.
-function hideTouchControls(reason?: string){ touchCtl.hideTouchControls(reason); }
-function showTouchControls(){ touchCtl.showTouchControls(); }
-/* Amarras do toque -> input/touch-bindings.ts (D3-b). LAZY de proposito: `attractCtl` e `const` declarado
-   ABAIXO desta linha (TDZ). `keys` e `const` mutado in place -> entra por VALOR; showTouchControls/hideTips/
-   togglePause sao declaracoes icadas e ja existem aqui, entao entram por referencia direta.
-   `getStartAction` le do dono do mapa (touchCtl). Antes alcancava um `touchMap` pelado, que e variavel
-   privada do closure de input/touch.ts e nunca existiu aqui: o botao START do pad lancava ReferenceError e
-   nao fazia nada. */
-const touchBindings = initTouchBindings({
-  $, win: window, getSearch: () => location.search,
-  getControls: () => kbRuntime.controlsState().controls,
-  getPlayers: () => players, heldKeys: input.keys,
-  // As mesmas portas do `initKeydown`, e a MESMA aresta.
-  marcarTecla, soltarTecla, arestaDoJogador,
-  attractOnInput: () => attractCtl.onInput(),
-  showTouchControls, hideTips, togglePause,
-  getTouchMap: () => touchCtl.getTouchMap(),
-  getStartAction: () => touchCtl.getTouchMap().start, // era `touchMap.start` — nome que nunca existiu neste escopo
-  getStickTravelPx: () => touchCtl.getStickTravelPx(),
-  getStickDeadPx: () => touchCtl.getStickDeadPx(),
-});
-touchBindings.attach();
-window.__incl.showTouch = () => touchBindings.revealForTests(); // p/ testes em desktop
+/* ===================== O CONTROLE DE TOQUE É DA ENGINE =====================
+   O pad na tela é pedido pelo gancho `onScreenPad` (`src/index.ts`) e desenhado pelo `createGame` no
+   `#touch-controls`; as amarras dele (`initTouchBindings`) e o START/SELECT por toque são dela. O `touchCtl` e as
+   amarras desta raiz saíram — duas amarras no mesmo pad seriam dois dedos por toque. */
+// ⚠️ NADA A FAZER, e os chamadores ficam: a sessão (quem entra), o desafio e o teclado pedem «esconda o pad», e a
+// engine não abre essa porta — a política dela já o esconde com o cartão, com qualquer overlay e com mais de um
+// assento. É declaração de função (içada) porque os ctx acima a recebem por referência.
+function hideTouchControls(_motivo?: string): void {}
 
 /* ===================== ATTRACT: cria o controlador (deps já definidas) → game/attract.ts ===================== */
 const attractCtl = createAttract({
@@ -2311,16 +2048,68 @@ ligarDeclaracao({
   seletorDoMundo: '#game-region',
 });
 
-// A metade dos ganchos que LÊ A RODADA. A outra — acomodações, dicionários, preset — é dado do cartucho e
-// mora em `src/index.ts`, resolvida uma vez e sem suporte nenhum.
+// A metade dos ganchos que LÊ A RODADA. A outra — acomodações, dicionários, preset, o pad na tela e o HUD do
+// assento 0 — é dado do cartucho e mora em `src/index.ts`, resolvida uma vez e sem suporte nenhum.
+//
+// 📌 DECISÃO A DO DEV (02/10): a pausa é a da ENGINE. Ela abre e fecha o cartão e PEDE a fase; este jogo só move as
+// cenas (congela o mundo, retoma, volta ao título) e nunca a chama de volta.
+/** O jogo fecha o cartão da engine e retoma pelo caminho dele — o que o «Continuar» dela faria. */
+function retomarDoCartao(): void { engine.pause.hide(0); setPhase('playing'); }
 ligarGanchos({
-  isNavigable: () => true,
-  setPhase: (f) => { if (f === 'playing' || f === 'title' || f === 'paused') setPhase(f); },
+  /*
+   * ⚠️ FALSE SÓ QUANDO O DIÁLOGO DO TOPO É UMA TELA DESTE JOGO (o título ou a vitória), e é a leitura do
+   * `ui/menu-nav` que o pede. A navegação da engine conduz o `.overlay` visível do topo do `#game-region`
+   * (`menusTake`: `isNavigable() && menuUnderKeys`), e o `#title-overlay` é um deles — a engine moveria o foco num
+   * anel genérico em vez do `navTitle` (que tem o ◀▶ do nº de jogadores e os seletores de números), e o «não» do
+   * diálogo sem registro faria `menu.hidden = true`. Com `false` ali, a tecla chega ao roteador deste jogo, como
+   * sempre chegou. Em qualquer outro momento — o cartão, um painel aberto por cima do título, o jogo a correr — é
+   * true: com nada aberto a engine não consome tecla nenhuma, e a barra rápida é perguntada antes deste guarda.
+   */
+  isNavigable: () => { const topo = engine.overlays.topVisibleOverlay();
+    return !(topo && (topo.id === 'title-overlay' || topo.id === 'win-overlay')); },
+  // A engine pede; as cenas obedecem só ao que faz sentido AGORA: pausar um mundo que corre, retomar um pausado.
+  // Um pedido fora disso (um «playing» com o título no ecrã) não arranca uma rodada que ninguém escolheu.
+  setPhase: (f) => {
+    const agora = fatosDaCena();
+    if (f === 'paused' && agora.worldRunning) setPhase('paused');
+    else if (f === 'playing' && agora.pauseMenu) setPhase('playing');
+    else if (f === 'title') setPhase('title');
+  },
   isBlindMode: () => settingsStore.blindMode,
-  getPauseActs: () => pauseActs,
+  /*
+   * SÓ O QUE PEDE TRABALHO DESTE JOGO. «Continuar», «Sair»→título, ajuda, impressão e os painéis a engine aciona
+   * sozinha (a tabela dela vem antes, e esta vence onde repete um id).
+   * · `addplayer` — a engine não o aciona. É o «mais um jogador» de sempre: a tela nova ESPERA o dono apertar um
+   *   botão (o selo de espera), e o jogo volta a correr.
+   * · `quit` — sair não é só ir ao título: sozinho, a rodada recomeça e o menu volta ao início; em várias telas,
+   *   a tela de quem saiu fica preta e os outros seguem (`game/session.quitGame`). ⚠️ Com um cartão só, quem «sai»
+   *   é o assento que a engine passa ao `setPauseActor` — o 0.
+   */
+  getPauseActs: () => ({
+    addplayer: () => {
+      if (!joinPlayer(null)) return; // ela própria diz por que não: celular, quatro jogadores, não cabe
+      const i = rodada.numPlayers - 1;
+      players[i].waiting = true;
+      seatHud.showWaitingBadge(i);
+      retomarDoCartao();
+      srAlert(t('sr.player.pressToJoin', { n: i + 1 }));
+    },
+    quit: () => { engine.pause.hide(0); quitGame(); },
+  }),
   setPauseActor: (i: number) => rodada.setPauseActor(i),
   setPlayerTheme: (...a: Parameters<typeof setPlayerTheme>) => setPlayerTheme(...a),
   setPlayerCorrection: (...a: Parameters<typeof setPlayerCorrection>) => setPlayerCorrection(...a),
+  // O que só este jogo sabe do gamepad (o transporte é da engine — ver a nota junto de `demoDoAssistente`).
+  gamepad: {
+    worldRunning: () => fatosDaCena().worldRunning,
+    navTitle: (k) => navTitle(k),
+    attractActive: () => attractCtl.isAttract(), stopAttract: () => attractCtl.stopAttract(),
+    hasModal: (i) => temModal(i), modalInput: (i, intent) => modalInput(i, intent),
+    joinPlayer: (pad) => joinPlayer(pad), respawnPlayer: (i) => respawnPlayer(i),
+    clearWaitingBadge: (i) => seatHud.clearWaitingBadge(i),
+    wizardStep: (posicao) => { caixaDaDemo(); demoDoAssistente.step(posicao); },
+    wizardTick: () => demoDoAssistente.tick(),
+  },
 });
 
 return { update: quadro, teardown };

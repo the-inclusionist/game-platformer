@@ -89,30 +89,13 @@
       <div id="quiz" class="quiz" hidden></div>
       <!-- Legenda de efeitos sonoros (C1): visual + aria-live -->
       <div id="caption" class="caption" role="status" aria-live="polite"></div>
-      <!-- E13: controles de toque (mobile) — só aparecem em telas de toque; não cobrem o centro do jogo -->
-      <div id="touch-controls" class="touch" role="group" aria-label="Controles de toque" data-i18n-aria="a11y.touchControls" hidden>
-        <div class="touch-pad">
-          <div id="touch-cross" class="touch-cross" role="group" aria-label="Direcional em cruz: mover, subir e descer" hidden>
-            <span class="dpad-arm dpad-up" aria-hidden="true">▲</span>
-            <span class="dpad-arm dpad-down" aria-hidden="true">▼</span>
-            <span class="dpad-arm dpad-left" aria-hidden="true">◀</span>
-            <span class="dpad-arm dpad-right" aria-hidden="true">▶</span>
-            <span class="dpad-center" aria-hidden="true"></span>
-          </div>
-          <div id="touch-stick" class="touch-stick" role="group" aria-label="Direcional: mover, subir e descer">
-            <span class="touch-knob" aria-hidden="true"></span>
-          </div>
-        </div>
-        <div class="touch-pad touch-actions">
-          <div class="pad-diamond" id="pad-diamond" aria-label="Botões de ação" data-i18n-aria="a11y.actionButtons">
-            <button class="touch-btn pad-b pad-top" type="button" data-btn="3" data-act="swap" aria-label="Trocar poder (botão 3)" data-i18n-aria="a11y.btnSwap"></button>
-            <button class="touch-btn pad-b pad-left" type="button" data-btn="2" data-act="run" aria-label="Interagir / correr (botão 2)" data-i18n-aria="a11y.btnRun"></button>
-            <button class="touch-btn pad-b pad-right" type="button" data-btn="1" data-act="especial" aria-label="Especial (botão 1)" data-i18n-aria="a11y.btnSpecial"></button>
-            <button class="touch-btn pad-b pad-bottom" type="button" data-btn="0" data-act="jump" aria-label="Pular (botão 0)" data-i18n-aria="a11y.btnJump"></button>
-          </div>
-        </div>
-        <button class="touch-start" id="touch-start" type="button" aria-label="Pausar ou iniciar (START)">START</button>
-      </div>
+      <!-- O CONTROLE DE TOQUE É DA ENGINE (pedido pelo gancho `onScreenPad`): o `createGame` reaproveita este
+           `#touch-controls`, esvazia-o e desenha nele o pad com as palavras do `preset` deste jogo
+           (`input/touch.mountTouchControls`). A marcação que estava aqui — cruz, analógico, losango e START — era
+           a do pad desta raiz, que saiu (decisão A do Dev, 02/10). 📌 O invólucro FICA, e vazio, por um motivo:
+           dentro do `#dom-layer` ele recebe o mesmo filtro de correção de cor que os menus (issue #82); sem ele a
+           engine montaria o pad direto no `#game-region`, fora desse filtro. -->
+      <div id="touch-controls" class="touch" hidden></div>
       </div><!-- /#dom-layer -->
     </section>
       <div id="libras-slot" class="libras-slot" aria-hidden="true"></div>

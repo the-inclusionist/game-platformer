@@ -10,6 +10,7 @@ import { createPlatformerDeclaration } from '../app/js/declaration/platformer-de
 import { DEPS_VIVAS, GANCHOS_VIVOS, JOGADORES_VIVOS } from '../app/js/declaration/live.js';
 import { ACOMODACOES } from '../app/js/declaration/accommodations.js';
 import { platformerPreset } from '../app/js/game/platformer-preset.js';
+import { COIN_TARGET } from '../app/js/game/tuning.js';
 import type { CartridgeHooks } from '@the-inclusionist/engine';
 export { create };
 import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
@@ -55,6 +56,7 @@ export const declaration = createPlatformerDeclaration(DEPS_VIVAS);
  * e' chave dele.
  */
 export const hooks: CartridgeHooks = {
+  // a pausa (`setPhase`, `getPauseActs`, `setPauseActor`), os dois eixos visuais e o `gamepad` leem a rodada: delegam
   ...GANCHOS_VIVOS,
   accommodations: ACOMODACOES,
   dictionaries: dicts,
@@ -64,6 +66,25 @@ export const hooks: CartridgeHooks = {
   // sem esquema e o recebe no `assignControls` do arranque — que corre dentro do `create()`, antes de a
   // rodada pôr o primeiro jogador ao alcance de quem lê. É afirmação sobre ESSA ordem, não sobre dado de fora.
   players: JOGADORES_VIVOS as unknown as NonNullable<CartridgeHooks['players']>,
+  /*
+   * 📌 A DECISÃO A DO DEV (02/10): a pausa e o HUD são os da ENGINE. A raiz do `createGame` desenha UMA tela — o
+   * cartão `#vp-pause-0`, a barra e o HUD do assento 0 —, e este jogo, de tela dividida, deixa de desenhar a sua.
+   *
+   * O PAD NA TELA, pedido (ADR-0166): o jogo segura direção, correr e pular, e num tablet sem teclado é a única
+   * forma de jogar. A política é da engine — só com um assento, e some com o cartão ou qualquer overlay aberto.
+   */
+  onScreenPad: true,
+  /*
+   * AS MOEDAS DO ASSENTO 0, na faixa da missão («tem de precisa»). ⚠️ Só o assento 0: a engine monta o HUD de uma
+   * tela (`create-game.js:2133`). As moedas dos assentos 1–3 e o poder de todos continuam deste jogo, em
+   * `ui/seat-hud`, cada um na própria tela — o poder é um rótulo, e a faixa `power` só mostra número.
+   * Lido a cada quadro, então lê o array estável dos assentos: vazio no import, «zero de dez» antes de haver jogo.
+   */
+  hud: [{
+    band: 'mission',
+    nameKey: 'hud.nome.moedas',
+    value: (assento: number) => ({ have: JOGADORES_VIVOS[assento]?.collected ?? 0, need: COIN_TARGET }),
+  }],
 };
 
 /**
