@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config'; // (não de 'vite': é o vitest/config que tipa o campo `test`)
 import { VitePWA } from 'vite-plugin-pwa';
+import { defineGameBuild } from '@the-inclusionist/engine/build';
 import { playwright } from '@vitest/browser-playwright';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -34,36 +35,26 @@ const BUILD = {
   env: process.env.CF_PAGES ? 'prod' : 'local',
 };
 
-/* ===================== DOIS ALVOS, DE UMA FONTE SO (ADR-0140 §1) =====================
+/* ===================== DOIS ALVOS, DE UMA FONTE SO (ADR-0140 §1), E O SEGUNDO É DA ENGINE (ADR-0253) =====================
  *
  * APP (o padrao) — entrada `app/index.html`, que carrega `src/standalone.ts`. A engine vai EMBUTIDA e o
  * `vite-plugin-pwa` fica ligado. A saida e' um PWA solto, e ele e' a rota de DESENVOLVIMENTO, TESTE,
  * AUDITORIA e DEMONSTRACAO deste repositorio — nunca de entrega (ADR-0140 §3).
  *
- * LIB (`--mode lib`) — entrada `src/index.ts`, o cartucho. A engine, o PixiJS e o runtime de voz ficam
- * EXTERNOS; sem HTML, sem service worker. E' isto que a plataforma consome, e e' o que faz UMA engine viajar
- * em vez de seis: um motor instalado ainda viaja N vezes se N pacotes o embutirem.
+ * CARTUCHO (`--mode cartridge`) — entrada `src/index.ts`, cujo export PADRAO e' o cartucho. Quem o monta e'
+ * o `defineGameBuild` da engine, sobre ESTA MESMA config: tira o service worker, poe a engine, o PixiJS e o
+ * zdog de fora, escreve `dist-lib/cartridge.js` e emite `dist-lib/cartridge.d.ts`.
  *
- * ⚠️ OS DOIS PODEM DIVERGIR, e o proprio registro chama isso de risco: «a gate that builds BOTH in CI is not
- * optional; without it the lib build breaks and nobody learns until the platform installs it».
+ * 🔴 ATE 02/10 ESTE FICHEIRO TINHA O SEU PROPRIO RAMO `--mode lib`, e era exatamente o que o ADR-0253 tirou
+ * dos jogos: «two targets written by hand in each game drift». O CI partilhado corre `vite build --mode
+ * cartridge` e `npx inclusionist-check-cartridge` sem entrada para desligar; um ramo proprio construia um
+ * `dist-lib/index.js` que o checador nem procura.
+ *
+ * ⚠️ O `@mintplex-labs/piper-tts-web` SAIU DA LISTA DE EXTERNOS porque sai do cartucho: a voz neural da
+ * engine 11 e' o Kokoro, pedido por `uses: { neuralVoice: true }` (ADR-0216), e a raiz deixou de abrir a
+ * porta do Piper. Se um import dele sobrevivesse, este build embutiria o chunk — e o checador diria.
  */
-export default defineConfig(({ mode }) => mode === 'lib' ? {
-  // ⚠️ SEM `root: 'app'` AQUI. O alvo app tem a raiz no `app/` porque a entrada e' o HTML de la; o cartucho
-  // nao tem HTML nenhum, e a sua entrada e' `src/index.ts` a partir da raiz do repositorio.
-  define: { __BUILD__: JSON.stringify(BUILD) },
-  plugins: [atlasDeSprites({ raizSprites: RAIZ_SPRITES })],
-  build: {
-    outDir: 'dist-lib',
-    emptyOutDir: true,
-    lib: { entry: 'src/index.ts', formats: ['es'], fileName: 'index' },
-    rollupOptions: {
-      // ⚠️ EXTERNO E NAO EMBUTIDO, e e' esta a linha que cumpre o ADR-0140. O `@mintplex-labs/piper-tts-web`
-      // entra na lista pelo ADR-0117: «a cartridge declares no delivery — no font file, no voice, no runtime
-      // in a game's own package». Quem preenche a porta `carregarVozNeural` e' o host.
-      external: [/^@the-inclusionist\/engine/, 'pixi.js', '@mintplex-labs/piper-tts-web'],
-    },
-  },
-} : {
+export default defineGameBuild({ cartridge: 'src/index.ts', config: defineConfig({
   root: 'app',
   define: { __BUILD__: JSON.stringify(BUILD) },
   plugins: [
@@ -136,4 +127,4 @@ export default defineConfig(({ mode }) => mode === 'lib' ? {
       },
     ],
   },
-});
+}) });

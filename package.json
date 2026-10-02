@@ -5,6 +5,15 @@
   "private": true,
   "description": "The Inclusionist — the platformer. The accessibility-first 2D pixel-art game that the engine was extracted from, now consuming it as a package (ADR-0036, ADR-0068, ADR-0083).",
   "license": "AGPL-3.0-or-later",
+  "exports": {
+    ".": {
+      "types": "./dist-lib/cartridge.d.ts",
+      "default": "./dist-lib/cartridge.js"
+    }
+  },
+  "files": [
+    "dist-lib"
+  ],
   "comment:origin": [
     "THIS REPOSITORY EXISTS BECAUSE ADR-0036 ORDERED IT ON 2026-08-25, and the code only moved on 06/09.",
     "The record chose `S1 — the game leaves; this repository becomes the engine`, and explicitly REJECTED",
@@ -56,8 +65,9 @@
     "test:node": "vitest run --project node",
     "test:browser": "vitest run --project browser",
     "test:a11y": "node scripts/axe-check.mjs",
-    "validate": "npm run typecheck && vitest run && vite build && npm run build:lib",
-    "build:lib": "vite build --mode lib"
+    "validate": "npm run typecheck && vitest run && vite build && npm run build:lib && npm run check:cartridge",
+    "build:lib": "vite build --mode cartridge",
+    "check:cartridge": "inclusionist-check-cartridge"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -84,5 +94,5 @@
     "@the-inclusionist/engine": "^11.0.0",
     "pixi.js": "7.4.2"
   },
-  "comment:two-targets": "ADR-0140 §1: one source, two builds. `build` is the standalone PWA (engine bundled, service worker on) and is the development, test, audit and demonstration route -- never a delivery route (§3). `build:lib` is the cartridge: `src/index.ts`, ES only, with the engine, Pixi and the voice runtime EXTERNAL, no HTML and no service worker. Measured 2026-09-11: the app build is 16 MB and the lib build is 180 KB, because the lib emits 86 bare imports of the engine instead of inlining it -- which is what makes ONE engine travel rather than six. ⚠️ `validate` builds BOTH because the record names the divergence as the risk: without a gate that builds both, the lib build breaks and nobody learns until the platform installs it."
+  "comment:two-targets": "ADR-0140 §1: one source, two builds. `build` is the standalone PWA (engine bundled, service worker on) and is the development, test, audit and demonstration route -- never a delivery route (§3). `build:lib` is the cartridge, and since engine 11 (ADR-0253) it is the ENGINE's build: `vite.config.ts` is `defineGameBuild({ cartridge: 'src/index.ts', config })`, and `--mode cartridge` writes `dist-lib/cartridge.js` + `cartridge.d.ts` with the engine, Pixi and zdog external, no HTML and no service worker. `check:cartridge` runs the gate the shared CI runs. Measured 2026-09-11 with the old hand-written lib branch: app 16 MB, lib 180 KB -- the lib emits bare imports of the engine instead of inlining it, which is what makes ONE engine travel rather than six. ⚠️ `validate` builds BOTH and checks the cartridge because the record names the divergence as the risk."
 }
