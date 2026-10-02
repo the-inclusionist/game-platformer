@@ -16,8 +16,14 @@ pages_build_output_dir = "dist"
 INCL_BASE = "/game-platformer/"
 
 # O bucket R2 que serve `/heavy/*` — PARTILHADO por todos os jogos da origem (ADR-0117).
-# ⚠️ `inclusionist-heavy` e' o nome convencional; so se escolhe uma vez e todos os jogos vinculam ao mesmo.
-# A Pages Function em `functions/game-platformer/heavy/[[path]].ts` usa `env.HEAVY.get(key)`.
+# 🔴 ESTE BUCKET JA EXISTE E JA ESTA CHEIO, feito pelo Dev com `the-inclusionist-lfs/upload-to-r2.ps1`
+# em 02/10. Serve-se publicamente em `https://lfs-oinclusionista.jrocha.dev.br` — o endereço que o catálogo
+# da engine aponta para Vosk, Whisper, Moonshine, eSpeak, fontes e Libras. Mas o bucket tambem contem copias
+# dos ficheiros upstream (Kokoro, MediaPipe, onnxruntime) no layout `MIRROR_FOLDERS` do heavy-mirror, para
+# o `inclusionist-heavy --base` fazer a entrega de qualquer jogo sem rede externa.
+#
+# ⚠️ O LAYOUT DO BUCKET E' PASTAS NO FORMATO DO LFS, nao `heavy/<host><path>` da entrega. A Pages Function
+# traduz, por via de `MIRROR_FOLDERS`.
 [[r2_buckets]]
-binding = "HEAVY"
-bucket_name = "inclusionist-heavy"
+binding = "LFS"
+bucket_name = "the-inclusionist-lfs"

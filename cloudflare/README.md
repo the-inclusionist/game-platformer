@@ -1,40 +1,22 @@
 # Publicar em `o-inclusionista.jrocha.dev.br/game-platformer/` via Cloudflare
 
-Passo a passo. Precisas de uma conta Cloudflare com acesso ao domínio `jrocha.dev.br` (ou um subdomínio
-que apontes para Pages). Tudo o que custa dinheiro só começa depois dos **10 GiB armazenados no R2** e dos
-**500 builds por mês** no Pages — este jogo cabe no plano grátis.
+Passo a passo. O **bucket R2 `the-inclusionist-lfs` já existe e já tem a árvore inteira** (1,5 GiB —
+Kokoro, MediaPipe, Vosk, Whisper, Moonshine, eSpeak NG, onnxruntime-web, fontes e Libras), carregado pelo
+Dev com `the-inclusionist-lfs/upload-to-r2.ps1`. **Nada precisa de ser enviado desta sessão.**
 
-Arquitetura: `Pages` serve o shell do jogo (3,5 MiB); `R2` guarda o `heavy/` (1,2 GiB); uma `Pages Function`
-em `functions/game-platformer/heavy/[[path]].ts` encaminha `/game-platformer/heavy/*` para o bucket R2. O
-cache do navegador fica em `incl-pesados-v2` (nomeado pela engine) e, ao servir OUTROS jogos da **mesma
-origem**, reutiliza o que já está lá, sem rede (ADR-0117).
+Arquitectura: Cloudflare Pages serve o shell do jogo (3,5 MiB); o bucket R2 existente serve o `heavy/`; uma
+Pages Function em `functions/game-platformer/heavy/[[path]].ts` traduz `/game-platformer/heavy/<host><path>`
+em chave do bucket via `MIRROR_FOLDERS` da engine. O cache do navegador fica em `incl-pesados-v2` (nomeado
+pela engine) e, ao servir OUTROS jogos da **mesma origem**, reutiliza o que já está lá, sem rede (ADR-0117).
 
 ## Pré-requisitos (uma vez na máquina)
 
 ```bash
 npm i -g wrangler
-wrangler login            # abre o browser para autenticar na conta Cloudflare
+wrangler login            # autenticar na conta Cloudflare onde o bucket vive
 ```
 
-## 1. Criar o bucket R2 e enviar o `heavy/`
-
-**Uma vez por conta.** Todos os jogos usam este mesmo bucket.
-
-```bash
-wrangler r2 bucket create inclusionist-heavy
-node cloudflare/upload-heavy-to-r2.mjs   # 1,2 GiB → ~15–40 min, consoante a banda
-```
-
-O script lê `C:\Users\candi\Claude\inclusionist-heavy-mirror\heavy\` (o espelho que já construiste em
-02/10). Para refazer o espelho se o Dev adicionar línguas:
-
-```bash
-node_modules/.bin/inclusionist-heavy \
-  C:/Users/candi/Claude/inclusionist-heavy-mirror \
-  --kokoro --reading pt --reading en --reading es --commands pt --commands en --commands es
-```
-
-## 2. Build de produção
+## 1. Build de produção
 
 ```bash
 MSYS_NO_PATHCONV=1 INCL_BASE=/game-platformer/ npx vite build
@@ -49,66 +31,72 @@ Verifica rápido que o build ficou com os caminhos corretos:
 grep -o '"/game-platformer/[^"]*"' dist/index.html | head
 ```
 
-## 3. Primeiro deploy (cria o projeto Pages)
+## 2. Primeiro deploy (cria o projeto Pages)
 
 ```bash
 wrangler pages project create game-platformer --production-branch=main
 wrangler pages deploy dist --project-name=game-platformer
 ```
 
-Isso devolve um URL `https://<hash>.game-platformer.pages.dev`. Testa aí primeiro:
-- Abre o URL + `/game-platformer/` (ou configura a rota principal no dashboard).
-- `?debug=true` no fim mostra a barra do Dev.
-- O `/game-platformer/heavy/<host>/<path>` deve responder 200 — se der 404 é porque o bucket ainda não foi
-  carregado, ou o `wrangler.toml` não foi lido no deploy. O Pages lê os bindings dos settings do dashboard,
-  **não** do `wrangler.toml` para deploys por CLI (ver passo 4).
+Isto devolve um URL `https://<hash>.game-platformer.pages.dev`. **Nesta fase a Pages Function responde 500**
+porque o binding do R2 ainda não existe (passo 3).
 
-## 4. Ligar o bucket R2 ao projeto Pages
+## 3. Ligar o bucket `the-inclusionist-lfs` ao projeto Pages
 
 No **dashboard do Cloudflare** → `Workers & Pages` → `game-platformer` → `Settings` → `Functions` →
-`R2 bucket bindings`:
+`R2 bucket bindings` → `Add binding`:
 
-- **Variable name**: `HEAVY`
-- **R2 bucket**: `inclusionist-heavy`
+- **Variable name**: `LFS`
+- **R2 bucket**: `the-inclusionist-lfs`
 
-Guardar. Depois **re-deploy** para o binding entrar em vigor:
+Guardar. **Re-deploy** para o binding entrar em vigor:
 
 ```bash
 wrangler pages deploy dist --project-name=game-platformer
 ```
 
-## 5. Domínio personalizado
+(O `wrangler.toml` deste repo já declara o binding, mas o Pages aceita bindings de R2 só pelo dashboard na
+UI atual — o CLI aceita a declaração mas o dashboard tem prioridade.)
 
-No dashboard → `Workers & Pages` → `game-platformer` → `Custom domains` → `Set up a custom domain`:
+## 4. Domínio personalizado
 
-- Entrar `o-inclusionista.jrocha.dev.br`.
-- O Cloudflare cria o CNAME automaticamente se o domínio já está na conta.
-- O certificado TLS é automático.
+Dashboard → `Workers & Pages` → `game-platformer` → `Custom domains` → `Set up a custom domain` →
+`o-inclusionista.jrocha.dev.br`. CNAME e TLS automáticos.
 
 Quando o DNS propagar, `o-inclusionista.jrocha.dev.br/game-platformer/` serve o jogo.
 
-## 6. Adicionar o segundo jogo (futuro)
+## 5. Verificar (do browser do Dev, DevTools)
 
-Com `game-chess` pronto, há duas vias:
+```js
+// A Function devolve o Kokoro:
+await fetch('/game-platformer/heavy/huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model.onnx', { method: 'HEAD' }).then(r => r.status)
+// → 200
 
-**(a) Projecto Pages separado**, custom domain `o-inclusionista.jrocha.dev.br/game-chess/` por *route*. O
-mesmo bucket R2 serve-o; copia-se `functions/game-platformer/` para `functions/game-chess/` e troca-se o
-nome do caminho. Mantém a mesma origem — o cache partilha-se.
+// E traduziu via MIRROR_FOLDERS para `kokoro-82m-v1.0-onnx/onnx/model.onnx` no bucket.
+// A engine já tem o cache nomeado depois de um ciclo:
+await caches.has('incl-pesados-v2')
+// → true
+```
+
+## Adicionar o segundo jogo (futuro)
+
+**(a) Projecto Pages separado**, custom domain na mesma origem (`o-inclusionista.jrocha.dev.br/game-chess/`
+por *route*). O mesmo bucket `the-inclusionist-lfs` serve-o; copia-se `functions/game-platformer/` para
+`functions/game-chess/` e troca-se o nome do caminho. Mantém a mesma origem — o cache partilha-se.
 
 **(b) Repo de plataforma**. Um `inclusionist-platform` que, em build, instala cada jogo (por tag git ou
 pacote npm), copia o `dist/` para `platform/dist/game-<slug>/` e deploya um só projeto Pages. Promover
 este `wrangler.toml` e `functions/` para lá; os cartuchos ficam sem configuração de deploy, como manda a
 arquitetura (ADR-0140 §3).
 
-Enquanto houver um jogo só, (a) basta — e o `functions/game-platformer/` deste repo já está pronto para a
-transição em (b).
+## O que mudar quando a versão da engine subir
 
-## Verificar
+A `MIRROR_FOLDERS` da Pages Function é cópia da `platform/heavy-mirror.MIRROR_FOLDERS` da engine 11.0.0. Ao
+subir para uma versão nova, verificar a tabela:
 
-Depois do deploy, do browser do Dev:
-
-```js
-// no DevTools da aba a correr em o-inclusionista.jrocha.dev.br/game-platformer/
-await fetch('/game-platformer/heavy/huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model.onnx', { method: 'HEAD' }).then(r => r.status)   // 200
-await caches.has('incl-pesados-v2')  // true depois de a engine ter corrido um ciclo
+```bash
+node -e "import('@the-inclusionist/engine/platform/heavy-mirror.js').then(m => console.log(JSON.stringify(m.MIRROR_FOLDERS, null, 2)))"
 ```
+
+Se a tabela mudou, atualizar o `functions/game-platformer/heavy/[[path]].ts` e re-deploy. O comentário no
+topo da Function explica porque a tabela foi copiada em vez de importada.
