@@ -27,3 +27,7 @@ INCL_BASE = "/game-platformer/"
 [[r2_buckets]]
 binding = "LFS"
 bucket_name = "the-inclusionist-lfs"
+# 🔴 BUCKET NA JURISDICAO EUROPEIA, medido pelo URL S3 `.eu.r2.cloudflarestorage.com` do Dev. Sem este
+# campo o binding procura no namespace global e o deploy do Pages Functions falha com `bucket not found`,
+# mesmo com o nome certo e as permissoes abertas — como o Dev viu no deploy de 02/10 19h53.
+jurisdiction = "eu"

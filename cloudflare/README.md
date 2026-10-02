@@ -50,6 +50,11 @@ Mesmo projeto → `Settings` → `Functions` → `R2 bucket bindings` → `Add b
 |---|---|
 | Variable name | `LFS` |
 | R2 bucket | `the-inclusionist-lfs` |
+| Jurisdiction | **European Union** |
+
+🔴 O **Jurisdiction** é obrigatório porque o bucket foi criado na jurisdição EU (vê-se pelo URL S3 do Dev
+começar por `*.eu.r2.cloudflarestorage.com`). Sem este campo o deploy falha com `bucket not found` mesmo
+com o nome certo — e o `wrangler.toml` deste repo já declara `jurisdiction = "eu"` pela mesma razão.
 
 Guardar. Fazer o **próximo push qualquer** para re-deploy com o binding ativo (basta `git commit --allow-empty
 -m "trigger: bind LFS"` seguido de `git push`), ou usar o botão `Redeploy` do dashboard.
