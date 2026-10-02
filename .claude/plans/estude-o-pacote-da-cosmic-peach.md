@@ -294,7 +294,17 @@ loop nao as atacava. Lista agora, com estado:
   (`create-game.js:1476`). Pedido (C).
 - **«Sair» so' sai do assento 0, nao os outros assentos individualmente** → pedido (C).
 - **Gamepad no ecra de titulo cai no anel generico da engine (perde-se o ◀▶ no numero de jogadores)** →
-  pedido (C) OU pequena mudanca aqui ao `nav.navTitle` para passar o controle do pad.
+  medido pela leitura da engine em 02/10 20h55: **bug da engine, nao do jogo**. O pad vai por
+  `menuWithDpad = () => !!overlays.topVisibleOverlay() || ...` (`create-game.js:2634`); o `#title-overlay` e um
+  `.overlay` visivel → `menuWithDpad()` retorna `true` → `steerFrame` (`gamepad.js:406`) chama `steerPause(f)`
+  em vez de `steerTitle(f)`. O `steerPause` tenta `navBar`, `navDialog`, `getPauseMenu(0)` — nenhum reage no
+  titulo (barra desligada, `#vp-pause-0` escondido) → o pad nao faz nada; `ctx.navTitle` **nunca e chamado**.
+  O teclado escapa porque o jogo tem `isNavigable()` (`main.ts:2035`) que filtra `title-overlay`/`win-overlay`
+  e devolve `false`, fazendo o `ui/menu-nav` deixar a tecla passar. O pad nao tem equivalente — `menuWithDpad`
+  nao aceita callback do jogo, entao o gancho `navTitle` fiado em `main.ts:2071` nunca e chamado. **Pedido (C)
+  para a engine:** `menuWithDpad` precisa de uma versao `isNavigable`-equivalente para o pad, OU `steerPause`
+  precisa cair para `steerTitle` quando nenhum menu da engine reage, OU o `steerFrame` precisa consultar o
+  jogo pela mesma via do teclado antes de rotular como «pausa».
 - **HUD «0 de 10 moedas» da engine fica no topo central** sobreposto a outros elementos (medido em jogo em
   02/10 17h). Decidir se o jogo esconde a HUD da engine (passando `hud: []`) e desenha a sua, ou aceita a
   posicao.
