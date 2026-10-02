@@ -39,8 +39,8 @@ describe('a barra de acessibilidade deste jogo aciona os dois eixos visuais', ()
   // Sem este caso, os dois de cima pareceriam zelo com um nome de campo.
   it('[Interface] os dois icones so existem quando ha quem os accione', () => {
     const chaves = (o) => iconsThatAct(o).map((i) => i.k);
-    const sem = chaves({ tema: false, correcao: false, seguraTeclas: () => true });
-    const com = chaves({ tema: true, correcao: true, seguraTeclas: () => true });
+    const sem = chaves({ theme: false, correction: false, holdsKeys: () => true });
+    const com = chaves({ theme: true, correction: true, holdsKeys: () => true });
     // Os nomes das duas chaves estao escritos aqui como LITERAIS: le-los da propria engine faria a asserçao
     // andar junto com ela, e o caso ficaria verde a dizer que protege algo no dia em que deixasse de proteger.
     expect(sem).not.toContain('contrast');
@@ -54,7 +54,7 @@ describe('a barra de acessibilidade deste jogo aciona os dois eixos visuais', ()
   // resposta e' `true`, medida na fisica deste jogo (direcao, correr e pular sao segurados), e este caso e' o
   // que impede que ela seja mudada por distracao.
   it('[Interface] `seguraTeclas` decide o icone da trava pelo mesmo mecanismo', () => {
-    const chaves = (v) => iconsThatAct({ tema: true, correcao: true, seguraTeclas: () => v }).map((i) => i.k);
+    const chaves = (v) => iconsThatAct({ theme: true, correction: true, holdsKeys: () => v }).map((i) => i.k);
     expect(chaves(true)).toContain('altmove');
     expect(chaves(false)).not.toContain('altmove');
   });
