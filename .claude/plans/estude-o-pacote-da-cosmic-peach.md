@@ -1,7 +1,10 @@
 # `game-platformer` → engine 11.0.0, e o cartucho que o CI passa a exigir
 
-> 📌 **Destino deste ficheiro:** `game-platformer/.claude/plans/`. Está aqui só porque o modo de plano não
-> deixa escrever no repositório. Não há `.claude/plans/` nesse repo ainda — nada a versionar antes.
+> 📌 **Historico do ficheiro.** Nasceu no modo de plano em 27/09 como `estude-o-pacote-da-cosmic-peach.md`
+> (nome herdado do ponto onde o Dev entrou no plano). Em 02/10 passou a viver dentro deste repo em
+> `.claude/plans/`, e a partir dai cresceu com cada estado-de-execucao. Em 02/10 17h00 o Dev notou que
+> existiam dois (uma copia antiga, `estude-o-pacote-da-cosmic-peach.md`, e esta versao viva,
+> `2026-09-27-engine-11-cartucho.md`); consolidou-se nesta, com o nome original.
 
 ## Contexto
 
