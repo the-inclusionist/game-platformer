@@ -196,6 +196,21 @@ const pt: Record<string, string> = {
   'touch.act.pause': 'Pausar (START)',
   'win.again': 'Jogar de novo',
   'win.title': '🎉 Você coletou as 10 moedas!',
+  // ⚠️ AS PALAVRAS DO PRESET deste jogo (ADR-0010 pilar 3, nota DN do Breaking-Changes.md). O `wordsOf()`
+  // do engine 11 so' le o dicionario DO JOGO (`own`), nunca o da engine (base) — o `t()` tem fallback, o
+  // `word()` nao, por desenho: o preset declara chaves, so' o jogo as pode nomear. Sem estas 12, o painel
+  // «Mapear teclado» abre vazio (medido 02/10 20h), porque `actionsToMap()` filtra tudo o que nao resolve.
+  'act.up': 'Subir / escada',
+  'act.down': 'Descer / escada',
+  'act.left': 'Esquerda',
+  'act.right': 'Direita',
+  'act.run': 'Correr / interagir',
+  'act.jump': 'Pular',
+  'act.especial': 'Especial',
+  'act.swap': 'Trocar poder',
+  // `legend.especial` e `legend.swap` ja' estao mais acima, no bloco original; so' as duas aqui sao novas.
+  'legend.run': 'correr',
+  'legend.jump': 'pular',
 };
 
 const en: Record<string, string> = {
@@ -387,6 +402,18 @@ const en: Record<string, string> = {
   'touch.act.pause': 'Pause (START)',
   'win.again': 'Play again',
   'win.title': '🎉 You collected all 10 coins!',
+  // see the pt block above for why these twelve exist.
+  'act.up': 'Climb up / ladder',
+  'act.down': 'Climb down / ladder',
+  'act.left': 'Left',
+  'act.right': 'Right',
+  'act.run': 'Run / interact',
+  'act.jump': 'Jump',
+  'act.especial': 'Special',
+  'act.swap': 'Swap power',
+  // see pt above — the other two are already defined earlier in this block.
+  'legend.run': 'run',
+  'legend.jump': 'jump',
 };
 
 const es: Record<string, string> = {
@@ -578,6 +605,18 @@ const es: Record<string, string> = {
   'touch.act.pause': 'Pausar (START)',
   'win.again': 'Jugar de nuevo',
   'win.title': '🎉 ¡Recogiste las 10 monedas!',
+  // ver el bloque pt arriba por qué estas doce están aquí.
+  'act.up': 'Subir / escalera',
+  'act.down': 'Bajar / escalera',
+  'act.left': 'Izquierda',
+  'act.right': 'Derecha',
+  'act.run': 'Correr / interactuar',
+  'act.jump': 'Saltar',
+  'act.especial': 'Especial',
+  'act.swap': 'Cambiar poder',
+  // ver pt arriba — las otras dos ya están declaradas antes en este bloque.
+  'legend.run': 'correr',
+  'legend.jump': 'saltar',
 };
 
 /**
