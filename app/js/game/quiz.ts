@@ -2,7 +2,7 @@
 // game/quiz.ts — O DESAFIO EDUCATIVO (Estágio 4, bloco B3): as 29 funções do quiz do game.js, verbatim.
 //
 // Três camadas, deliberadamente separadas (a Fase 6 reusa a primeira):
-//   1. GERAÇÃO (pura, só RNG): que pergunta, que alternativas, qual a resposta certa. `generateMath` despacha
+//   1. GERAÇÃO (pura: RNG e `t` entram por `MathDeps`): que pergunta, que alternativas, qual a resposta certa. `generateMath` despacha
 //      por uma TABELA de geradores (`MATH_GENERATORS`) em vez da cadeia if/else do monólito — mesma ordem de
 //      chamada do RNG, portanto MESMA sequência de perguntas para a mesma semente. Do lado do letramento:
 //      `pickWord` (janela de não-repetição de 5) + `generateSilabasOptions`/`generatePreChoices`/
@@ -87,8 +87,12 @@ export type Quiz = MathQuiz | SilabasQuiz | PreQuiz | AlfQuiz | BrailleQuiz;
  * reintroduzido com a união inteira, que é o que permite estreitar por `kind === 'somasub'`. Não é uma exceção
  * à regra, é a regra: quem é DONO do tipo pode saber mais que os outros; quem não é, não pode.
  */
-export type QuizPlayer = PlayerView<'i' | 'x' | 'y' | 'vx' | 'vy' | 'collected' | 'viz' | 'alfWins'>
-  & { quiz: PlayerQuiz | null };
+export type QuizPlayer = PlayerView<'i' | 'x' | 'y' | 'vx' | 'vy' | 'collected' | 'viz'>
+  & { quiz: PlayerQuiz | null; alfWins?: number };
+// ⚠️ `alfWins` saiu de `core/entity.Player` na 11 (virou `literacyWins`, que a engine declara mas não lê em
+// lugar nenhum): o contador de vitórias é regra DESTE jogo — 3 acertos = 1 moeda —, então é declarado aqui,
+// pelo dono, com o nome que o resto do jogo usa (`ui/activities-menu` zera `alfWins` ao trocar de atividade).
+// Renomear para `literacyWins` só para caber no campo da engine casaria o jogo a um nome que ela não usa.
 
 /** Os cinco discriminantes, como DADO — a mesma lista que `tests/quiz-supertype.node.test.ts` afirma. */
 const QUIZ_KINDS: ReadonlySet<string> = new Set(['somasub', 'silabas', 'pre', 'alf', 'braille']);
@@ -135,7 +139,10 @@ export interface MathChallenge {
 // corrente do cartucho chega a oito deles sem mais nenhuma assinatura mudar. O que ela substitui era
 // `rnd`/`randInt`/`shuffle` de `core/rng` — atalhos ligados a uma corrente de ESCOPO DE MÓDULO que dois
 // cartuchos na mesma página estariam a partilhar, cada `reseed` a mover o sorteio do outro.
-export interface MathDeps { tabSel: readonly number[]; fracNot: Record<string, number>; rng: Rng }
+// ⚠️ `t` ENTRA AQUI PELO MESMO MOTIVO (ADR-0232 D3): o enunciado e a fala traduzem, e o `t` de módulo deste
+// arquivo só existe depois do `initQuiz`. Lido pelos geradores, ele fazia a geração "pura" depender de um init
+// — e devolver a CHAVE crua (`sr.math.howManyDots`) a quem gerasse antes dele, como o teste.
+export interface MathDeps { tabSel: readonly number[]; fracNot: Record<string, number>; rng: Rng; t: Translate }
 /** Um gerador por atividade. */
 export type MathGenerator = (deps: MathDeps) => MathChallenge;
 
@@ -161,48 +168,48 @@ export function mkChoices(answer: number | string, lo: number, hi: number, rng: 
  * acontecer que este projeto já viu quatro vezes.
  */
 const OP_KEY: Readonly<Record<string, string>> = { '+': 'math.op.plus', '−': 'math.op.minus', '-': 'math.op.minus', '×': 'math.op.times', '÷': 'math.op.dividedBy' };
-function fala(a: number | string, op: string, b: number | string): string {
+function fala(t: Translate, a: number | string, op: string, b: number | string): string {
   return t('sr.math.howMuchIs', { a, op: t(OP_KEY[op] ?? op), b });
 }
 
 /** mat1 — QUANTIDADE: bolinhas → número (grade FIXA 1..9, sem sorteio de alternativas). */
-const genQuantidade: MathGenerator = ({ rng }) => {
+const genQuantidade: MathGenerator = ({ rng, t }) => {
   const n = rng.randInt(1, 9);
   return { dots: n, answer: String(n), prob: t('math.howManyDots'), choices: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], fala: t('sr.math.howManyDots') };
 };
 
 /** mat2 — SOMA FÁCIL: parcelas 0..5. */
-const genSomaFacil: MathGenerator = ({ rng }) => {
+const genSomaFacil: MathGenerator = ({ rng, t }) => {
   const a = rng.randInt(0, 5), b = rng.randInt(0, 5);
-  return { prob: `${a} + ${b} = ?`, answer: String(a + b), choices: mkChoices(a + b, 0, 10, rng), fala: fala(a, '+', b) };
+  return { prob: `${a} + ${b} = ?`, answer: String(a + b), choices: mkChoices(a + b, 0, 10, rng), fala: fala(t, a, '+', b) };
 };
 
 /** mat4 — SOMA E SUBTRAÇÃO 2: guarda um na cabeça e opera o outro nos dedos (até 20; nunca negativo). */
-const genSomaSub2: MathGenerator = ({ rng }) => {
+const genSomaSub2: MathGenerator = ({ rng, t }) => {
   const op = rng.rnd() < 0.5 ? '+' : '−'; let a: number, b: number, ans: number;
   if (op === '+') { a = rng.randInt(0, 10); b = rng.randInt(0, 10); ans = a + b; } else { a = rng.randInt(0, 20); b = rng.randInt(0, Math.min(10, a)); ans = a - b; }
-  return { prob: `${a} ${op} ${b} = ?`, answer: String(ans), choices: mkChoices(ans, 0, 20, rng), fala: fala(a, op, b) };
+  return { prob: `${a} ${op} ${b} = ?`, answer: String(ans), choices: mkChoices(ans, 0, 20, rng), fala: fala(t, a, op, b) };
 };
 
 /** Número LIGADO no menu da tabuada/divisão (entra em qualquer posição). Sem seleção → 2. */
 function pickTabNumber(tabSel: readonly number[], rng: Rng): number { return tabSel.length ? tabSel[rng.randInt(0, tabSel.length - 1)] : 2; }
 
 /** mat5 — TABUADA: multiplicando E multiplicador de 0..10; o nº ligado pode ser qualquer um dos dois. */
-const genTabuada: MathGenerator = ({ tabSel, rng }) => {
+const genTabuada: MathGenerator = ({ tabSel, rng, t }) => {
   const on = pickTabNumber(tabSel, rng);
   const other = rng.randInt(0, 10); let a: number, b: number; if (rng.rnd() < 0.5) { a = on; b = other; } else { a = other; b = on; }
-  return { prob: `${a} × ${b} = ?`, answer: String(a * b), choices: mkChoices(a * b, 0, 100, rng), fala: fala(a, '×', b) };
+  return { prob: `${a} × ${b} = ?`, answer: String(a * b), choices: mkChoices(a * b, 0, 100, rng), fala: fala(t, a, '×', b) };
 };
 
 /** mat6 — DIVISÃO inteira: divisor E quociente de 0..10 (divisor ≥1, sem ÷0); o nº ligado entra em qualquer posição. */
-const genDivisao: MathGenerator = ({ tabSel, rng }) => {
+const genDivisao: MathGenerator = ({ tabSel, rng, t }) => {
   const on = pickTabNumber(tabSel, rng);
   const other = rng.randInt(0, 10); let divisor: number, quo: number;
   if (on === 0) { quo = 0; divisor = rng.randInt(1, 10); }                         // 0 só pode ser QUOCIENTE (0 ÷ divisor = 0)
   else if (rng.rnd() < 0.5) { quo = on; divisor = Math.max(1, other); }            // ligado = quociente
   else { divisor = on; quo = other; }                                          // ligado = divisor
   const dividend = divisor * quo;
-  return { prob: `${dividend} ÷ ${divisor} = ?`, answer: String(quo), choices: mkChoices(quo, 0, 10, rng), fala: fala(dividend, '÷', divisor) };
+  return { prob: `${dividend} ÷ ${divisor} = ?`, answer: String(quo), choices: mkChoices(quo, 0, 10, rng), fala: fala(t, dividend, '÷', divisor) };
 };
 
 /**
@@ -211,7 +218,7 @@ const genDivisao: MathGenerator = ({ tabSel, rng }) => {
  * sorteio só acontece quando existe gráfico para aquela fração (`g && rng.rnd()<0.5` faz curto-circuito).
  * A comparação é sempre pela CHAVE canônica REDUZIDA, independente da notação exibida.
  */
-function genFracoes(dens: readonly number[], { fracNot, rng }: MathDeps): MathChallenge {
+function genFracoes(dens: readonly number[], { fracNot, rng, t }: MathDeps): MathChallenge {
   const D = dens.reduce((l, d) => l * d / gcd(l, d), 1);
   let d1 = dens[rng.randInt(0, dens.length - 1)], d2 = dens[rng.randInt(0, dens.length - 1)]; const op = rng.rnd() < 0.5 ? '+' : '−';
   let n1 = rng.randInt(1, d1), n2 = rng.randInt(1, d2);
@@ -226,14 +233,14 @@ function genFracoes(dens: readonly number[], { fracNot, rng }: MathDeps): MathCh
   const choices: Choice[] = rng.shuffle(vals).map((v) => ({ key: keyOf(v), disp: dispChoice(v) }));
   // ORDEM DO RNG preservada: `prob` (dois dispOp) é montado DEPOIS das alternativas, como no monólito.
   const prob = `<span class="frac-op">${dispOp(n1, d1)}</span> ${op} <span class="frac-op">${dispOp(n2, d2)}</span> = ?`;
-  return { not, prob, answer: ansKey, choices, fala: fala(fracSpeak(n1 + '/' + d1), op, fracSpeak(n2 + '/' + d2)) };
+  return { not, prob, answer: ansKey, choices, fala: fala(t, fracSpeak(n1 + '/' + d1), op, fracSpeak(n2 + '/' + d2)) };
 }
 
 /** mat3 e o PADRÃO — SOMA E SUBTRAÇÃO 1: dá para fazer nos dedos (soma ≤10, minuendo ≤10). */
-const genSomaSub1: MathGenerator = ({ rng }) => {
+const genSomaSub1: MathGenerator = ({ rng, t }) => {
   const op = rng.rnd() < 0.5 ? '+' : '−'; let a: number, b: number, ans: number;
   if (op === '+') { a = rng.randInt(0, 9); b = rng.randInt(0, 10 - a); ans = a + b; } else { a = rng.randInt(0, 10); b = rng.randInt(0, a); ans = a - b; }
-  return { prob: `${a} ${op} ${b} = ?`, answer: String(ans), choices: mkChoices(ans, 0, 10, rng), fala: fala(a, op, b) }; // sem o nome da forma
+  return { prob: `${a} ${op} ${b} = ?`, answer: String(ans), choices: mkChoices(ans, 0, 10, rng), fala: fala(t, a, op, b) }; // sem o nome da forma
 };
 
 /** Tabela de geradores por id de atividade (substitui a cadeia if/else — MESMO despacho, MESMO RNG). */
@@ -550,7 +557,7 @@ export function initQuiz(ctx: QuizCtx): QuizApi {
 
   /** MATEMÁTICA: gerador POR ATIVIDADE (menu inicial); grade de 9. */
   function openQuiz(pl: QuizPlayer, coinIndex: number, shapeId: string): void {
-    const gen = generateMath(ACTIVITY || '', { tabSel: c.tabSel, fracNot: c.fracNot, rng: c.rng });
+    const gen = generateMath(ACTIVITY || '', { tabSel: c.tabSel, fracNot: c.fracNot, rng: c.rng, t: c.t });
     const q: MathQuiz = { kind: 'somasub', coinIndex, shape: shapeId, sel: 0, tries: 0, revealed: false, prob: gen.prob, answer: gen.answer, choices: gen.choices };
     if (gen.dots !== undefined) q.dots = gen.dots;
     if (gen.not !== undefined) q.not = gen.not;

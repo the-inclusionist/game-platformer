@@ -146,8 +146,8 @@ export function createAudioGuide(ctx: AudioGuideCtx): AudioGuide {
   function stepsToTarget(pl: GuidePlayer, target: { at: Spot; d: number }): number {
     const roleAt = ctx.roleAt;
     if (roleAt) {
-      const path = routeTo({ topology: ctx.topology(), roleAt, orcamento: ROUTE_BUDGET }, { x: pl.x, y: pl.y }, [target.at]);
-      if (path) return path.passos;
+      const path = routeTo({ topology: ctx.topology(), roleAt, budget: ROUTE_BUDGET }, { x: pl.x, y: pl.y }, [target.at]);
+      if (path) return path.steps;
     }
     return target.d;
   }

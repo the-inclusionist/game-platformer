@@ -12,7 +12,8 @@
 // DESIGN TESTÁVEL: zero alcance global. O que é do game.js (wheelchair/modoCego/caneOn, áudio, HUD, juice,
 // leitor de tela, altura do mundo) entra por initPhysics(ctx) como CLOSURES — o módulo sempre lê o valor vivo
 // e o teste passa um ctx falso. As dependências puras (colisão de grade, geometria do jogador, elevadores,
-// constantes, RNG, held) são IMPORTADAS, nunca recriadas. Sem I/O no import.
+// constantes) são IMPORTADAS, nunca recriadas; RNG, tradutor e teclas seguradas (`held`) são da RAIZ e
+// chegam pelo ctx — estado por raiz não se importa (ADR-0141, ADR-0232). Sem I/O no import.
 //
 // ÂNCORA: tests/physics-golden.node.test.js replaya 14 trajetórias capturadas do jogo rodando
 // (tests/fixtures/physics-golden.json). Qualquer mudança de comportamento aqui aparece lá.
@@ -29,7 +30,11 @@ import { tileAt, solidAt, surfTop, isWcRampRiser, rampSurfaceY, caneBlockPx } fr
 import { correndoAgora, usaTravaDeCorrer, botaoDeCorrerEngatado } from './run-toggle.js';
 import { BOX, SPAWN_X, SPAWN_Y, jumpVel, isBouncyGroundBelow, clingSides, firstClingSide, spiderReattach } from './player.js';
 import { ELEV_SPEED, elevAt } from './elevators.js';
-import { held } from '@the-inclusionist/engine/input/state.js';
+import type { LiveInput } from '@the-inclusionist/engine/input/state.js';
+// ⚠️ `held` deixou de ser export de módulo na 11 (nota DA, ADR-0232 D4): as teclas seguradas são de UMA raiz
+// (`createInputState()`), e a física lê as da raiz que a montou. Preenchido no init, como o `t`; até lá,
+// ninguém segura nada — e era isso que o `Set` global vazio respondia antes do boot.
+let held: LiveInput['held'] = () => false;
 import { nextLatchedDir, latchedDrive, type LatchDir } from '@the-inclusionist/engine/input/latch.js';
 import { createRng, type Rng } from '@the-inclusionist/engine/core/rng.js';
 
@@ -94,6 +99,12 @@ export interface PhysicsCtx {
    */
   t: Translate;
   /**
+   * O ESTADO DE ENTRADA DA RAIZ (nota DA). O MESMO `input` que o teclado, o pad e o toque escrevem — um
+   * `createInputState()` à parte aqui deixaria a física lendo teclas que ninguém aperta. `Pick` e não o
+   * `LiveInput` inteiro: a física só PERGUNTA; quem marca e solta é a raiz.
+   */
+  input: Pick<LiveInput, 'held'>;
+  /**
    * A corrente do cartucho (ADR-0141). Entra pelo contexto e não por import: `rnd` de `core/rng` é um
    * atalho ligado a uma corrente de ESCOPO DE MÓDULO, partilhada por quem quer que a importe — e duas
    * partidas na mesma página mexeriam uma no sorteio da outra sem que nada o dissesse.
@@ -132,6 +143,8 @@ const DEFAULT_CTX: PhysicsCtx = {
   // Uma corrente PRÓPRIA e descartável até `initPhysics()` chegar: o contexto de omissão não pode ir
   // buscar a partilhada, que é precisamente o que o ADR-0141 proíbe, nem partilhá-la com a do jogo.
   rng: createRng(),
+  // Identidade e ninguém segurando: o que o módulo respondia antes do `initPhysics()` (ver `t` e `held` acima).
+  t: (k) => k, input: { held: () => false },
   isWheelchair: () => false, isModoCego: () => false, caneOn: () => false, WORLD_PX_H: () => Infinity,
   sfx: NOOP, srSay: NOOP, srAlert: NOOP, hideTips: NOOP, showPower: NOOP,
   nav: { sonar: NOOP, caneTap: NOOP, waterNav: NOOP, needsAudioCues: () => false, panFor: () => 0, playerCtx: () => null },
@@ -144,7 +157,7 @@ const DEFAULT_CTX: PhysicsCtx = {
 let C: PhysicsCtx = DEFAULT_CTX;
 
 /** Liga a física ao game.js. Chamada UMA vez no boot (depois do mundo/colisão). Idempotente. */
-export function initPhysics(ctx: PhysicsCtx): void { C = ctx; t = ctx.t; }
+export function initPhysics(ctx: PhysicsCtx): void { C = ctx; t = ctx.t; held = ctx.input.held; }
 
 /* ===================== consultas do ambiente + colisão do corpo ===================== */
 

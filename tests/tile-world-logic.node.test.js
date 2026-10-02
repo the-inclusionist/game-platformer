@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // 🔴 a legenda glifo↔tipo, o parser do mundo e a consistência entre os dois vieram da engine na F12 (ADR-0228); as constantes, o RNG, o mixer e o estado de entrada ficaram lá.
 import { describe, it, expect } from 'vitest';
-// `core/constants` FICOU na engine — é o que a engine É, sem jogo nenhum — logo vem do pacote.
-import * as C from '@the-inclusionist/engine/core/constants.js';
+// `TILE_COLOR` é a ÚNICA leitura de `C` aqui, e ele saiu de `core/constants` na 11 junto com `ANIM`/`EASY`:
+// são números DESTE jogo, e a engine não descreve um jogo. Mora em `core/game-constants`, ao lado dos tiles.
+import * as C from '../app/js/core/game-constants.js';
 import * as T from '../app/js/core/tiles.js';
 import * as W from '../app/js/core/world.js';
 

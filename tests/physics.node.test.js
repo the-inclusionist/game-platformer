@@ -12,21 +12,39 @@ import { TILE } from '@the-inclusionist/engine/core/constants.js';
 // ANIM/EASY/TILE_COLOR sao deste jogo desde a engine 11 — ver `app/js/core/game-constants.ts`.
 import { EASY } from '../app/js/core/game-constants.js';
 import { TUNE } from '../app/js/game/tuning.js';
-import { keys } from '@the-inclusionist/engine/input/state.js';
+// ⚠️ ENGINE 11 (nota DA): as teclas seguradas são de UMA raiz (`createInputState()`), não do módulo. Este arreio é a
+// raiz: o `keys` que os casos apertam é o do MESMO `input` que vai no ctx da física — senão ela leria outro conjunto.
+import { createInputState } from '@the-inclusionist/engine/input/state.js';
+const input = createInputState();
+const { keys } = input;
 import { KB_DEFAULTS } from '@the-inclusionist/engine/input/keyboard.js';
 import * as PHY from '../app/js/game/physics.js';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
+import { initGameState } from '../app/js/game/state.js';
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
+
+// ENGINE 11 (ADR-0232 D4): `game/state` não lê mais `localStorage` no import nem emite pelo barramento de
+// módulo — a raiz entrega os dois em `initGameState`. A lava re-sorteia as moedas (`setCoins`), então o arreio
+// faz o papel da raiz com um armazenamento SÓ SEU e um barramento mudo (nada aqui assina eventos; quem afere os
+// eventos e as chaves é `tests/state-bus.node.test.ts`).
+initGameState({ store: createStorage(memoryBackend()), bus: { emit() { /* ninguém assina neste arreio */ } } });
 
 // A corrente deste arreio (ADR-0141): o módulo sob teste já não vai buscar a partilhada de `core/rng`,
 // então quem a fornece é quem monta o contexto — aqui, como no jogo.
 const rng = createRng();
-import { t } from '@the-inclusionist/engine/core/i18n.js'; // ⚠️ o dicionário CRU (i18n/pt.js) não estava no xports da engine até a 7.0.2; 	() é público desde sempre e prova o mesmo — que a frase saiu do dicionário e não de uma cópia // a frase falada é conferida contra o DICIONÁRIO, não contra uma cópia
+// ⚠️ ENGINE 11 (ADR-0232 D3): `core/i18n` não exporta mais `t` — o tradutor é de UMA raiz. O teste faz o papel dela:
+// um tradutor com os dicionários do jogo por cima dos da engine, o MESMO que vai no ctx e que confere a frase falada.
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
+const tradutor = createTranslator();
+for (const [lingua, frases] of Object.entries(DICIONARIOS)) tradutor.registerDict(lingua, frases);
+const { t } = tradutor;
 
 const noop = () => { /* stub */ };
 const NAV = { sonar: noop, caneTap: noop, waterNav: noop, needsAudioCues: () => false, panFor: () => 0, playerCtx: () => null };
 // ctx padrão: modo normal (sem cadeira, sem cegueira), mundo alto o bastante para o respawn não disparar.
 const CTX = (over = {}) => ({
-  rng,
+  rng, t, input,
   getPlayers: () => [],
   isWheelchair: () => false, isModoCego: () => false, caneOn: () => false, WORLD_PX_H: () => 10000,
   sfx: noop, srSay: noop, srAlert: noop, hideTips: noop, showPower: noop, nav: NAV,

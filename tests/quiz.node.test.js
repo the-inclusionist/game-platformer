@@ -8,6 +8,8 @@
 // Ver docs/5-Refactoring/plano-modularizacao-mapa.md (B3).
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
 import { SILABAS_WORDS, SILABA_POOL } from '../app/js/game/activity-content.js';
 import { BRAILLE } from '../app/js/game/braille.js';
 import {
@@ -26,7 +28,12 @@ const rng = createRng();
 
 // --- ferramentas de teste -----------------------------------------------------------------------
 const MENU = { tabSel: [], fracNot: { v: 1, d: 1, dec: 1, pct: 1, mix: 1 } }; // menu "tudo ligado, nada escolhido"
-const menu = (over = {}) => ({ ...MENU, rng, ...over });
+// ⚠️ ENGINE 11 (ADR-0232 D3): o tradutor é de UMA raiz e entra na geração por `MathDeps.t`. O arreio faz o papel da
+// raiz: um tradutor com os dicionários do jogo por cima dos da engine — o que o `createGame` faz com `hooks.dictionaries`.
+// As expectativas de fala ficam LITERAIS, então não leem pela mesma tabela que a ação.
+const tradutor = createTranslator();
+for (const [lingua, frases] of Object.entries(DICIONARIOS)) tradutor.registerDict(lingua, frases);
+const menu = (over = {}) => ({ ...MENU, rng, t: tradutor.t, ...over });
 /** Roda `fn` para as sementes 1..n (Right-BICEP "Repeatable": cada iteração é reprodutível sozinha). */
 const forSeeds = (n, fn) => { for (let s = 1; s <= n; s++) { rng.reseed(s * 7919); fn(s); } };
 const keys = (g) => g.choices.map(cKey);

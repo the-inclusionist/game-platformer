@@ -2,8 +2,9 @@
 // app/js/i18n/game-keys — the sentences only this game uses, in pt, en and es (engine ADR-0174, issue #171).
 //
 // They lived in the engine's dictionaries, which the engine drops in its next major: a sentence of one game is that game's.
-// Taken from engine v9.0.0. Registered through the engine's `registerDict`, whose keys win over the engine's own, so this
-// runs the same on the engine that still has them and on the one that does not.
+// Taken from engine v9.0.0. Since engine 11 they reach the engine as `hooks.dictionaries` (see `DICIONARIOS` below), and
+// the translator `createGame` builds registers them over its own keys, so this runs the same on the engine that still has
+// them and on the one that does not.
 
 
 const pt: Record<string, string> = {
@@ -579,7 +580,10 @@ const es: Record<string, string> = {
   'win.title': '🎉 ¡Recogiste las 10 monedas!',
 };
 
-/** Registers the three languages; call before any sentence of this game is drawn or spoken. */
+/**
+ * The three languages, as DATA — nothing here registers them. The cartridge hands them to the engine as
+ * `hooks.dictionaries` (`src/index.ts`), and `createGame` registers them in its own translator, over the engine's keys.
+ */
 /**
  * O TRADUTOR ENTRA POR ARGUMENTO (ADR-0232 D3, nota CV): `core/i18n` deixou de ter um `registerDict`
  * importavel, porque quem regista um dicionario tem de ser quem possui o tradutor — e num cartucho isso e'

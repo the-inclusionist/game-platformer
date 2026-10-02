@@ -13,7 +13,12 @@ import { buildWorldFromText } from '../app/js/core/world.js';
 import * as COL from '../app/js/core/collision.js';
 import { initElevators, buildElevators } from '../app/js/game/elevators.js';
 import { makePlayer } from '../app/js/game/player.js';
-import { keys } from '@the-inclusionist/engine/input/state.js';
+// ⚠️ ENGINE 11 (nota DA): as teclas seguradas são de UMA raiz. O replay aperta as teclas do MESMO `input` que entrega
+// à física no `wireCtx` — com dois conjuntos, a física leria um que ninguém aperta e o replay ficaria parado.
+import { createInputState } from '@the-inclusionist/engine/input/state.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+const input = createInputState();
+const { keys } = input;
 import { KB_DEFAULTS } from '@the-inclusionist/engine/input/keyboard.js';
 import { initPhysics, stepPlayer } from '../app/js/game/physics.js';
 
@@ -58,6 +63,8 @@ const noop = () => { /* stub */ };
 const NAV_STUB = { sonar: noop, caneTap: noop, waterNav: noop, needsAudioCues: () => false, panFor: () => 0, playerCtx: () => null };
 function wireCtx(over = {}) {
   initPhysics({
+    // `t` é exigido desde a 11 (o tradutor vem da raiz); o leitor de tela aqui é no-op, então qualquer um serve.
+    input, t: createTranslator().t,
     isWheelchair: () => false, isModoCego: () => false, caneOn: () => false,
     WORLD_PX_H: () => WORLD_PX_H,
     sfx: noop, srSay: noop, srAlert: noop, hideTips: noop, showPower: noop,

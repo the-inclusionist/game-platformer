@@ -21,7 +21,7 @@ import { criarCenasDoJogo } from '../app/js/game/cenas.js';
 describe('game/cenas — onde o jogo começa', () => {
   it('[Zero] nasce no título, e é o único fato verdadeiro', () => {
     const c = criarCenasDoJogo();
-    expect(c.fatos()).toEqual({ telaDeTitulo: true, mundoRodando: false, menuDePausa: false });
+    expect(c.fatos()).toEqual({ titleScreen: true, worldRunning: false, pauseMenu: false });
     expect(c.nomes()).toEqual(['titulo']);
     expect(c.fase()).toBe('title');
   });
@@ -32,7 +32,7 @@ describe('game/cenas — irPara', () => {
     const c = criarCenasDoJogo();
     c.irPara('playing');
     expect(c.nomes()).toEqual(['jogo']);
-    expect(c.fatos().mundoRodando).toBe(true);
+    expect(c.fatos().worldRunning).toBe(true);
   });
 
   it('[Right] pausar EMPILHA — o jogo continua na pilha, que é o que o enum não dizia', () => {
@@ -40,7 +40,7 @@ describe('game/cenas — irPara', () => {
     c.irPara('playing');
     c.irPara('paused');
     expect(c.nomes()).toEqual(['jogo', 'pausa']);
-    expect(c.fatos()).toEqual({ telaDeTitulo: false, mundoRodando: false, menuDePausa: true });
+    expect(c.fatos()).toEqual({ titleScreen: false, worldRunning: false, pauseMenu: true });
   });
 
   it('[Inverse] sair da pausa DESEMPILHA — e o jogo de baixo é o MESMO objeto, não um recomeço', () => {
@@ -108,7 +108,7 @@ describe('game/cenas — alternarPausa', () => {
     c.pilha.push({ name: 'mapa' });
     c.alternarPausa();
     expect(c.nomes()).toEqual(['jogo', 'mapa']);
-    expect(c.fatos()).toEqual({ telaDeTitulo: false, mundoRodando: false, menuDePausa: false });
+    expect(c.fatos()).toEqual({ titleScreen: false, worldRunning: false, pauseMenu: false });
   });
 });
 
@@ -120,7 +120,7 @@ describe('game/cenas — alternarPausa', () => {
 //       → "[Right] pausar EMPILHA": expected [ 'pausa' ] to deeply equal [ 'jogo', 'pausa' ]
 //   · tirar o `if (topo === NOME.paused) pilha.pop();` (sair da pausa deixa de desempilhar)
 //       → "[Inverse] sair da pausa DESEMPILHA": expected [ 'jogo', 'jogo' ] to deeply equal [ 'jogo' ]
-//   · em `alternarPausa`, trocar o `else if (f.menuDePausa)` por um `else` seco
+//   · em `alternarPausa`, trocar o `else if (f.pauseMenu)` por um `else` seco
 //       → "[Zero] no título NÃO faz nada": expected 'playing' to be 'title'
 //   · chamar `aoTrocar?.()` ANTES de mexer na pilha
 //       → "[Interface] avisa DEPOIS": expected [ 'title', 'playing', … ] to deeply equal [ 'playing', 'paused' ]

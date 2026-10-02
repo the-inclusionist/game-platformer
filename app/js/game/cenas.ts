@@ -8,7 +8,7 @@
 //
 // `core/scenes` sabe que há cenas EMPILHADAS e nada sobre o que cada uma significa. Este arquivo é a metade
 // que sabe — e por isso está do lado do jogo, e vai junto com o cartucho quando ele mudar de repositório
-// (ADR-0036). O que atravessa a fronteira de volta são os três booleanos de `FatosDaCena`.
+// (ADR-0036). O que atravessa a fronteira de volta são os três booleanos de `SceneFacts` (`titleScreen`/`worldRunning`/`pauseMenu` — em inglês desde a 11).
 //
 // ========================= POR QUE NÃO FICOU NO `main.ts` =========================
 // Ficou, por umas horas. O problema apareceu ao mover o `togglePause` para lá: a raiz de composição não é
@@ -57,9 +57,9 @@ export function criarCenasDoJogo(aoTrocar?: () => void): CenasDoJogo {
   const fatos = (): SceneFacts => {
     const topo = pilha.top()?.name;
     return {
-      telaDeTitulo: topo === NOME.title,
-      mundoRodando: topo === NOME.playing,
-      menuDePausa: topo === NOME.paused,
+      titleScreen: topo === NOME.title,
+      worldRunning: topo === NOME.playing,
+      pauseMenu: topo === NOME.paused,
     };
   };
 
@@ -68,7 +68,7 @@ export function criarCenasDoJogo(aoTrocar?: () => void): CenasDoJogo {
     fatos,
     fase(): Fase {
       const f = fatos();
-      return f.mundoRodando ? 'playing' : f.menuDePausa ? 'paused' : 'title';
+      return f.worldRunning ? 'playing' : f.pauseMenu ? 'paused' : 'title';
     },
     // A pilha da engine fala ingles desde a 11 (`names`); o `nomes()` que ESTE modulo expoe fica,
     // porque e' a API deste jogo — e os seus testes leem por ela.
@@ -87,8 +87,8 @@ export function criarCenasDoJogo(aoTrocar?: () => void): CenasDoJogo {
 
     alternarPausa(): void {
       const f = fatos();
-      if (f.mundoRodando) cenas.irPara('paused');
-      else if (f.menuDePausa) cenas.irPara('playing');
+      if (f.worldRunning) cenas.irPara('paused');
+      else if (f.pauseMenu) cenas.irPara('playing');
       // Fora dos dois, nada — verbatim do `else if` sem `else` do original. E vale para uma cena futura
       // também: um mapa de fases não deve pausar por acidente.
     },

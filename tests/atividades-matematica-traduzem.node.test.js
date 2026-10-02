@@ -27,7 +27,22 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { listActivities, getActivity } from '@the-inclusionist/engine/educational/activities-registry.js';
-import { nomeDaAtividade, descricaoDaAtividade } from '../app/js/ui/activities-menu.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
+import { nomeDaAtividade, descricaoDaAtividade, initActivitiesMenu } from '../app/js/ui/activities-menu.js';
+
+// ⚠️ ENGINE 11 (ADR-0232 D3, nota CV): `core/i18n` não guarda estado, e o `t` dos resolvedores é o que a RAIZ entrega no
+// `initActivitiesMenu`. Antes disso ele é a identidade e devolve a CHAVE — era o `'act.mat5.nome'` que este gate via.
+// Então o teste faz o papel da raiz: um tradutor de verdade, com os dicionários do jogo registrados por cima dos da engine
+// (o que o `createGame` faz com `hooks.dictionaries`), entregue pela única porta. `$` sem `#title-overlay` é o caminho
+// «documento sem tela de título» que o próprio init prevê: lê o armazenamento, escreve nada e volta antes dos menus.
+const tradutor = createTranslator();
+for (const [lingua, frases] of Object.entries(DICIONARIOS)) tradutor.registerDict(lingua, frases);
+initActivitiesMenu({
+  t: tradutor.t, gameId: 'jogo-de-teste', $: () => null,
+  getActivityId: () => 'ludico', setActivityId: () => {},
+  store: { getJsonWithLegacy: () => null, setJSON: () => {} },
+});
 
 // The sentences a child reads come from two layers now: the engine's dictionary (the installed package) and this game's
 // own keys (`app/js/i18n/game-keys.ts`, registered over it). Both are read as text, with this game's winning.
