@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Pages Function: `o-inclusionista.jrocha.dev.br/game-platformer/heavy/*` → bucket R2 `the-inclusionist-lfs`.
+// Pages Function: `o-inclusionista.jrocha.dev.br/heavy/*` → bucket R2 `the-inclusionist-lfs`.
 //
-// 🔴 O MESMO BUCKET SERVE TODOS OS JOGOS (ADR-0117). O cache do navegador partilha-se por ORIGEM, entao
-// `/game-chess/heavy/*` apontaria para o mesmo bucket na mesma origem e o navegador reutilizaria o
-// ficheiro sem rede. O caminho local difere (`/game-platformer/heavy/...` vs `/game-chess/heavy/...`), mas
-// a engine guarda no `CacheStorage('incl-pesados-v2')` pela URL UPSTREAM, nao pelo URL local
-// (`platform/heavy.deliveryCacheKey`), entao a chave no cache nomeado tambem fica identica.
+// 🔴 UMA FUNCAO SO SERVE TODOS OS JOGOS DA ORIGEM (ADR-0117). O `/heavy/*` vive na RAIZ do dominio, nao
+// debaixo de `/<slug>/`, porque os jogos poem `<base href="/">` no `index.html` para o `document.baseURI`
+// cair na raiz. Com baseURI em `/`, o `new URL('heavy/<host><path>', doc.baseURI)` da engine resolve
+// `/heavy/<host><path>` — o mesmo URL para `game-platformer`, `game-chess` e qualquer jogo seguinte, e o
+// cache HTTP do navegador partilha-se por URL. A engine ja guardava no `CacheStorage('incl-pesados-v2')`
+// pela URL upstream (`platform/heavy.deliveryCacheKey`), entao o cache nomeado tambem partilha; agora o
+// cache do navegador tambem partilha. Dois niveis de dedup.
 //
 // ⚠️ O LAYOUT DO BUCKET E' O DA ARVORE LFS (`vosk-models/...`, `kokoro-82m-v1.0-onnx/onnx/...`,
 // `mediapipe-tasks-vision-1.0.1/models/...`), nao o da entrega (`heavy/<host><path>`). A engine ja tem a

@@ -5,6 +5,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- 🔴 `BASE HREF="/"` para o `document.baseURI` cair na raiz do dominio e nao em `/game-platformer/`.
+       Importa UMA coisa so, e ela e' invisivel para 99% do codigo: TODOS os pedidos de ficheiros pesados
+       da engine (voz Kokoro, visao MediaPipe, reconhecimento Vosk/Whisper/Moonshine, Libras) sao
+       resolvidos por `new URL('heavy/<host><path>', doc.baseURI)` em `platform/heavy.js:178` e em mais
+       sete pontos do `boot/create-game.js` — e com baseURI em `/`, caiem em `/heavy/*`, PARTILHADO por
+       todos os jogos da origem, servido por uma unica Pages Function. Sem este `<base>`, cada jogo tinha
+       o seu `/game-slug/heavy/*` e a Pages Function teria que duplicar-se.
+       📌 NAO QUEBRA os caminhos do Vite: ele emite tudo em paths absolutos (`/game-platformer/assets/...`),
+       e `<base>` so afeta a resolucao de paths RELATIVOS, que nao ha. O registo do service worker usa
+       path absoluto. Externos (`https://vlibras.gov.br/...`) ficam intactos. -->
+  <base href="/" />
   <meta name="theme-color" content="#0b1020" />
   <meta name="description" content="The Inclusionist — jogo educativo acessível (PixiJS, v4)." />
   <title>The Inclusionist · v4 (PixiJS)</title>
