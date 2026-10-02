@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Deploy do Router Worker (`cloudflare/router-worker/`) a cada push no `main` que mexa nele. Mantem o
+# modelo "`git push` e' a fonte da verdade" que a Git Integration do Pages ja estabelece para o resto do
+# jogo. Sem este workflow, o Worker so se publica por `wrangler deploy` manual.
+#
+# 🔴 PRE-REQUISITO: um secret `CLOUDFLARE_API_TOKEN` no repo do GitHub, com permissao `Edit Cloudflare
+# Workers` + `Zone > Workers Routes > Edit` para o zone `jrocha.dev.br`. Criar o token em:
+#   https://dash.cloudflare.com/profile/api-tokens → Create Token → Edit Cloudflare Workers template
+# e restringir o Account/Zone ao proprio.
+#
+# ⚠️ SO CORRE QUANDO O WORKER MUDA (os `paths` do trigger). Mudancas em `app/`, `src/` ou outros
+# diretorios do repo nao disparam este workflow — o deploy do Pages trata deles pela Git Integration.
+#
+# 📌 ALTERNATIVA SEM TOKEN: Cloudflare Workers Builds, lancado em 2024. Liga-se o repo pelo dashboard do
+# CF (Workers & Pages → Create → Workers → Connect to Git) e a CF faz o build/deploy sem este workflow.
+# Fica igualmente portatil, nao mexe no repo. Se o Dev preferir, basta apagar este ficheiro.
+
+name: deploy router worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cloudflare/router-worker/**'
+      - '.github/workflows/deploy-router-worker.yml'
+  # Permite redeploy manual pelo `Run workflow` do GitHub, sem precisar de um commit.
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: cloudflare/router-worker
+          # Sem `command:` — o default e' `deploy`, que le o `wrangler.toml` ao lado.

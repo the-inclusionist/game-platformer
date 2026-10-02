@@ -31,17 +31,34 @@ GET o-inclusionista.jrocha.dev.br  ─▶│ Qualquer outra rota      ─▶  Pa
 
 ## Publicar
 
-Pre-requisitos: `wrangler` instalado e autenticado (`wrangler login`).
+### Via `git push` (recomendado, mantem o modelo da Pages)
+
+A workflow `.github/workflows/deploy-router-worker.yml` roda `wrangler deploy` sempre que algo em
+`cloudflare/router-worker/` muda em `main`. Precisa de UM secret no repo do GitHub:
+
+1. Cloudflare Dashboard → Profile → API Tokens → `Create Token` → template `Edit Cloudflare Workers`.
+2. Restringir Account e Zone ao proprio (`jrocha.dev.br`).
+3. GitHub repo → Settings → Secrets and variables → Actions → `New repository secret`:
+   - **Name**: `CLOUDFLARE_API_TOKEN`
+   - **Value**: o token.
+4. `git push` — a workflow corre, o Worker publica.
+
+### Primeira publicacao, ou debug manual
 
 ```powershell
 cd cloudflare/router-worker
+wrangler login     # uma vez por maquina
 wrangler deploy
 ```
 
-O comando le o `wrangler.toml`, publica o Worker na conta e cria as rotas no zone `jrocha.dev.br`.
-
 Se der erro `Zone not found` ou similar, confirma no dashboard que `jrocha.dev.br` esta na mesma conta
 Cloudflare onde fazes `wrangler login`.
+
+### Alternativa: Cloudflare Workers Builds (sem workflow, sem token)
+
+Lancado em 2024, e' a integracao GitHub do Workers (analoga a' do Pages). Liga-se o repo pelo dashboard
+(Workers & Pages → Create → Workers → Connect to Git) e a CF faz build e deploy a cada push. Se preferires,
+apaga a workflow em `.github/workflows/deploy-router-worker.yml` e usa so Workers Builds.
 
 ## Verificar
 
