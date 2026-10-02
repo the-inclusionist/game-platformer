@@ -55,7 +55,7 @@ import type { ModalIntent, ControlsSnapshot } from '@the-inclusionist/engine/inp
 import type { RenderTextureLike, SpriteLike, GraphicsLike } from '@the-inclusionist/engine/render/screen-pipeline.js'; // o ctx de lá declara estes
 import type { MotionSceneKey, MotionSceneFlags, MotionCharDef } from '@the-inclusionist/engine/ui/settings-motion.js'; // as quatro chaves de movimento reduzido
 import type { HcRoleKey } from '@the-inclusionist/engine/render/hc-role-data.js'; // HC_ROLE é Record<HcRoleKey, …>: a chave não é `string`
-import { quizLevel, setQuizLevelValue, coins, setCoins } from './game/state.js'; // item 19: o estado DESTE jogo
+import { quizLevel, setQuizLevelValue, coins, setCoins, initGameState } from './game/state.js'; // item 19: o estado DESTE jogo
 import type { GameCtx, GameInstance } from '../../src/contract.js'; // o contrato do cartucho, deste lado
 import { ligarDeclaracao, desligarDeclaracao, ligarGanchos, desligarGanchos } from './declaration/live.js'; // o contrato do cartucho, deste lado
 // `startLoop` e `criarAvisoDeQueda` sairam daqui com o laco: sao do SHELL (ADR-0139), e vivem em src/standalone.ts
@@ -140,7 +140,7 @@ import { initKeydown } from '@the-inclusionist/engine/input/keydown.js'; // D2-a
 import { initTouch, padLayoutFromId } from '@the-inclusionist/engine/input/touch.js'; // Onda A: geometria fisica do pad + config de toque
 import { initGamepad } from '@the-inclusionist/engine/input/gamepad.js'; // Onda A: leitura da Gamepad API + assistente de mapeamento
 import { initActivitiesMenu, attachAbbr, QL_NAME } from './ui/activities-menu.js'; // the title menu is this game's (engine ADR-0174)
-import { PM_BTNS, PM_OPTIONS_BTNS } from '@the-inclusionist/engine/ui/activities-menu.js'; // the pause card's buttons stay the engine's
+import { PM_BTNS, PM_OPTIONS_BTNS } from '@the-inclusionist/engine/ui/pause-buttons.js'; // the pause card's buttons stay the engine's
 import { initPauseIcons, iconsMarkup } from '@the-inclusionist/engine/ui/pause-icons.js';
 import { initShell, pauseLegendHtml } from '@the-inclusionist/engine/ui/shell.js'; // C3: a casca — em que TELA o jogo esta (fase, pausa, legenda do titulo)
 import { initMenuNav } from '@the-inclusionist/engine/ui/menu-nav.js'; // C3: navegacao universal de menus (teclado/controle/olhos/fala) // Onda A: menu de pausa por tela + barra de icones de a11y
@@ -224,6 +224,12 @@ const SOLTAR = { signal: CANCELAR.signal } as const;
  */
 const store = createStorage(typeof localStorage === 'undefined' ? null : localStorage);
 const settingsStore = createSettingsStore(store);
+/*
+ * O ESTADO DESTE JOGO (nível, moedas, cenário, atividade) restaura-se AQUI, logo que há loja e barramento, e
+ * não no import de `game/state` (ADR-0232 D4). E é o primeiro uso: o `setCoins` do arranque e a validação
+ * da atividade escolhida vêm abaixo, e os setters recusam-se a correr antes disto.
+ */
+initGameState({ store, bus: settingsStore });
 
 /*
  * O TRADUTOR VEM DO SHELL, PELO `ctx` (ADR-0139 §4 e ADR-0232 D3, nota CV).
@@ -651,10 +657,10 @@ function instantaneoDosControles(): ControlsSnapshot {
     left: [...c.left], right: [...c.right], up: [...c.up], down: [...c.down] };
 }
 const keydownApi = initKeydown({
-  isTelaDeTitulo: () => fatosDaCena().telaDeTitulo,
+  isTelaDeTitulo: () => fatosDaCena().titleScreen,
   // VERBATIM do `phase === 'playing' || phase === 'paused'`: `!telaDeTitulo` NÃO seria a mesma coisa — numa
   // cena que ninguém previu (um mapa), Alt+N e a tecla de pausa devem ficar quietos, não agir.
-  isEmJogo: () => { const f = fatosDaCena(); return f.mundoRodando || f.menuDePausa; },
+  isEmJogo: () => { const f = fatosDaCena(); return f.worldRunning || f.pauseMenu; },
   attractOnInput: () => attractCtl.onInput(),
   handleCaptureKeydown: (e) => ctrlPanel.handleCaptureKeydown(e),
   getNumPlayers: () => rodada.numPlayers, getPlayers: () => players,
@@ -858,7 +864,7 @@ pixiMount.appendChild(view);
 view.setAttribute('aria-hidden','true');
 const camera=new PIXI.Container(); app.stage.addChild(camera);
 weatherLayer=new PIXI.Graphics(); app.stage.addChild(weatherLayer); // CLIMA (chuva/clarão) em tela-espaço, mantido no topo em draw
-weather.initWeather({ mundoRodando: () => fatosDaCena().mundoRodando, weatherLayer, stage: app.stage, screen: app.screen, getRm: () => rm, thunder: (i) => ambient.thunder(i),
+weather.initWeather({ mundoRodando: () => fatosDaCena().worldRunning, weatherLayer, stage: app.stage, screen: app.screen, getRm: () => rm, thunder: (i) => ambient.thunder(i),
   temChuva: () => !!(CENARIO && CENARIOS[CENARIO]?.chuva) }); // a PERGUNTA, não o id: o catálogo é daqui
 /* Tela de título da v3 (render/title-scene.ts): céu em gradiente + nuvens andando dir→esq + grama pontilhada */
 const titleG=new PIXI.Graphics(); app.stage.addChildAt(titleG, app.stage.getChildIndex(weatherLayer));
@@ -976,7 +982,7 @@ const coinContainer=new PIXI.Container(); camera.addChild(coinContainer);
 // coinSprites/rebuildCoins migraram para game/coin-spawning.ts (Onda A). rebuildCoins mantem o contrato
 // SEM argumentos: os nove chamadores (boot, novo round, quatro paineis de acessibilidade, Modo Facil,
 // silabas, restart) nao mudam — so a definicao saiu daqui.
-initCoinSpawning({ rng, coinContainer, createSprite: (t) => new PIXI.Sprite(t as never), coinTexFor: (m) => spriteTexFor('coin', m),
+initCoinSpawning({ rng, getVizMode: () => settingsStore.vizMode, coinContainer, createSprite: (t) => new PIXI.Sprite(t as never), coinTexFor: (m) => spriteTexFor('coin', m),
   shapeTexFor: (id) => SHAPE_TEX[id], letterTexFor: (ch) => letterTexture(doc, ch), pcolor: PCOLOR,
   getMode: () => MODE(), getOwnerColors: () => settingsStore.ownerColors, invalidateSharedViz: () => { _lastSharedViz=null; },
   powerShort: POWER_SHORT, $ });
@@ -1087,7 +1093,7 @@ const extraLayer=new PIXI.Container(); camera.addChild(extraLayer); // power-ups
 // no grafo NAO e. So o construtor subiu.
 const rampLayer=new PIXI.Graphics();
 const ropeLayer=new PIXI.Graphics();
-initLevelGeometry({ W: WORLD_W, H: WORLD_H, getPlayers: () => rodada.players, isWheelchair: () => settingsStore.wheelchair,
+initLevelGeometry({ W: WORLD_W, H: WORLD_H, getVizMode: () => settingsStore.vizMode, getPlayers: () => rodada.players, isWheelchair: () => settingsStore.wheelchair,
   rampLayer, ropeLayer, extraLayer,
   wcSolid: () => rodada.wcSolid, powerups: () => rodada.powerups, gateTiles: () => rodada.gateTiles,
   gate: () => rodada.gate, gateOpen: () => rodada.gateOpen,
@@ -1227,7 +1233,7 @@ players[0].sprite=playerSprite;
 // (clock GERAL de animação — o cintilar das moedas + ctx o leem). initFx injeta fxG+rm logo após criar fxG.
 let fxClock=0;
 const fxG=new PIXI.Graphics(); camera.addChild(fxG); // acima dos players (re-erguida em ensureSprites)
-initFx({ getPlayers: () => players, fxG, rm }); // Estágio 4: liga o módulo fx à camada PIXI + reduce-motion
+initFx({ getPlayers: () => players, fxG, rm, store }); // Estágio 4: liga o módulo fx à camada PIXI + reduce-motion
 // ===== R1 (#69, ADR-0020): ORDEM-Z CANÔNICA do MUNDO — zIndex declarativo (core/layers.ts) sobrepõe os
 // addChildAt(getChildIndex) + os re-add-ao-topo (que ficam redundantes: o zIndex decide a ordem). Filhos ANINHADOS
 // (grassG/cityDecoG/lavaFxG no lifeLayer; waterFxG no decoLayer) mantêm a ordem interna do pai. Alvo: no-op visual.
@@ -1407,6 +1413,7 @@ initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1)
    `dir` e a unica variavel local que atravessa a fronteira, e por isso stepPlayer devolve {ran, dir}:
    `ran:false` reproduz o return seco de quiz/quit/waiting, que abortava a funcao INTEIRA, animacao inclusive. */
 initPhysics({
+  t, input: ctx.engine.input,
   rng,
   getPlayers: () => rodada.players,
   isWheelchair: ()=>settingsStore.wheelchair, isModoCego: ()=>settingsStore.blindMode, caneOn, WORLD_PX_H: ()=>WORLD_PX_H,
@@ -1431,7 +1438,7 @@ function stepPlayer(pl: ControlledGamePlayer,dt: number){
    por getter: e a lista viva de core/state.ts, que cresce e encolhe. */
 const secretAreas = initSecretAreas({ regions: darkRegions, getPlayers: ()=>players, box: BOX, tile: TILE, srSay });
 function update(dt: number){
-  if(!fatosDaCena().mundoRodando)return; // E14: congelado no título e na pausa
+  if(!fatosDaCena().worldRunning)return; // E14: congelado no título e na pausa
   if(tickHitstop(dt)) return; // JUICE: hit-stop congela o mundo por alguns ticks
   fxClock+=dt; // clock GERAL de animação (o stepFx não o incrementa mais — extraído p/ render/fx)
   stepFx(dt); // partículas + decaimento de tremor/squash (roda até no fim de jogo → confete da vitória anima)
@@ -1631,6 +1638,7 @@ $('#btn-again')?.addEventListener('click',()=>{ restartGame(); $('#game-region')
    textura de parallax e nao tem o que fazer dentro de um menu. */
 if(!isValidActivityId(ACTIVITY)) setActivityValue(DEFAULT_ACTIVITY_ID); // valida o valor inicial contra o catalogo
 const activitiesMenu = initActivitiesMenu({
+  t, store, menuIndexOn: () => settingsStore.menuIndexOn,
   gameId: JOGO, // ADR-0080: quem sabe o id do jogo e o jogo; a engine so o recebe
   getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
   $, getActiveElement: () => document.activeElement, srSay, srAlert,
@@ -1681,7 +1689,7 @@ const gamepadApi = initGamepad({
   // Era uma constante em português dentro de `input/gamepad.ts` — o defeito do ADR-0074 na forma mais
   // visível que ele tinha. Ver `game/platformer-preset.ts`.
   rotuloDaAcao: (acao) => labellerFrom(platformerPreset())(acao as Action),
-  mundoRodando: () => fatosDaCena().mundoRodando, menuDePausa: () => fatosDaCena().menuDePausa,
+  mundoRodando: () => fatosDaCena().worldRunning, menuDePausa: () => fatosDaCena().pauseMenu,
   pausar: () => setPhase('paused'), retomar: () => setPhase('playing'),
   isAttractActive: () => attractCtl.isAttract(), stopAttract: () => attractCtl.stopAttract(),
   isTouchMode: () => document.body.classList.contains('touch-mode'), hideTouchControls: () => hideTouchControls(),
@@ -1917,7 +1925,7 @@ const touchCtl = initTouch({ $, srSay, store, root: document.documentElement, is
   // era uma linha dentro do `input/touch` lendo `numPlayers`, `phase` e `players[].quiz` por importacao — e a
   // ultima dizia que a camada de TOQUE sabia que existe atividade de alfabetizacao. Mesmo movimento do
   // achado 10: injeta-se o BOOLEANO, nao o estado.
-  padAllowed: () => rodada.numPlayers <= 1 && fatosDaCena().mundoRodando && !jogadores().some((p) => p.quiz),
+  padAllowed: () => rodada.numPlayers <= 1 && fatosDaCena().worldRunning && !jogadores().some((p) => p.quiz),
   viewport: () => ({ w: window.innerWidth, h: window.innerHeight }),
   frontOverlay, onPadDesignApplied: () => { if(typeof renderPauseLegend==='function') renderPauseLegend(); },
   // AUTOMÁTICA NO TOQUE: liga a alternância do correr só para quem NUNCA escolheu (sem valor salvo). Quem
@@ -2068,11 +2076,11 @@ function fpsTick(){ const fps=app.ticker.FPS; fpsWarm++; fpsAccum+=fps; fpsFrame
 // O QUADRO DESTE CARTUCHO. Era o corpo do `startLoop`; agora e' o `update(dt)` que a instancia devolve, e
 // quem o chama e' o shell — ver a nota no topo da fabrica.
 function quadro(dt: number): void { gamepadApi.pollPads(); update(dt); draw();
-  titleG.visible=fatosDaCena().telaDeTitulo; if(titleG.visible)titleScene.draw(); // cena do título da v3 cobre o mundo
+  titleG.visible=fatosDaCena().titleScreen; if(titleG.visible)titleScene.draw(); // cena do título da v3 cobre o mundo
   attractCtl.titleIdleTick(titleG.visible); // attract após 60s parado no menu (José)
   setMinimapVisible(!titleG.visible&&rodada.numPlayers<=1); document.body.classList.toggle('at-title',titleG.visible); // HUD/minimapa não vazam no menu
   fpsTick();
-  if(fatosDaCena().mundoRodando){ weather.updateWeather(); ambient.updateAmbient(); guide.updateGuide(); } } // F4: clima + ambiente + guia auditivo (só durante o jogo)
+  if(fatosDaCena().worldRunning){ weather.updateWeather(); ambient.updateAmbient(); guide.updateGuide(); } } // F4: clima + ambiente + guia auditivo (só durante o jogo)
   // ⚠️ O 2 E O `aoFalhar` FALTAVAM AQUI: a chamada tinha DOIS argumentos (ADR-0054, issue #109). O laço já
   // parava quando um quadro lançava — isso o `core/loop` sempre fez —, mas parava EM SILÊNCIO. Tela congelada
   // é sintoma VISUAL: no modo cego, um jogo parado e um jogo pensando produzem a mesma coisa, e a criança
@@ -2201,7 +2209,7 @@ const whichPlayer = (code: Parameters<typeof kbRuntime.whichPlayer>[0]) => kbRun
    por NOME; e closeTypo/closeHelp chamam menuFocus(sharedDialogOpen()) de mais acima ainda. */
 const menuNav = initMenuNav({
   $, getActiveElement: () => document.activeElement,
-  isNavigable: () => fatosDaCena().menuDePausa, // aqui menu e' coisa de pausa; noutro jogo pode ser sempre (ver o ctx)
+  isNavigable: () => fatosDaCena().pauseMenu, // aqui menu e' coisa de pausa; noutro jogo pode ser sempre (ver o ctx)
   // O modo `accessibility` (ADR-0044, item 7) roda com o jogo ANDANDO, e por isso e' perguntado antes do
   // guarda de "navegavel". Quem sabe quem esta nele e' `ui/pause-icons`, dono da barra.
   srSay,
@@ -2227,8 +2235,8 @@ menuNav.attach(); // addEventListener('keydown', menuNavKey, true) — MESMA fas
 // updateTitleLegend migrou para ui/shell.ts (C3) — e legenda da TELA de titulo, nao navegacao de menu; o
 // envelope icado fica la em cima, junto do resto da casca. padKind() foi APAGADO: input/touch.ts ja exporta
 // a mesma funcao desde a Onda A e a copia daqui nao tinha chamador nenhum (codigo morto duplicado).
-addEventListener('gamepadconnected',()=>{ if(fatosDaCena().telaDeTitulo)updateTitleLegend(); }, SOLTAR);
-addEventListener('gamepaddisconnected',()=>{ if(fatosDaCena().telaDeTitulo)updateTitleLegend(); }, SOLTAR);
+addEventListener('gamepadconnected',()=>{ if(fatosDaCena().titleScreen)updateTitleLegend(); }, SOLTAR);
+addEventListener('gamepaddisconnected',()=>{ if(fatosDaCena().titleScreen)updateTitleLegend(); }, SOLTAR);
 // O despachante do menu do titulo (teclado do #np-btn, rodape de descricao e o click) migrou para
 // ui/activities-menu.ts, que liga os proprios ouvintes no #title-overlay. Sobrou aqui a barra de
 // icones de a11y do splash, que e do slice de pausa.
@@ -2297,9 +2305,10 @@ window.__incl.showTouch = () => touchBindings.revealForTests(); // p/ testes em 
 
 /* ===================== ATTRACT: cria o controlador (deps já definidas) → game/attract.ts ===================== */
 const attractCtl = createAttract({
+  store,
   CENARIOS, keys,
   getPlayers: () => players, getCenario: () => CENARIO, // bindings vivos (reatribuídos)
-  mundoRodando: () => fatosDaCena().mundoRodando,
+  mundoRodando: () => fatosDaCena().worldRunning,
   entrarNoJogo: () => setPhase('playing'), voltarAoTitulo: () => setPhase('title'),
   setCenario, setActivity, restartGame, randInt, kbFor, srSay, srAlert, $,
 });
