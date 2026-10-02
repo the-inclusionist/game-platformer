@@ -1,16 +1,19 @@
 /* SPDX-License-Identifier: OFL-1.1
- * Fontes oficiais do EdSP — self-hosted (PWA offline). Todas SIL OFL 1.1.
- *  Atkinson Hyperlegible  → PADRÃO (UI/leitura)            — Braille Institute
- *  Andika                 → ALFABETIZAÇÃO                  — SIL
- *  Lexend                 → OPCIONAL (dislexia/TDAH/discalculia) — SIL
- *  Atkinson Hyperlegible Mono → MATEMÁTICA (algarismos)    — Braille Institute
- * latin cobre PT-BR + nórdico (À-ÿ, å ä ö ø æ); latin-ext só baixa se necessário. */
+ * The ENGINE'S OWN faces — self-hosted, precached (offline PWA), and ONLY those (ADR-0255): the typography button's cycle
+ * (ADR-0149, ADR-0150) and the mathematics face. Every other family lives in the font library (the-inclusionist-lfs, fonts/),
+ * declared by a cartridge in `uses.fonts` and delivered in `heavy/`; the engine writes those @font-face rules itself. All SIL OFL
+ * 1.1: fonts-licences/NOTICE.txt (scripts/licences/fonts.mjs writes it; tests/font-licences.node.test.js refuses a family without one).
+ *  Atkinson Hyperlegible  → DEFAULT (UI/reading)           — Braille Institute
+ *  Andika                 → LITERACY                       — SIL
+ *  Lexend                 → OPTIONAL (dyslexia/ADHD/dyscalculia) — SIL
+ *  Atkinson Hyperlegible Mono → MATHEMATICS (digits)       — Braille Institute
+ * latin covers pt-BR + Nordic (À-ÿ, å ä ö ø æ); latin-ext only downloads when needed. */
 
 /* ---- ranges ---- */
-/* latin:     U+0000–00FF + pontuação tipográfica
-   latin-ext: U+0100–024F etc. (carga sob demanda) */
+/* latin:     U+0000–00FF + typographic punctuation
+   latin-ext: U+0100–024F etc. (loaded on demand) */
 
-/* ===== Atkinson Hyperlegible (PADRÃO) ===== */
+/* ===== Atkinson Hyperlegible (DEFAULT) ===== */
 @font-face{font-family:'Atkinson Hyperlegible';font-style:normal;font-weight:400;font-display:swap;
   src:url('fonts/atkinson-400.woff2') format('woff2');
   unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
@@ -24,7 +27,7 @@
   src:url('fonts/atkinson-700-ext.woff2') format('woff2');
   unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 
-/* ===== Andika (ALFABETIZAÇÃO) ===== */
+/* ===== Andika (LITERACY) ===== */
 @font-face{font-family:'Andika';font-style:normal;font-weight:400;font-display:swap;
   src:url('fonts/andika-400.woff2') format('woff2');
   unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
@@ -38,7 +41,7 @@
   src:url('fonts/andika-700-ext.woff2') format('woff2');
   unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 
-/* ===== Lexend (OPCIONAL) ===== */
+/* ===== Lexend (OPTIONAL) ===== */
 @font-face{font-family:'Lexend';font-style:normal;font-weight:400;font-display:swap;
   src:url('fonts/lexend-400.woff2') format('woff2');
   unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
@@ -52,7 +55,7 @@
   src:url('fonts/lexend-700-ext.woff2') format('woff2');
   unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 
-/* ===== Atkinson Hyperlegible Mono (MATEMÁTICA) ===== */
+/* ===== Atkinson Hyperlegible Mono (MATHEMATICS) ===== */
 @font-face{font-family:'Atkinson Hyperlegible Mono';font-style:normal;font-weight:400;font-display:swap;
   src:url('fonts/atkinson-mono-400.woff2') format('woff2');
   unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
@@ -60,29 +63,40 @@
   src:url('fonts/atkinson-mono-400-ext.woff2') format('woff2');
   unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 
-/* ===== L2/Tipografia: catálogo escolhível no menu (todas SIL OFL 1.1; subset latin) ===== */
-/* Sem serifa */
-@font-face{font-family:'iA Writer Quattro';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/quattro-400.woff2') format('woff2');}
-@font-face{font-family:'iA Writer Quattro';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/quattro-700.woff2') format('woff2');}
-@font-face{font-family:'Source Sans 3';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/sourcesans-400.woff2') format('woff2');}
-@font-face{font-family:'Source Sans 3';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/sourcesans-700.woff2') format('woff2');}
-@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2');}
-@font-face{font-family:'Inter';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2');}
-@font-face{font-family:'Open Sans';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/opensans-400.woff2') format('woff2');}
-@font-face{font-family:'Open Sans';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/opensans-700.woff2') format('woff2');}
-@font-face{font-family:'Lato';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/lato-400.woff2') format('woff2');}
-@font-face{font-family:'Lato';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/lato-700.woff2') format('woff2');}
-/* Serifadas */
-@font-face{font-family:'Literata';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/literata-400.woff2') format('woff2');}
-@font-face{font-family:'Literata';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/literata-700.woff2') format('woff2');}
-@font-face{font-family:'Source Serif 4';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/sourceserif-400.woff2') format('woff2');}
-@font-face{font-family:'Source Serif 4';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/sourceserif-700.woff2') format('woff2');}
-@font-face{font-family:'Newsreader';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/newsreader-400.woff2') format('woff2');}
-@font-face{font-family:'Newsreader';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/newsreader-700.woff2') format('woff2');}
-/* Manuscritas (caligráficas inglesas · blackletter alemãs · alfabetização) */
-@font-face{font-family:'Great Vibes';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/greatvibes-400.woff2') format('woff2');}
-@font-face{font-family:'Pinyon Script';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/pinyon-400.woff2') format('woff2');}
-@font-face{font-family:'UnifrakturCook';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/ufcook-700.woff2') format('woff2');}
-@font-face{font-family:'UnifrakturMaguntia';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ufmag-400.woff2') format('woff2');}
-@font-face{font-family:'Comic Neue';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/comicneue-400.woff2') format('woff2');}
-@font-face{font-family:'Comic Neue';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/comicneue-700.woff2') format('woff2');}
+/* ===== Playwrite — the HAND OF THE COUNTRY, every one the typography button can pick (ADR-0108 §2, ADR-0150) =====
+ * The hand each country teaches children to write: the Americas with BOTH hands the USA teaches, Cuba and Peru, the
+ * FALLBACKS BY LANGUAGE (Spain, Portugal, England — a country without a Playwrite of its own gets the coloniser's), and the
+ * second hand where a country teaches two (ES Deco, GB S). `ui/fonts` `handsForTag` picks among exactly these, and
+ * `tests/what-fonts-the-package-carries.node.test.js` holds the two lists together: a hand the cycle can pick is packaged.
+ * Variable in weight (100–400), ONE file per family: Google does not cut them by unicode-range. The «Guides» variants and
+ * the other countries' hands are in the font library. */
+@font-face{font-family:'Playwrite BR';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-br.woff2') format('woff2');}
+@font-face{font-family:'Playwrite US Trad';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-us-trad.woff2') format('woff2');}
+@font-face{font-family:'Playwrite US Modern';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-us-modern.woff2') format('woff2');}
+@font-face{font-family:'Playwrite CA';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-ca.woff2') format('woff2');}
+@font-face{font-family:'Playwrite MX';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-mx.woff2') format('woff2');}
+@font-face{font-family:'Playwrite AR';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-ar.woff2') format('woff2');}
+@font-face{font-family:'Playwrite CL';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-cl.woff2') format('woff2');}
+@font-face{font-family:'Playwrite CO';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-co.woff2') format('woff2');}
+@font-face{font-family:'Playwrite ES';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-es.woff2') format('woff2');}
+@font-face{font-family:'Playwrite ES Deco';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-es-deco.woff2') format('woff2');}
+@font-face{font-family:'Playwrite PT';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-pt.woff2') format('woff2');}
+@font-face{font-family:'Playwrite GB J';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-gb-j.woff2') format('woff2');}
+@font-face{font-family:'Playwrite GB S';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-gb-s.woff2') format('woff2');}
+@font-face{font-family:'Playwrite CU';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-cu.woff2') format('woff2');}
+@font-face{font-family:'Playwrite PE';font-style:normal;font-weight:100 400;font-display:swap;
+  src:url('fonts/playwrite-pe.woff2') format('woff2');}

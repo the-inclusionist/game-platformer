@@ -1,0 +1,166 @@
+The fonts in vendor/fonts/: notices and licences
+=============================================
+
+The Inclusionist engine redistributes 19 font families, in 29 files, from this directory. Each
+family is listed below with the files it covers, its licence, where that licence was read, and its copyright
+notice as the font's own `name` table states it (name ID 0). The licence texts sit beside this file:
+
+    OFL-1.1.txt     SIL Open Font License, Version 1.1 (19 families)
+
+Written by scripts/licences/fonts.mjs from vendor/fonts.css and the fonts themselves;
+tests/font-licences.node.test.js refuses a family without an entry here or a licence without its text.
+
+Every other family The Inclusionist offers lives in its font library, one folder per family with its own notice
+and licence, and reaches a game only through a delivery that carries it (ADR-0255).
+
+-------------------------------------------------------------------------------
+Family:    Atkinson Hyperlegible
+Files:     atkinson-400.woff2, atkinson-400-ext.woff2, atkinson-700.woff2, atkinson-700-ext.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://scripts.sil.org/OFL
+Copyright:
+    Copyright 2020 Braille Institute of America, Inc.
+
+-------------------------------------------------------------------------------
+Family:    Andika
+Files:     andika-400.woff2, andika-400-ext.woff2, andika-700.woff2, andika-700-ext.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): http://scripts.sil.org/OFL
+Copyright:
+    Copyright (c) 2004-2022 SIL International
+
+-------------------------------------------------------------------------------
+Family:    Lexend
+Files:     lexend-400.woff2, lexend-400-ext.woff2, lexend-700.woff2, lexend-700-ext.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://scripts.sil.org/OFL
+Copyright:
+    Copyright 2019 The Lexend Project Authors (https://github.com/googlefonts/lexend)
+
+-------------------------------------------------------------------------------
+Family:    Atkinson Hyperlegible Mono
+Files:     atkinson-mono-400.woff2, atkinson-mono-400-ext.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2020-2024 The Atkinson Hyperlegible Mono Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next-mono)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite BR
+Files:     playwrite-br.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite US Trad
+Files:     playwrite-us-trad.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite US Modern
+Files:     playwrite-us-modern.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite CA
+Files:     playwrite-ca.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite MX
+Files:     playwrite-mx.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite AR
+Files:     playwrite-ar.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite CL
+Files:     playwrite-cl.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite CO
+Files:     playwrite-co.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite ES
+Files:     playwrite-es.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite ES Deco
+Files:     playwrite-es-deco.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite PT
+Files:     playwrite-pt.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite GB J
+Files:     playwrite-gb-j.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite GB S
+Files:     playwrite-gb-s.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite CU
+Files:     playwrite-cu.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
+
+-------------------------------------------------------------------------------
+Family:    Playwrite PE
+Files:     playwrite-pe.woff2
+Licence:   SIL Open Font License, Version 1.1 (OFL-1.1), see OFL-1.1.txt
+Read from: licence URL (name ID 14): https://openfontlicense.org
+Copyright:
+    Copyright 2023 The Playwrite Project Authors (https://github.com/TypeTogether/Playwrite)
