@@ -166,6 +166,18 @@ casca antiga continua a pedir os painéis que a engine já monta.
 engine (outra sessão), e este jogo espera ou faz (A) enquanto isso. Pode somar-se a (A) depois, se a pausa por
 tela fizer falta às crianças.
 
+✅ **Decidido pelo Dev em 02/10: (A).** O cartão e o HUD são os da engine; as moedas dos assentos 1–3 ficam
+desenhadas pelo jogo na tela de cada um.
+
+### DW medido em 02/10: `uses.fonts` fica vazio
+
+O jogo desenha texto com uma família só, `system-ui, sans-serif` (`render/textures.ts:90`), e nenhum CSS dele
+nomeia outra. Não há família da biblioteca a declarar. ⚠️ Mas a página ainda liga **uma cópia própria** do
+`fonts.css` antigo da engine (`app/public/vendor/`, 17 famílias, 932 KB de faces), com `@font-face` para
+famílias que a 11 tirou do pacote (Lato, Source Sans 3…) e para as que a engine agora carrega ela mesma.
+A nota manda apagar o `@font-face` próprio dessas famílias; tirar a cópia e o `preload` do `index.html` é
+limpeza a fazer depois da pausa, medindo no navegador que a fonte do jogo continua a ser a Atkinson.
+
 ## Passos
 
 1. **Subir e deixar o compilador enumerar.** `peerDependencies`/`devDependencies` para `^11.0.0`; `npm ci`
