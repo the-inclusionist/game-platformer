@@ -188,11 +188,13 @@ de estilo da engine (o checador recusava-o), o repositório ganhou o `LICENSE` q
 passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o botão de tipografia oferece.
 
 **O que falta é decisão, e não trabalho:**
-- **Publicar** (passo 8). O Dev vai: `git push` (os commits locais), `"private": false` no `package.json` (uma linha
-  que a trava de segurança do Claude recusou), decidir o número da versão (hoje `0.1.0`) e `npm publish --access public`.
-  Com o `exports["."]` já apontado e o `files: ["dist-lib"]` já declarado, o cartucho vai inteiro — provado em 02/10
-  por um `npm pack` seguido de `npm install` numa pasta fora que só tinha os pares declarados: importou-se e passou o
-  checador do contrato.
+- **Publicar: pergunta ABERTA.** Medido em 02/10, 15h40: o cartucho `npm pack`+instala-se de fora e passa o
+  checador — tecnicamente está pronto. O que falta é RAZÃO para publicar no npm público. A arquitectura (ADR-0036,
+  0082, 0083) assume publicação, mas o único consumidor é a plataforma do próprio Dev; dentro de UMA origem, um
+  `git+https://.../game-platformer#v0.2.0`, um workspace do pnpm ou um tarball do próprio servidor servem o mesmo
+  propósito sem gravar o pacote em pedra na pré-versão `0.1.0`. **A pergunta ao Dev é «a plataforma já importa do
+  npm, ou está num ponto que podia referir o cartucho por git+https / workspace?»**: a resposta decide se o passo 8
+  é hoje ou mais tarde. Em todos os casos, `git push` dos 13 commits locais é o próximo passo real.
 - **O que (A) custa, e por que o (C) é maior do que parecia (medido em 02/10 depois da resposta do Dev):** o Dev
   decidiu que *só o jogador 1 pausa (e todos pausam), mas cada um tem a sua própria configuração de inclusão e de
   jogo*. A engine 11 cumpre a primeira metade — `leadsTheScreen` já é o assento 0 — mas a `SettingsStore` é GLOBAL:
@@ -205,21 +207,33 @@ passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o 
 - **Voz neural: FEITO**, `uses: { neuralVoice: true }` (commit `84475ac`). A engine prefere a voz do aparelho (ADR-0200);
   o Kokoro entra só como alternativa quando não há voz no idioma da criança. Medido com dois pt-BR no aparelho: usa-se
   Daniel/Maria, Kokoro fica no `heavy/` para quem não os tem.
+- **Reconhecimento de fala e narração nos TRÊS IDIOMAS: FEITO**, `uses: { reading: true }` (commit `43f5fda`), somado
+  ao `neuralVoice`. Pedido do Dev de 02/10: o jogo tem de ter voz, texto e reconhecimento em pt-BR, en-US e es (MX/AR).
+  O `dicts` já declara os três, e com `reading: true` a engine carrega modelos de leitura para o idioma vigente
+  mais todos os `availableLocales()` (`create-game.js:3419`); os modelos de COMANDO vêm para todos os três de qualquer
+  modo («Toda criança vai experimentar as três línguas imediatamente», o Dev no `create-game.js:3408`).
 - **As cores por papel do alto contraste — respondido pela leitura, não falta medir.** O painel visual da engine 11
   não as OFERECE (`offer: { roles: false }`, e os escritores são `noEffect`, `create-game.js:1476-1478`): não há
   evento a escutar porque não há quem escreva. As cores que uma criança guardou na versão antiga continuam a valer
   (o `createHighContrast` do jogo lê-as do armazenamento), mas já não se mudam. É perda da 11, do lado da engine —
   vai junto do pedido (C), se o Dev o quiser fazer.
-- **A entrega `heavy/`: espelho local montado em 02/10** (`C:\Users\candi\Claude\inclusionist-heavy-mirror\heavy\`,
-  340 MiB — Kokoro + eSpeak NG + MediaPipe vision + Vosk pt + `onnxruntime-web`). ⚠️ Esse espelho é no FORMATO DE
-  ENTREGA (`heavy/<host><path>`), **não** no formato que o `--base` do `inclusionist-heavy` espera (o layout do
-  `the-inclusionist-lfs`, mapeado em `platform/heavy-mirror.MIRROR_FOLDERS`). Para pôr voz e visão a correr num
-  `dist/` de qualquer jogo, basta `cp -r <espelho>/heavy dist/` — foi o que fez a pré-visualização local responder
-  200 em todos os ficheiros pesados em 02/10, e o `__incl.loadTTS()` carregar sem erro.
-  📌 **Centralização de verdade (resposta ao Dev):** o Cache Storage do navegador é isolado por origem (ADR-0117),
-  então a crianca so paga uma vez quando TODOS os jogos vivem na MESMA origem — uma plataforma só, com cada jogo
-  num caminho. Em dev entre repos, o `cp` do espelho basta; para o `--base` do script, teria que haver um espelho
-  construído no formato do `MIRROR_FOLDERS` (hoje o repo da engine ainda não oferece a receita, só o layout).
+- **A entrega `heavy/`: espelho de 02/10 ampliado para pt-BR + en + es** (`C:\Users\candi\Claude\inclusionist-heavy-mirror\heavy\`,
+  **1,2 GiB** — Kokoro + eSpeak NG + MediaPipe vision + Vosk pt/en/es + leitura pt/en/es + `onnxruntime-web`).
+  Formato de ENTREGA (`heavy/<host><path>`): `cp -r <espelho>/heavy dist/` revive voz, visão e reconhecimento em
+  qualquer `dist/`. O `--base` do `inclusionist-heavy` espera outro formato (`MIRROR_FOLDERS` de
+  `platform/heavy-mirror`), que o repo da engine não gera.
+- **Centralização de cache para centenas de jogos — pedido do Dev de 02/10, 15h40:** a engine JÁ FAZ. Medido no
+  navegador em `dist/`: a Cache Storage tem um balde nomeado `incl-pesados-v2`, aberto pela engine em todo
+  arranque, por `CacheStorage.open(CACHE_HEAVY)` (`platform/heavy.js:163`, `platform/heavy-catalogue.CACHE_HEAVY`).
+  O navegador PARTILHA baldes nomeados entre páginas da mesma origem — e desduplica pelo URL. Então **servir
+  todos os jogos sob UMA origem** faz o cache resolver-se sozinho: a criança descarrega 1,2 GiB UMA VEZ e os
+  N jogos leem o mesmo cache nas visitas seguintes (ADR-0117: «the one who should pay this once is the PLATFORM»).
+  📌 **O que o DEV precisa de fazer para que isto aconteça:** hospedar a plataforma e os jogos sob um domínio só
+  (`inclusionist.app/game-platformer/`, `inclusionist.app/game-chess/`, …). Cada jogo serve o seu `/heavy/*` com
+  os MESMOS ficheiros — podem ser cópias no disco ou um `/heavy/*` compartilhado por *rewrite* do servidor. O
+  navegador cuida do resto; nenhum código muda. Em dev entre repos, cada jogo mantém o seu `cp` do espelho.
+  🔴 **Diferentes origens perdem a partilha** (origem = esquema + host + porta): `game-platformer.app` e
+  `game-chess.app` cada um descarrega 1,2 GiB. Alojar tudo num só domínio é a arquitectura que ADR-0117 nomeia.
 - **Armazenamento pelo `ctx`:** o cartucho hoje guarda, pela loja crua (não a `settings`), estas chaves próprias:
   `KEYS.quizlevel(JOGO)`, `.cenario(JOGO)`, `.activity(JOGO)`, `.tabsel`, `.fracnot`, `.attract(JOGO,cen)` (as gravações
   do attract por cenário), `.reducedMotion` (JSON com as quatro flags de cena), e por jogador: `.easyP(i)`,
