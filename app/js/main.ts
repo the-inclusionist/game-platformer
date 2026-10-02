@@ -363,7 +363,11 @@ const { rnd, randInt, shuffle } = rng;
    de cenario, os de atividade — ja tinha capturado o texto de pt, e nada reconstruia. O sintoma era
    `t('cen.cidade')` devolver "City" com o botao na tela dizendo "Cidade".
    O `await` custa UM chunk, e so' para quem nao joga em portugues; em pt ele resolve na hora. */
-const WORLD = buildWorldFromText(await (await fetch('assets/levels/clarity.map.txt')).text());
+// ⚠️ `import.meta.env.BASE_URL` e nao caminho relativo: a raiz vive em `/game-platformer/` em producao e
+// o `<base href="/">` do `index.html` (pensado para a engine resolver `/heavy/*` na raiz) faria um
+// `fetch('assets/...')` cair em `/assets/...`, fora do subpath. O Vite preenche `BASE_URL` no build com o
+// `base` da config — em dev e' `/`, em producao e' `/game-platformer/` — e isto resolve sozinho.
+const WORLD = buildWorldFromText(await (await fetch(`${import.meta.env.BASE_URL}assets/levels/clarity.map.txt`)).text());
 const WORLD_W = WORLD[0].length, WORLD_H = WORLD.length;
 const WORLD_PX_W = WORLD_W*TILE, WORLD_PX_H = WORLD_H*TILE;
 initWorldTex({ world: WORLD, W: WORLD_W, H: WORLD_H }); // Estágio 4: liga o builder da textura do mundo ao mapa carregado

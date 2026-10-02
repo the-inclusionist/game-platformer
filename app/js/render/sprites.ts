@@ -39,7 +39,10 @@ export let TEX_CLING_WALL: PIXI.Texture[] = [], TEX_CLING_CEIL: PIXI.Texture[] =
 // Base dos PNGs do personagem. EXPORTADA porque o assistente de mapeamento de controle (input/gamepad)
 // monta os caminhos da demonstracao animada a partir dela; era um `const` privado e o game.js usava o
 // nome como se fosse global, o que derrubava o assistente com ReferenceError ao abrir.
-export const SPR = 'assets/sprites/menino/';
+// `BASE_URL` do Vite (termina em `/`): em dev da' `/`, em producao `/game-platformer/`. O `<base href="/">`
+// no `index.html` levaria um caminho relativo (como este era antes) a resolver na raiz do dominio e sair
+// do subpath; a concatenacao explicita garante que os sprites vem sempre de dentro da pasta do jogo.
+export const SPR = `${import.meta.env.BASE_URL}assets/sprites/menino/`;
 
 /**
  * A base do ATLAS — UMA textura, criada uma vez. Era `PIXI.Texture.from` por quadro, e o boot pedia 38
