@@ -247,6 +247,49 @@ passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o 
   cartucho (um `host.storage?` já existe no `createGame`), mas depende de a plataforma a pedir — a decisão **pode
   ficar para quando a plataforma a pedir, sem bloquear a publicação**.
 
+### Estado em 02/10, 20h — bugs do deploy encontrados em uso real
+
+A publicação no Cloudflare (CF Pages + R2 + Router Worker) revelou tres bugs do MESMO padrao e um bug de
+contrato que o plano original nao tinha listado como itens de trabalho:
+
+**O padrao «caminho relativo + `<base href="/">`» — tres ocorrencias ate 02/10 20h:**
+- `fetch('assets/levels/clarity.map.txt')` em `main.ts` → mapa 404 → mundo vazio → `910e3ba`.
+- `SPR = 'assets/sprites/menino/'` em `render/sprites.ts` → sprites do demo do pad → `910e3ba`.
+- `ATLAS_URL = 'assets/sprite-atlas.png'` carregado por `PIXI.BaseTexture.from` → personagem invisivel → `29033ee`.
+
+Em todos: o `<base href="/">` (adicionado para a engine resolver `/heavy/*` na raiz do dominio, ADR-0117)
+leva qualquer path relativo carregado por JS em RUNTIME a cair na raiz, fora do subpath `/game-platformer/`.
+**Receita:** prefixar com `import.meta.env.BASE_URL`. 🔴 Se aparecer uma quarta, a receita e' a mesma — e
+este bloco deve passar a listar «cada ocorrencia encontrada» como item cumprido.
+
+**O contrato do `word()` da engine 11 (nota DN que o plano citava mas nao aplicava):**
+- Painel «Mapear teclado» abria vazio porque `word('act.up')` devolvia `null`, apesar de `t('act.up')`
+  resolver. Medido no navegador em 02/10: `createTranslator().word` so' le o dicionario DO JOGO
+  (`core/i18n.js:201`), nunca o da engine — por desenho (ADR-0010 pilar 3), para o jogo nomear o proprio
+  preset em vez de depender de fallback.
+- Faltavam 12 chaves em `game-keys.ts`: `act.{up,down,left,right,run,jump,especial,swap}` + `legend.{run,jump}`.
+  O plano cita a nota DN mas eu nao transformei em item «declarar as palavras do preset». Corrigido em `89a015f`.
+
+### As perdas da Decisão (A) QUE EU DEIXEI SO' COMO «CUSTOS» (erro de planeamento, 02/10)
+
+O Dev apontou-me em 02/10 20h que o plano descrevia o que (A) partia mas nao criava tarefas — por isso o
+loop nao as atacava. Lista agora, com estado:
+- **Mapear teclado abria vazio** → ✓ resolvido em `89a015f` (ver bloco acima).
+- **Mapear controle, Mapear toque abrem vazios?** → por medir no navegador. Mesma causa provavel (`word()`
+  sobre o preset do jogo), mesma correcao se for.
+- **FPS debug HUD aparece em (0,0) sem `?debug=true`** → medido em 02/10 15h, nao atacado. A classe
+  `hud__item hud__fps` nao esta a ser escondida quando o modo debug esta desligado. Item a investigar.
+- **Jogadores 2–4 nao abrem o cartao de pausa com START/SELECT** → engine 11 `leadsTheScreen === 0`
+  (`create-game.js:2520`). Pedido (C) para a sessao da engine.
+- **Painel visual nao oferece as cores por papel do alto contraste** → `offer: { roles: false }`
+  (`create-game.js:1476`). Pedido (C).
+- **«Sair» so' sai do assento 0, nao os outros assentos individualmente** → pedido (C).
+- **Gamepad no ecra de titulo cai no anel generico da engine (perde-se o ◀▶ no numero de jogadores)** →
+  pedido (C) OU pequena mudanca aqui ao `nav.navTitle` para passar o controle do pad.
+- **HUD «0 de 10 moedas» da engine fica no topo central** sobreposto a outros elementos (medido em jogo em
+  02/10 17h). Decidir se o jogo esconde a HUD da engine (passando `hud: []`) e desenha a sua, ou aceita a
+  posicao.
+
 ### DW medido em 02/10: `uses.fonts` fica vazio
 
 O jogo desenha texto com uma família só, `system-ui, sans-serif` (`render/textures.ts:90`), e nenhum CSS dele
