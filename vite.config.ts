@@ -56,6 +56,18 @@ const BUILD = {
  */
 export default defineGameBuild({ cartridge: 'src/index.ts', config: defineConfig({
   root: 'app',
+  /*
+   * O CAMINHO SOB A ORIGEM, por `--base` ou pelo ambiente (Cloudflare Pages/Build).
+   *
+   * ⚠️ EM DEV FICA `'/'` E EM PRODUCAO `'/game-platformer/'`, e a diferenca e' deliberada: o `vite dev` serve
+   * a raiz da origem, e um `base` com prefixo faria o `assets/*` falhar; o build para o Cloudflare serve o jogo
+   * em `o-inclusionista.jrocha.dev.br/game-platformer/`, e sem o prefixo as referencias absolutas quebrariam.
+   *
+   * 📌 A ENGINE RESOLVE O `/heavy/*` CONTRA O `document.baseURI` (`platform/heavy.js:178`, `base: doc.baseURI`
+   * em `boot/create-game.js:3423`), entao o `heavy/*` cai em `/game-platformer/heavy/*` sozinho — a Pages
+   * Function de `functions/heavy/[[path]].ts` reencaminha para o R2 partilhado por todos os jogos.
+   */
+  base: process.env.INCL_BASE || '/',
   define: { __BUILD__: JSON.stringify(BUILD) },
   plugins: [
     atlasDeSprites({ raizSprites: RAIZ_SPRITES }),

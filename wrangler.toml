@@ -1,0 +1,23 @@
+# Cloudflare Pages (ADR-0117) — este ficheiro define o projeto de Pages deste jogo. Fica na raiz do repo
+# porque e' convencao do wrangler; a maior parte do que ele configura, no entanto, so se le em deploy.
+#
+# ⚠️ UM PROJETO POR JOGO ENQUANTO HOUVER UM JOGO SO. Quando o segundo cartucho chegar, este `wrangler.toml`
+# migra para um repo de plataforma e os jogos sao copiados para `platform/dist/game-<slug>/`. Ate la, cada
+# jogo e' um deploy proprio em `o-inclusionista.jrocha.dev.br/game-<slug>/`, e a Pages Function abaixo
+# aponta todos ao mesmo bucket R2 — origem partilhada, cache partilhado.
+
+name = "game-platformer"
+compatibility_date = "2024-11-15"
+pages_build_output_dir = "dist"
+
+# O caminho do jogo sob a origem. Lido por `vite.config.ts` em build (ver `base: process.env.INCL_BASE`).
+# A trava de seguranca do CF Pages: variaveis que comecam por `INCL_` sao do produto; mantem-se o prefixo.
+[vars]
+INCL_BASE = "/game-platformer/"
+
+# O bucket R2 que serve `/heavy/*` — PARTILHADO por todos os jogos da origem (ADR-0117).
+# ⚠️ `inclusionist-heavy` e' o nome convencional; so se escolhe uma vez e todos os jogos vinculam ao mesmo.
+# A Pages Function em `functions/game-platformer/heavy/[[path]].ts` usa `env.HEAVY.get(key)`.
+[[r2_buckets]]
+binding = "HEAVY"
+bucket_name = "inclusionist-heavy"

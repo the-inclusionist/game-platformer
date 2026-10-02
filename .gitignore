@@ -13,3 +13,6 @@ tests/__screenshots__/
 
 # A saida do alvo LIB (o cartucho). Artefato de build, como o `dist/` do alvo app.
 dist-lib/
+
+# Cloudflare wrangler
+.wrangler/
