@@ -169,6 +169,34 @@ tela fizer falta às crianças.
 ✅ **Decidido pelo Dev em 02/10: (A).** O cartão e o HUD são os da engine; as moedas dos assentos 1–3 ficam
 desenhadas pelo jogo na tela de cada um.
 
+### Estado em 02/10, 15h — o jogo é um cartucho que a engine aceita
+
+**`npm run validate` passa** (código de saída 0): `tsc` limpo, **80 ficheiros e 1407 testes** nos dois projetos,
+os dois builds, e **`✓ cartridge dist-lib/cartridge.js: the engine's contract holds`** — o passo 7, o portão do CI.
+**axe: 0 violações WCAG A/AA** (uma exclusão, o VLibras). O pacote, empacotado e instalado numa pasta vazia só com
+os pares declarados, importa-se de fora: `slug`, `create`, 14 ganchos, pt/en/es, zero problemas de contrato.
+
+**No navegador, contra `dist/`** (service worker morto, sha no título): o jogo arranca, entra em jogo por clique
+real, o START dá a pausa rápida e o SELECT o cartão da engine (Voltar, Ajuda, Número de jogadores, Configurações,
+Opções do jogo, Sair), o Escape devolve ao jogo; **uma barra e um cartão**; o HUD da engine diz «0 de 10 moedas»; e
+um clique real no 🌗 da pausa rápida mudou o tema do assento 0 para `hc3` — o controle que já morreu calado uma vez.
+
+Para lá chegar, depois da decisão (A): o `start` saiu do preset (a engine recusava-o), o mundo vazio passou de 0×0
+a uma tela (o contrato recusava zero, e há agora um teste que o prende), o aviso de alcance ficou só o da engine, a
+barra mudou-se para dentro do `#game-region` (dentro do título sumia em jogo), o cartucho deixou de importar a folha
+de estilo da engine (o checador recusava-o), o repositório ganhou o `LICENSE` que declara, e as fontes servidas
+passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o botão de tipografia oferece.
+
+**O que falta é decisão, e não trabalho:**
+- **Publicar** (passo 8), com `private: false` — e o `git push`, que nunca é meu.
+- **O que (A) custa**, medido na engine e que eu não tinha dito ao propor: só o assento 0 conduz a tela
+  (`leadsTheScreen`), então o START/SELECT dos jogadores 2–4 não abre nada e o «Sair» sai o assento 0; o comando
+  no título ganha o anel genérico da engine (perde-se o ◀▶ do número de jogadores); as moedas do assento 0 ficam no
+  topo, debaixo da barra. Tudo isto é o (C): pedir à engine cartões por assento numa raiz só.
+- `uses.neuralVoice` (Kokoro, 371 MiB) e o armazenamento pelo `ctx`.
+- **Por medir no navegador:** as cores por papel do alto contraste (sem evento na loja) e a entrega `heavy/`
+  (voz, câmara e reconhecimento dão 404 num `dist/` recém-construído até correr `inclusionist-heavy`).
+
 ### DW medido em 02/10: `uses.fonts` fica vazio
 
 O jogo desenha texto com uma família só, `system-ui, sans-serif` (`render/textures.ts:90`), e nenhum CSS dele
@@ -177,6 +205,8 @@ nomeia outra. Não há família da biblioteca a declarar. ⚠️ Mas a página a
 famílias que a 11 tirou do pacote (Lato, Source Sans 3…) e para as que a engine agora carrega ela mesma.
 A nota manda apagar o `@font-face` próprio dessas famílias; tirar a cópia e o `preload` do `index.html` é
 limpeza a fazer depois da pausa, medindo no navegador que a fonte do jogo continua a ser a Atkinson.
+📌 **Medido depois (`ec0b723`): tirar a cópia estava ERRADO.** A engine não entrega as suas faces à página; quem
+as serve é o `vendor/` de cada jogo. A cópia não sobrava — estava velha. Foi substituída pela da 11, byte a byte.
 
 ## Passos
 
