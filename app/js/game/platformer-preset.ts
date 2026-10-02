@@ -44,10 +44,9 @@ export function platformerPreset(): ActionPreset {
     action2: { labelKey: 'act.jump', shortKey: 'legend.jump' },
     action3: { labelKey: 'act.especial', shortKey: 'legend.especial' },
     action4: { labelKey: 'act.swap', shortKey: 'legend.swap' },
-    // `touch.act.pause` («Pausar (START)») e não uma chave nova: ela já existe nos três idiomas e já é a
-    // palavra que a criança lê no painel de toque para este mesmo botão. Inventar `act.start` criaria uma
-    // segunda palavra para a mesma coisa, e as duas divergiriam na primeira revisão de texto.
-    start: { labelKey: 'touch.act.pause' },
+    // 🔴 `start` SAIU, e não por esquecimento: a engine 11 é DONA da pausa (decisão (A) do Dev, 02/10) e o
+    // `createGame` RECUSA um preset que reclame `start` ou `select` — o jogo não arrancava. O START abre a pausa
+    // rápida e o SELECT o cartão em qualquer transporte, e quem os rotula é a engine.
     // ⚠️ `select` e os quatro ombros/gatilhos NÃO são declarados, e a ausência é a declaração: esta
     // plataforma não os usa. O assistente de controle não vai perguntar por eles, o que é exatamente o que
     // `labellerFrom` devolver `null` significa — uma ausência vira menos um passo, nunca um passo mudo.
