@@ -20,7 +20,10 @@ import { createRng, DEFAULT_SEED } from '@the-inclusionist/engine/core/rng.js';
 // se desenha continua identico ao de antes desta mudanca.
 const rnd = createRng(DEFAULT_SEED ^ 0x5eed).rnd;
 
-import * as store from '@the-inclusionist/engine/platform/storage.js';
+// O STORE CHEGA POR `initFx` (ADR-0232 D4, nota CT): `platform/storage` é uma fábrica desde a engine 11 e só o
+// TIPO vem de lá; o NOME da chave (`incl_juice`, escopo da CRIANÇA) vem de `platform/storage-keys`.
+import type { Store } from '@the-inclusionist/engine/platform/storage.js';
+import { KEYS } from '@the-inclusionist/engine/platform/storage-keys.js';
 
 export interface Particle {
   x: number; y: number; vx: number; vy: number; life: number; max: number; color: number; size: number; g: number;
@@ -29,15 +32,33 @@ export interface JuiceFlags {
   dust: boolean; sparkle: boolean; squash: boolean; hitstop: boolean; shake: boolean; shimmer: boolean;
 }
 
-/** Juice toggles (persisted in localStorage; edited in the ?debug panel + Sensibilidade → Movimento). */
-export const JUICE: JuiceFlags = (() => {
-  const d: JuiceFlags = { dust: true, sparkle: true, squash: true, hitstop: true, shake: true, shimmer: true };
-  const s = store.getJSON<Partial<Record<keyof JuiceFlags, boolean>>>(store.KEYS.juice, null);
-  if (s && typeof s === 'object') for (const k of Object.keys(d) as (keyof JuiceFlags)[]) if (k in s) d[k] = !!s[k];
-  return d;
-})();
+/** The factory juice: everything on. A function, so every `initFx` starts from a fresh copy. */
+const juiceDefaults = (): JuiceFlags => ({ dust: true, sparkle: true, squash: true, hitstop: true, shake: true, shimmer: true });
+
+/**
+ * Juice toggles (persisted; edited in the ?debug panel + Sensibilidade → Movimento).
+ *
+ * ⚠️ NASCE COM OS PADRÕES E SÓ GANHA O QUE A CRIANÇA GUARDOU NO `initFx` — antes era lido no IMPORT, direto do
+ * `localStorage` da página. Continua um objeto ÚNICO mutado no lugar (nunca reatribuído) porque a raiz o entrega
+ * por referência ao painel de debug e ao `window.__incl`; uma fábrica aqui obrigaria a mexer naqueles dois.
+ * O `initFx` repõe os padrões ANTES de sobrepor o guardado: o segundo jogo da página (D14) não herda o que o
+ * primeiro desligou.
+ */
+export const JUICE: JuiceFlags = juiceDefaults();
+
+type JuiceStore = Pick<Store, 'getJSON' | 'setJSON'>;
+let juiceStore: JuiceStore | null = null;
+
+/** Lays the stored toggles over the defaults, IN PLACE. Unknown keys in storage are ignored; a missing one keeps its default. */
+function loadJuice(st: JuiceStore): void {
+  Object.assign(JUICE, juiceDefaults());
+  const s = st.getJSON<Partial<Record<keyof JuiceFlags, boolean>>>(KEYS.juice, null);
+  if (s && typeof s === 'object') for (const k of Object.keys(JUICE) as (keyof JuiceFlags)[]) if (k in s) JUICE[k] = !!s[k];
+}
 export function saveJuice(): void {
-  store.setJSON(store.KEYS.juice, JUICE);
+  // Lança em vez de engolir: gravar no nada perderia a escolha da criança em silêncio (ADR-0224/0227).
+  if (!juiceStore) throw new Error('render/fx: initFx({ store, ... }) não foi chamado — saveJuice não tem onde gravar');
+  juiceStore.setJSON(KEYS.juice, JUICE);
 }
 
 /** Standard easing (squash recovery, particle fade). Shared → exported (game.js render reads it too). */
@@ -63,10 +84,20 @@ let rm: ReducedMotion = {};
 // mesma página carregue (D13 do `demos`, ADR-0038). O que entra aqui é o GETTER da rodada que a raiz
 // possui; o `let` que sobra guarda a função, não a lista.
 let getPlayers: () => readonly unknown[] = () => [];
-export function initFx(deps: { fxG: FxGraphics; rm: ReducedMotion; getPlayers: () => readonly unknown[] }): void {
+/**
+ * Liga o módulo à camada PIXI, ao reduce-motion, à rodada e ao STORE da raiz — e restaura o JUICE guardado.
+ *
+ * 📌 Também zera partículas, hit-stop e tremor: são `let`s de módulo, e um segundo jogo montado na mesma página
+ * (D14) começaria com a poeira e o tremor que o primeiro deixou no ar. No primeiro boot já estão zerados, então
+ * para o jogo de sempre nada muda.
+ */
+export function initFx(deps: { fxG: FxGraphics; rm: ReducedMotion; getPlayers: () => readonly unknown[]; store: JuiceStore }): void {
   fxG = deps.fxG;
   rm = deps.rm;
   getPlayers = deps.getPlayers;
+  juiceStore = deps.store;
+  loadJuice(deps.store);
+  particles = []; hitstopT = 0; shakeT = 0; shakeDur = 1; shakeMag = 0;
 }
 
 export function spawnParticle(x: number, y: number, vx: number, vy: number, life: number, color: number, size: number, grav?: number): void {

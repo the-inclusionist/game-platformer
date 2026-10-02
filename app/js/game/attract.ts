@@ -5,11 +5,12 @@
 // GETTERS para os bindings vivos (players/CENARIO/phase são reatribuídos no game.js) + as funções que precisa.
 // Extraído do game.js (modularização Tier 1). Ver docs/5-Refactoring/plano-modularizacao-mapa.md.
 
-import * as store from '@the-inclusionist/engine/platform/storage.js';
+// O STORE CHEGA PELO CTX (ADR-0232 D4, nota CT): `platform/storage` é uma fábrica desde a engine 11, e só o
+// TIPO vem de lá. Os NOMES das chaves vêm de `platform/storage-keys`, que não alcança `localStorage`.
+import type { Store } from '@the-inclusionist/engine/platform/storage.js';
+import { KEYS } from '@the-inclusionist/engine/platform/storage-keys.js';
 import { JOGO } from './save-id.js';
 import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
-// Preenchido pela raiz no init abaixo; ver a nota no ctx.
-let t: Translate = (k) => k;
 import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 
 /** O bot da demonstração de atração move um jogador de verdade; a fatia é a mesma que o `stepPlayer` lê. */
@@ -26,6 +27,12 @@ export interface AttractCtx {
    * o `createTranslator` e' quem compoe, e entrega o `t` ja resolvido para o idioma vigente.
    */
   t: Translate;
+  /**
+   * ONDE AS GRAVAÇÕES MORAM — o store da raiz (ADR-0232 D4). Obrigatório e não opcional: sem ele a gravação do
+   * `?record=1` iria para lugar nenhum e a demo cairia no robô sem dizer por quê. Lê com herança da chave antiga
+   * (`incl_attract_<cenario>`) e escreve só na nova (`incl.<jogo>.attract_<cenario>`).
+   */
+  store: Pick<Store, 'getJsonWithLegacy' | 'setJSON'>;
   CENARIOS: Cenarios;
   keys: Set<string>;
   getPlayers: () => Player[];   // binding vivo (restartGame pode reatribuir)
@@ -63,7 +70,10 @@ export interface AttractCtl {
 }
 
 export function createAttract(ctx: AttractCtx): AttractCtl {
-  t = ctx.t;
+  // ⚠️ O `t` era um `let` de MÓDULO preenchido aqui — estado que sobrevivia ao `teardown()` e fazia o segundo
+  // jogo da página falar com o tradutor do primeiro até criar o seu (D14). Nada fora desta fábrica o lia, então
+  // ele vive no fecho, como o resto do estado da demo.
+  const t = ctx.t;
   const RECORDING = /[?&]record=1/.test(ctx.search ?? location.search);
   let idleT = 0;
   let attract: Attract | null = null;
@@ -71,7 +81,7 @@ export function createAttract(ctx: AttractCtx): AttractCtl {
   let recT = 0;
 
   const attractRecFor = (cen: string): number[][] | null => {
-    const a = store.getJSONComLegado<number[][]>(store.KEYS.attract(JOGO, cen), store.KEYS.attractLegado(cen), null);
+    const a = ctx.store.getJsonWithLegacy<number[][]>(KEYS.attract(JOGO, cen), KEYS.attractLegado(cen), null);
     return Array.isArray(a) && a.length > 10 ? a : null;
   };
 
@@ -139,7 +149,7 @@ export function createAttract(ctx: AttractCtx): AttractCtl {
       (recArr = recArr ?? []).push([Math.round(p.x), Math.round(p.y), p.facing]);
       if (recArr.length >= 180) {
         const cen = ctx.getCenario();
-        store.setJSON(store.KEYS.attract(JOGO, cen), recArr);
+        ctx.store.setJSON(KEYS.attract(JOGO, cen), recArr);
         // Ferramenta de AUTORIA (só com `?record=1`), não caminho de jogador — mas passa por srAlert e chega a um
         // leitor de tela de verdade, então é moldura como qualquer outra. O NOME do cenário entra por parâmetro:
         // ele vive na tabela CENARIOS de render/cenario-data e viaja com ela quando ela for convertida.

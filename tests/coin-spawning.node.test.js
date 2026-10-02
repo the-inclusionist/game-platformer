@@ -8,8 +8,15 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as COL from '../app/js/core/collision.js';
 import * as COINS from '../app/js/game/coins.js';
 import * as CS from '../app/js/game/coin-spawning.js';
-import { setCoins, coins } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
+import { setCoins, coins, initGameState } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
+
+// ENGINE 11 (ADR-0232 D4): `game/state` não lê mais `localStorage` no import nem emite pelo barramento de
+// módulo — a raiz entrega os dois em `initGameState`. O arreio faz o papel da raiz com um armazenamento SÓ
+// SEU (`memoryBackend()`: nenhuma chave herdada de outro ficheiro) e um barramento mudo, porque nada aqui
+// assina eventos; quem afere os eventos e as chaves é `tests/state-bus.node.test.ts`.
+initGameState({ store: createStorage(memoryBackend()), bus: { emit() { /* ninguém assina neste arreio */ } } });
 
 // A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
 // PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem
@@ -44,7 +51,7 @@ function fakeContainer() {
 // fábrica de sprite falsa: devolve um objeto simples com os campos que rebuildCoins escreve, + um marcador da textura pedida.
 function fakeSprite(tex) { return { tex, x: 0, y: 0, tint: 0, visible: true, destroyed: false, destroy() { this.destroyed = true; } }; }
 
-let container, mode, ownerColors, pcolor, invalidated, elByHudPower;
+let container, mode, ownerColors, pcolor, invalidated, elByHudPower, vizMode;
 const baseCtx = () => ({
   rng,
   coinContainer: container,
@@ -55,6 +62,7 @@ const baseCtx = () => ({
   pcolor,
   getMode: () => mode,
   getOwnerColors: () => ownerColors,
+  getVizMode: () => vizMode, // era o binding vivo `vizMode` de `core/state`; a engine 11 o apagou (nota CZ)
   invalidateSharedViz: () => { invalidated = true; },
   powerShort: (k) => ({ off: '—', superjump: '🐇 Super-pulo' })[k] || '—',
   $: (sel) => (sel === '#hud-power' ? elByHudPower : null),
@@ -64,7 +72,7 @@ beforeEach(() => {
   useWorld(COINWORLD);
   setCoins([]);
   container = fakeContainer();
-  mode = 'ludico'; ownerColors = true; pcolor = [0xff0000, 0x00ff00]; invalidated = false;
+  mode = 'ludico'; ownerColors = true; pcolor = [0xff0000, 0x00ff00]; invalidated = false; vizMode = 'normal';
   elByHudPower = { textContent: '' };
   CS.initCoinSpawning(baseCtx());
 });
@@ -82,6 +90,15 @@ describe('game/coin-spawning — rebuildCoins (materialização dos sprites)', (
     const s = CS.getCoinSprites()[0];
     expect(s.x).toBe(10); expect(s.y).toBe(20); expect(s.tex).toBe('coin:normal'); expect(s.visible).toBe(true);
     expect(container.all()).toEqual([s]); // o mesmo sprite foi ATÉ o container
+  });
+
+  it('[Right/a11y] o modo visual é LIDO A CADA reconstrução (getter da raiz), não congelado no init', () => {
+    // Era o binding vivo `vizMode` de `core/state`; agora é `getVizMode()`. Se o módulo guardasse o valor do init,
+    // trocar o modo acessível com o jogo rodando deixaria as moedas na textura antiga.
+    setCoins([{ x: 10, y: 20, owner: 0, taken: false, shape: '', letter: '' }]);
+    vizMode = 'hc-direto'; // SEM novo initCoinSpawning: só o que a raiz responderia agora
+    CS.rebuildCoins();
+    expect(CS.getCoinSprites()[0].tex).toBe('coin:hc-direto');
   });
 
   it('[Right] Soma-Sub: usa shapeTexFor, tamanho 15×15, offset -3 (não a textura de moeda)', () => {

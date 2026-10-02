@@ -3,13 +3,18 @@
 // Testes de ui/activities-menu — lógica PURA (categoria, mapeamento do "Voltar", saneamento do armazenamento,
 // travessia por setas, rótulos abreviados, builders de HTML) + a casca via initActivitiesMenu(ctx) no project
 // NODE, com DOM FALSIFICADO por objetos simples (mesmo truque de tests/gamepad.node.test.js: ctx.$ devolve
-// elementos fake). Contrato: nada de `document` fora do ctx; toda persistência por store.KEYS.
+// elementos fake). Contrato: nada de `document` fora do ctx; toda persistência pelo `ctx.store` injetado, com os
+// nomes de `platform/storage-keys` (engine 11, ADR-0232 D4 — não há mais `localStorage` lido por import).
 // ZOMBIES + Right-BICEP. Cobre em especial o pedido da tarefa: id de atividade inválido cai no padrão,
 // `tabSel` corrompido não derruba o boot (e o que ele DE FATO aceita — que é mais do que deveria, ver o
 // relatório da extração), e o "Voltar" de cada categoria leva ao menu certo.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import pt from '@the-inclusionist/engine/i18n/pt.js';
-import { PM_BTNS } from '@the-inclusionist/engine/ui/activities-menu.js';
+// O cartão de pausa ficou na engine quando o menu de título veio para cá; os botões moram em `ui/pause-buttons`.
+import { PM_BTNS } from '@the-inclusionist/engine/ui/pause-buttons.js';
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+import { createStorage } from '@the-inclusionist/engine/platform/storage.js';
+import { KEYS } from '@the-inclusionist/engine/platform/storage-keys.js';
+import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
 import {
   QL_NAME, ALF_LEVEL, FNOT_LBL, FNOT_KEYS, TITLE_MENU_ORDER,
   activityCategory, modeForCategory, normalizeActivityId, cenBackMenuFor,
@@ -35,24 +40,34 @@ const setNumPlayersValue = (n) => rodada.setNumPlayers(n);
 const JOGO = 'jogo-de-teste';
 let ACTIVITY = DEFAULT_ACTIVITY_ID; // arranca no DEFAULT_VISUAL, como o `activity` de `game/state`
 // ⚠️ O SETTER GRAVA, e nao e' detalhe: o `setActivityValue` de `game/state` fazia
-//   `activity = id; store.set(store.KEYS.activity(JOGO), id); emit(...)`
+//   `activity = id; store.set(KEYS.activity(JOGO), id); emit(...)`
 // e cinco casos deste ficheiro afirmam contra o ARMAZENAMENTO, nao contra a variavel. Um falso que so
 // atribuisse deixaria `store.get(...)` a devolver null e os casos a reprovar por um motivo que nada tem
 // a ver com o que eles testam. O `emit` fica de fora porque nenhum caso aqui o observa.
-const setActivityValue = (v) => { ACTIVITY = v; store.set(store.KEYS.activity(JOGO), v); };
-import * as store from '@the-inclusionist/engine/platform/storage.js';
+const setActivityValue = (v) => { ACTIVITY = v; store.set(KEYS.activity(JOGO), v); };
 
 // ---------------------------------------------------------------------------------------------
-// localStorage FALSO — platform/storage.ts é a única porta de persistência e engole exceções, então
-// sem isto todo getJSON devolveria o fallback e os testes de armazenamento corrompido não provariam nada.
+// ARMAZENAMENTO DESTE ARQUIVO — um backend sobre um `Map` que o teste ENXERGA, embrulhado pelo `createStorage`
+// da engine (que engole exceções e faz o JSON). O `Map` à vista é o que deixa um caso gravar texto CRU, como
+// o JSON corrompido abaixo, por baixo da porta; o `memoryBackend()` não o expõe. Nada vai ao
+// `globalThis.localStorage`: desde a engine 11 o módulo só conhece o store que o ctx lhe entrega.
 // ---------------------------------------------------------------------------------------------
 const mem = new Map();
-globalThis.localStorage = {
+const backend = {
   getItem: (k) => (mem.has(k) ? mem.get(k) : null),
   setItem: (k, v) => { mem.set(k, String(v)); },
   removeItem: (k) => { mem.delete(k); },
-  clear: () => mem.clear(),
 };
+const store = createStorage(backend);
+
+// O TRADUTOR É O DA RAIZ (ADR-0232 D3, nota CV): `core/i18n` não guarda estado, e o `t` do módulo é o que o
+// `initActivitiesMenu` recebe. O teste faz o papel da raiz — dicionários do jogo registrados por cima dos da
+// engine, como o `createGame` faz — e entrega UMA vez já no topo, porque os construtores de HTML dos blocos
+// puros (antes de qualquer caso de init) traduzem pelo `t` que a última init deixou.
+const tradutor = createTranslator();
+for (const [lingua, frases] of Object.entries(DICIONARIOS)) tradutor.registerDict(lingua, frases);
+// O ÍNDICE "N de M" é um ajuste da criança (`settings.menuIndexOn`), lido pelo getter a cada anúncio.
+let INDICE = true;
 
 // ---------------------------------------------------------------------------------------------
 // DOM falso mínimo — só o que activities-menu.ts realmente usa.
@@ -133,8 +148,11 @@ function makeCtx(over = {}) {
     numPlayers: [], restart: 0, phase: [], hideTips: 0, fullscreen: 0,
   };
   const ctx = {
+    t: tradutor.t,
     $: stage.$,
     gameId: JOGO, // ADR-0080: quem sabe o id do jogo e o jogo
+    store, // ADR-0232 D4: o store da raiz, por injeção
+    menuIndexOn: () => INDICE,
   getPlayers: () => rodada.players, getNumPlayers: () => rodada.numPlayers,
     getActiveElement: () => ACTIVE,
     srSay: (t) => calls.said.push(t),
@@ -159,9 +177,12 @@ function makeCtx(over = {}) {
   return { ctx, calls, stage };
 }
 
+initActivitiesMenu(makeCtx().ctx);
+
 beforeEach(() => {
   mem.clear();
   ACTIVE = null;
+  INDICE = true;
   players.length = 0;
   players.push({ alfWins: 7 });
   setNumPlayersValue(1);
@@ -370,7 +391,12 @@ describe('markup dos submenus', () => {
     // gera, então continuou verde quando a tabela passou a guardar chaves e o markup passou a vazar
     // 'fnot.v' para o leitor de tela. Quem pegou foi o navegador. Agora atravessa o dicionário, que é uma
     // fonte independente do módulo sob teste.
-    for (const k of FNOT_KEYS) expect(html).toContain(`aria-label="${pt[FNOT_LBL[k]]}"`);
+    // ⚠️ E AGORA OS LITERAIS: o dicionário das notações saiu da engine (`i18n/pt.js` já não tem `fnot.*`) para
+    // o do jogo, e `pt[FNOT_LBL[k]]` passou a dar `undefined` — o caso só reprovou porque o HTML não continha
+    // a palavra "undefined". As cinco frases escritas à mão não andam junto com nenhuma tabela.
+    expect(FNOT_KEYS).toEqual(['v', 'd', 'dec', 'pct', 'mix']);
+    for (const falado of ['Fracionária vertical', 'Fracionária diagonal', 'Decimal', 'Percentual', 'Mista'])
+      expect(html).toContain(`aria-label="${falado}"`);
     // `aria-checked` e não `aria-pressed` desde que as notações viraram AJUSTE com moldura em vez de botão de
     // menu (pedido do Dev): a pergunta aqui é "está marcada?", não "confirmar?". Ver notacoes-de-fracao.
     expect(html.match(/aria-checked="true"/g)).toHaveLength(1);
@@ -476,14 +502,14 @@ describe('initActivitiesMenu — boot', () => {
   it('não faz I/O antes de ser chamado: só o init toca no armazenamento', () => {
     // O módulo já foi importado no topo do arquivo; se houvesse leitura no import, incl_tabsel
     // teria sido lido antes deste ponto — a prova é que gravar AGORA muda o que o init enxerga.
-    store.setJSON(store.KEYS.tabsel(JOGO), [8]);
+    store.setJSON(KEYS.tabsel(JOGO), [8]);
     const { ctx } = makeCtx();
     const api = initActivitiesMenu(ctx);
     expect(api.tabSel).toEqual([8]);
   });
 
   it('tabuada corrompida no armazenamento não derruba o boot e não vira lixo utilizável', () => {
-    localStorage.setItem(store.KEYS.tabsel(JOGO), '{isto não é JSON');
+    backend.setItem(KEYS.tabsel(JOGO), '{isto não é JSON'); // por BAIXO da porta, que só grava JSON válido
     const { ctx } = makeCtx();
     let api;
     expect(() => { api = initActivitiesMenu(ctx); }).not.toThrow();
@@ -497,7 +523,7 @@ describe('initActivitiesMenu — boot', () => {
     const { ctx } = makeCtx();
     initActivitiesMenu(ctx);
     expect(ACTIVITY).toBe(DEFAULT_ACTIVITY_ID);
-    expect(store.get(store.KEYS.activity(JOGO))).toBe(DEFAULT_ACTIVITY_ID);
+    expect(store.get(KEYS.activity(JOGO))).toBe(DEFAULT_ACTIVITY_ID);
   });
 
   it('atividade válida sobrevive ao boot (a guarda não é um reset disfarçado)', () => {
@@ -531,10 +557,10 @@ describe('initActivitiesMenu — escolher a atividade', () => {
     const { ctx, calls } = makeCtx();
     const api = initActivitiesMenu(ctx);
     api.setActivity('mat9000');
-    expect(store.get(store.KEYS.activity(JOGO))).toBe(DEFAULT_ACTIVITY_ID);
+    expect(store.get(KEYS.activity(JOGO))).toBe(DEFAULT_ACTIVITY_ID);
     // O modo NÃO é mais escrito por este menu (ADR-0040): ele DERIVA da atividade que a linha acima gravou.
     // Afirmar a derivação é mais forte que afirmar a chamada — a chamada podia mentir, e mentia (issue #54).
-    expect(modeForActivity(store.get(store.KEYS.activity(JOGO)))).toBe('ludico');
+    expect(modeForActivity(store.get(KEYS.activity(JOGO)))).toBe('ludico');
     expect(calls.quizLevel).toEqual([]); // lúdico não mexe no nível de alfabetização
   });
 
@@ -543,7 +569,7 @@ describe('initActivitiesMenu — escolher a atividade', () => {
     const api = initActivitiesMenu(ctx);
     api.setActivity('alf3');
     expect(calls.quizLevel).toEqual([[3, false]]);
-    expect(modeForActivity(store.get(store.KEYS.activity(JOGO)))).toBe('silabas');
+    expect(modeForActivity(store.get(KEYS.activity(JOGO)))).toBe('silabas');
     expect(api.actCat()).toBe('alf');
   });
 
@@ -551,7 +577,7 @@ describe('initActivitiesMenu — escolher a atividade', () => {
     const { ctx, calls } = makeCtx();
     const api = initActivitiesMenu(ctx);
     api.setActivity('mat5');
-    expect(modeForActivity(store.get(store.KEYS.activity(JOGO)))).toBe('somasub');
+    expect(modeForActivity(store.get(KEYS.activity(JOGO)))).toBe('somasub');
     expect(calls.quizLevel).toEqual([]);
   });
 
@@ -567,11 +593,11 @@ describe('initActivitiesMenu — escolher a atividade', () => {
   });
 
   it('startActivity NÃO comita a atividade — só reallyStart comita (o cenário ainda pode ser cancelado)', () => {
-    store.set(store.KEYS.activity(JOGO), 'ludico');
+    store.set(KEYS.activity(JOGO), 'ludico');
     const { ctx, calls } = makeCtx();
     const api = initActivitiesMenu(ctx);
     api.startActivity('alf4');
-    expect(store.get(store.KEYS.activity(JOGO))).toBe('ludico');
+    expect(store.get(KEYS.activity(JOGO))).toBe('ludico');
     expect(calls.phase).toEqual([]);
   });
 });
@@ -720,10 +746,10 @@ describe('initActivitiesMenu — despacho de cliques do menu', () => {
     const b7 = submenuBtn(stage, 'tm-tab', { tabN: '7' });
     b7.click();
     expect(api.tabSel).toContain(7);
-    expect(store.getJSON(store.KEYS.tabsel(JOGO))).toContain(7);
+    expect(store.getJSON(KEYS.tabsel(JOGO))).toContain(7);
     b7.click();
     expect(api.tabSel).not.toContain(7);
-    expect(store.getJSON(store.KEYS.tabsel(JOGO))).not.toContain(7);
+    expect(store.getJSON(KEYS.tabsel(JOGO))).not.toContain(7);
   });
 
   it('o botão do número reflete o estado na classe E no aria-pressed', () => {
@@ -739,7 +765,7 @@ describe('initActivitiesMenu — despacho de cliques do menu', () => {
   });
 
   it('"Jogar" sem nenhum número escolhido recusa com alerta e não abre o cenário', () => {
-    store.setJSON(store.KEYS.tabsel(JOGO), ['x']); // sobra vazia depois do filtro
+    store.setJSON(KEYS.tabsel(JOGO), ['x']); // sobra vazia depois do filtro
     const { ctx, calls, stage } = makeCtx();
     const api = initActivitiesMenu(ctx);
     expect(api.tabSel).toEqual([]);
@@ -752,7 +778,7 @@ describe('initActivitiesMenu — despacho de cliques do menu', () => {
   });
 
   it('a última notação de fração ligada não pode ser desligada', () => {
-    store.setJSON(store.KEYS.fracnot(JOGO), { v: 1, d: 0, dec: 0, pct: 0, mix: 0 });
+    store.setJSON(KEYS.fracnot(JOGO), { v: 1, d: 0, dec: 0, pct: 0, mix: 0 });
     const { ctx, calls, stage } = makeCtx();
     const api = initActivitiesMenu(ctx);
     const bv = submenuBtn(stage, 'tm-fr', { fnot: 'v' });
@@ -770,7 +796,7 @@ describe('initActivitiesMenu — despacho de cliques do menu', () => {
     expect(api.fracNot.pct).toBe(1);
     bv.click();
     expect(api.fracNot.v).toBe(0);
-    expect(store.getJSON(store.KEYS.fracnot(JOGO))).toEqual({ v: 0, d: 0, dec: 0, pct: 1, mix: 0 });
+    expect(store.getJSON(KEYS.fracnot(JOGO))).toEqual({ v: 0, d: 0, dec: 0, pct: 1, mix: 0 });
   });
 
   it('atividade que escolhe números abre o seletor com o título dela; as outras vão direto ao cenário', () => {
@@ -839,6 +865,19 @@ describe('initActivitiesMenu — travessia por setas', () => {
     expect(ACTIVE.textContent).toBe(stage.npBtn.textContent); // 1º botão do submenu (o #np-btn)
     api.navTitle({ down: true });
     expect(calls.said[calls.said.length - 1]).toBe('Um, 2 de 3');
+  });
+
+  it('[Right/a11y] a criança DESLIGA o índice com o menu aberto e o próximo anúncio já vem sem o "N de M"', () => {
+    // Era o binding vivo `menuIndexOn` de `core/state`; agora é o getter do ctx. Um módulo que guardasse o valor
+    // do init continuaria dizendo "2 de 3" depois de a criança pedir silêncio.
+    const { ctx, calls, stage } = makeCtx();
+    const api = initActivitiesMenu(ctx);
+    const a = new FakeEl('button', { text: 'Um' }); const b = new FakeEl('button', { text: 'Dois' });
+    stage.menus['tm-main'].append(a, b);
+    api.navTitle({ down: true });
+    INDICE = false; // SEM novo init: só o que a raiz responderia agora
+    api.navTitle({ down: true });
+    expect(calls.said[calls.said.length - 1]).toBe('Um');
   });
 
   it('[Right] botão com `aria-label` é narrado PELO RÓTULO DECLARADO, não pelo texto visível', () => {

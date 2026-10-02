@@ -9,7 +9,6 @@
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import { COIN_TARGET } from './tuning.js';
 import type { Rng } from '@the-inclusionist/engine/core/rng.js';
-import { vizMode } from '@the-inclusionist/engine/core/state.js';
 import { coins, setCoins } from './state.js'; // item 19: `coins`/`quizLevel` sao estado do JOGO
 import { findCoinCandidates, positionEasyCoins } from './coins.js';
 import { SOMASUB_SHAPES, WORD_INITIALS } from './activity-content.js';
@@ -55,6 +54,9 @@ export interface CoinSpawningCtx {
   pcolor: number[];                                       // PCOLOR — array mutado IN-PLACE pelo game.js; lido por referência
   getMode: () => string;                                  // MODE ('ludico'|'somasub'|'silabas') — ainda local ao game.js
   getOwnerColors: () => boolean;                          // itens na cor do dono? (opção de acessibilidade)
+  // O MODO VISUAL vigente. Era o binding vivo `vizMode` de `core/state`, que a engine 11 apagou (ADR-0232 D4,
+  // nota CZ): o modo mora no `SettingsStore` da raiz, que o entrega por getter — o valor de AGORA, não o do init.
+  getVizMode: () => string;
   invalidateSharedViz: () => void;                        // reseta o cache _lastSharedViz do game.js (força reaplicar viz por viewport)
   powerShort: (kind: string) => string;                   // POWER_SHORT — rótulo curto do HUD, JÁ traduzido (função: o idioma muda)
   $: DomQuery;                                             // seletor DOM (ui/dom.ts's `$`), injetado — showPower nunca toca `document`
@@ -84,6 +86,7 @@ export function rebuildCoins(): void {
   positionEasyCoins();
   c.coinContainer.removeChildren().forEach((s) => s.destroy());
   const mode = c.getMode();
+  const vizMode = c.getVizMode(); // lido UMA vez: todas as moedas do mesmo redesenho na mesma textura
   _coinSprites = coins.map((cn) => {
     let s: CoinSprite;
     if (mode === 'somasub' && cn.shape) { s = c.createSprite(c.shapeTexFor(cn.shape)); s.width = 15; s.height = 15; s.x = cn.x - 3; s.y = cn.y - 3; }

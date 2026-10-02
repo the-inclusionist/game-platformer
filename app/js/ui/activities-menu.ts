@@ -19,7 +19,9 @@
 //                          aresta menor e ainda assim uma aresta: o menu conhece UM catálogo. O conserto
 //                          verdadeiro é a EdSP entregar o catálogo por injeção — e até lá o gate conta
 //                          esta linha, em vez de deixá-la passar por ter mudado de pasta.
-//   platform/storage.ts  → every read/write goes through `store.KEYS` (`tabsel`, `fracnot`); no raw localStorage.
+//   platform/storage-keys.ts → the NAMES of the two keys (`KEYS.tabsel`, `KEYS.fracnot`). The STORE itself is
+//                          injected (`ctx.store`, engine 11 / ADR-0232 D4): `platform/storage` is a factory now,
+//                          and only its TYPE is imported here. No raw localStorage, and none reached at import.
 // Injected instead of imported, and why:
 //   `$` / `getActiveElement` / `enterFullscreen` — the DOM handles, so the node project can drive the whole
 //     dispatcher with plain objects (same contract as input/gamepad.ts and ui/settings-*.ts).
@@ -39,7 +41,8 @@
 import { escapeHtml } from '@the-inclusionist/engine/core/escape-html.js'; // #106: o id do cenario vem do JOGO
 import { getActivity, hasActivity, isValidActivityId, DEFAULT_ACTIVITY_ID, activityCategory,
          type ActivityDef, type ActivityCat } from '@the-inclusionist/engine/educational/activities-registry.js';
-import * as store from '@the-inclusionist/engine/platform/storage.js';
+import type { Store } from '@the-inclusionist/engine/platform/storage.js';
+import { KEYS } from '@the-inclusionist/engine/platform/storage-keys.js';
 import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
 // Preenchido pela raiz no init abaixo; ver a nota no ctx.
 let t: Translate = (k) => k;
@@ -63,12 +66,10 @@ export type FracNot = Record<FracNotKey, number>;
 
 /** The 6 directional/confirm flags the title menu reacts to. Single definition in input/edges. */
 import type { NavKeys } from '@the-inclusionist/engine/input/edges.js';
-import { passoNoAnel } from '@the-inclusionist/engine/core/ring.js';
+// `passoNoAnel` e `rotuloAcessivel` passaram a falar inglês na engine 11 (ADR-0219/0230): mesmas funções.
+import { stepInRing } from '@the-inclusionist/engine/core/ring.js';
 import { announceItem } from '@the-inclusionist/engine/ui/item-announcement.js';
-import { rotuloAcessivel } from '@the-inclusionist/engine/core/accessible-label.js';
-// LIGAÇÃO VIVA (ESM), e não cópia: `menuIndexOn` muda quando a criança desliga o índice no menu, e o valor
-// aqui acompanha sem precisar de assinatura nem de um campo a mais no `ctx`.
-import { menuIndexOn } from '@the-inclusionist/engine/core/state.js';
+import { accessibleLabel } from '@the-inclusionist/engine/core/accessible-label.js';
 import type { DomQuery } from '@the-inclusionist/engine/core/dom-query.js';
 export type { NavKeys } from '@the-inclusionist/engine/input/edges.js';
 
@@ -94,6 +95,17 @@ export interface ActivitiesMenuCtx {
    * navegador escreviam uma por cima da outra. Quem sabe o id é o jogo, e ele o passa aqui.
    */
   gameId: string;
+  /**
+   * O STORE DA RAIZ (ADR-0232 D4, nota CT) — onde moram a tabuada escolhida e as notações de fração. Obrigatório:
+   * sem ele as duas escolhas durariam só a sessão, e a criança refaria a tabuada toda vez sem saber por quê.
+   */
+  store: Pick<Store, 'getJsonWithLegacy' | 'setJSON'>;
+  /**
+   * "N de M" no fim do anúncio de cada item (ADR-0044, item 3)? GETTER, lido a cada passo: a criança desliga o
+   * índice no menu e o próximo anúncio já obedece. Era o binding vivo `menuIndexOn` de `core/state`, que a
+   * engine 11 apagou (nota CZ) — a raiz responde do seu `SettingsStore`: `() => settings.menuIndexOn`.
+   */
+  menuIndexOn: () => boolean;
   /** Quantos jogadores/telas. Estado de RODADA (ADR-0038): vem da instância que a raiz possui.
    *  Era `numPlayers`, um `let` de `core/state` importado como binding vivo — e um `let` de módulo
    *  é compartilhado por qualquer segundo jogo que a mesma página carregue (D13 do `demos`). */
@@ -285,7 +297,7 @@ export function clampPendingPlayers(n: number): number {
  */
 export function nextTitleIndex(cur: number, len: number, k: NavKeys): number {
   const d = (k.down || k.right) ? 1 : -1;
-  return cur < 0 ? 0 : passoNoAnel(len, cur, d);
+  return cur < 0 ? 0 : stepInRing(len, cur, d);
 }
 
 /**
@@ -445,8 +457,8 @@ export function initActivitiesMenu(ctx: ActivitiesMenuCtx): ActivitiesMenuApi {
   if (!isValidActivityId(ctx.getActivityId() ?? '')) ctx.setActivityId(DEFAULT_ACTIVITY_ID);
 
   // Escopo DO JOGO agora (ver os dois escopos em platform/storage); a leitura herda do nome antigo.
-  const tabSel: number[] = sanitizeTabSel(store.getJSONComLegado(store.KEYS.tabsel(ctx.gameId), store.KEYS.tabselLegado, null));
-  const fracNot: FracNot = sanitizeFracNot(store.getJSONComLegado(store.KEYS.fracnot(ctx.gameId), store.KEYS.fracnotLegado, null));
+  const tabSel: number[] = sanitizeTabSel(ctx.store.getJsonWithLegacy(KEYS.tabsel(ctx.gameId), KEYS.tabselLegado, null));
+  const fracNot: FracNot = sanitizeFracNot(ctx.store.getJsonWithLegacy(KEYS.fracnot(ctx.gameId), KEYS.fracnotLegado, null));
 
   /**
    * Escreve o rótulo do #np-btn — o VISÍVEL e o do leitor de tela, juntos.
@@ -511,7 +523,8 @@ export function initActivitiesMenu(ctx: ActivitiesMenuCtx): ActivitiesMenuApi {
 
   /** Buttons of the ONE submenu that is currently visible (the others carry `hidden`). */
   function titleButtons(): HTMLElement[] {
-    const m = TITLE_MENU_ORDER.map((id) => ctx.$<HTMLElement>('#' + id)).find((el) => el && !el.hidden);
+    // `TITLE_MENU_IDS` virou `ReadonlySet` na engine 11; o Set guarda a ordem de inserção, que é a do menu.
+    const m = [...TITLE_MENU_ORDER].map((id) => ctx.$<HTMLElement>('#' + id)).find((el) => el && !el.hidden);
     return m ? [...m.querySelectorAll<HTMLElement>('button')] : [];
   }
 
@@ -541,7 +554,7 @@ export function initActivitiesMenu(ctx: ActivitiesMenuCtx): ActivitiesMenuApi {
     // RÓTULO DECLARADO VENCE, e é o que o leitor de tela já vai anunciar. MEDIDO no botão de número de
     // jogadores: o jogo narrava "◀ Number of players: 1 ▶" enquanto o leitor dizia "Number of players: 1.
     // Click on the left for fewer…" — duas frases para o mesmo item, e a do jogo lendo os glifos das setas.
-    const declarado = rotuloAcessivel(b);
+    const declarado = accessibleLabel(b);
     if (b.getAttribute('aria-label')) return { rotulo: declarado, estado: '' };
     const sub = b.querySelector<HTMLElement>('.act-sub');
     if (!sub) return { rotulo: b.textContent || '', estado: '' };
@@ -557,7 +570,9 @@ export function initActivitiesMenu(ctx: ActivitiesMenuCtx): ActivitiesMenuApi {
       const n = nextTitleIndex(i, bs.length, k);
       bs[n].focus();
       // O índice "N de M" entra AQUI e não no `srSay`: é o menu que sabe quantos itens tem (ADR-0044, item 3).
-      ctx.srSay(announceItem({ ...partesDoBotao(bs[n]), posicao: n + 1, total: bs.length }, menuIndexOn));
+      // `announceItem` recebe o `t` primeiro (nota CV) e os campos em inglês (`label`/`state`/`position`).
+      const { rotulo, estado } = partesDoBotao(bs[n]);
+      ctx.srSay(announceItem(t, { label: rotulo, state: estado, position: n + 1, total: bs.length }, ctx.menuIndexOn()));
     } else if (k.yes) { (i < 0 ? bs[0] : bs[i]).click(); }
     else if (k.no) { const back = bs.find(isBackButton); if (back) back.click(); }
   }
@@ -603,7 +618,7 @@ export function initActivitiesMenu(ctx: ActivitiesMenuCtx): ActivitiesMenuApi {
     if (b.dataset.tmFr) { go(() => { ctx.titleShow('tm-fr'); ctx.srSay(t('sr.menu.fractionsIntro')); }); return; }
     if (b.dataset.fnot) { const k = b.dataset.fnot as FracNotKey; // NOTATION toggle (immediate; at least 1 ALWAYS on)
       if (!canToggleFracNot(fracNot, k)) { ctx.srAlert(t('sr.menu.keepOneNotation')); return; }
-      fracNot[k] = fracNot[k] ? 0 : 1; store.setJSON(store.KEYS.fracnot(ctx.gameId), fracNot);
+      fracNot[k] = fracNot[k] ? 0 : 1; ctx.store.setJSON(KEYS.fracnot(ctx.gameId), fracNot);
       // O ESTADO EM DUAS FORMAS, e nenhuma delas é cor: `aria-checked` para quem escuta e a MARCA ☑/☐ para
       // quem vê. Era `tab-on` + `aria-pressed` — realce de fundo e papel de botão de comando —, e o realce
       // sozinho reprova a WCAG 1.4.1: quem tem baixa visão ou daltonismo ficava sem resposta para "quais
@@ -621,7 +636,7 @@ export function initActivitiesMenu(ctx: ActivitiesMenuCtx): ActivitiesMenuApi {
     if (b.id === 'tab-play') { if (!tabSel.length) { ctx.srAlert(t('sr.menu.pickOneNumber')); return; } go(() => startActivity(tabFor)); return; }
     if (b.dataset.tabN != null) { const n = +b.dataset.tabN, i = tabSel.indexOf(n); // toggle: no screen change → immediate
       if (i >= 0) tabSel.splice(i, 1); else tabSel.push(n);
-      store.setJSON(store.KEYS.tabsel(ctx.gameId), tabSel);
+      ctx.store.setJSON(KEYS.tabsel(ctx.gameId), tabSel);
       b.classList.toggle('tab-on', i < 0); b.setAttribute('aria-pressed', String(i < 0));
       ctx.srSay(t(i < 0 ? 'sr.menu.numberOn' : 'sr.menu.numberOff', { n })); return;
     }

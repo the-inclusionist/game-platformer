@@ -14,7 +14,6 @@ import type { PlayerView } from '@the-inclusionist/engine/core/entity.js';
 import { tileAt, solidTile } from '../core/collision.js';
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import { getElevShafts, elevAt } from './elevators.js';
-import { vizMode } from '@the-inclusionist/engine/core/state.js';
 import type { Powerup as PowerupBase } from './powerups.js';
 
 /* ===================== tipos ===================== */
@@ -64,6 +63,12 @@ export interface LevelGeometryCtx {
   pupTexFor: (kind: string, mode: string) => PIXI.Texture;
   isDirectMode: (mode: string) => boolean;
   gateRoleColor: () => [number, number, number];
+  /**
+   * O MODO VISUAL vigente (a textura do power-up e a cor do portão dependem dele). Era o binding vivo `vizMode`
+   * importado de `core/state`, que a engine 11 apagou (ADR-0232 D4, nota CZ): o modo mora no `SettingsStore`
+   * da raiz. Getter, e não valor, porque o modo muda com o jogo rodando e o desenho quer o de AGORA.
+   */
+  getVizMode: () => string;
 }
 
 let W = 0, H = 0;
@@ -80,6 +85,7 @@ let getGateOpen: () => boolean = () => true;
 let pupTexFor: (kind: string, mode: string) => PIXI.Texture = () => PIXI.Texture.EMPTY;
 let isDirectMode: (mode: string) => boolean = () => false;
 let gateRoleColor: () => [number, number, number] = () => [0x8a, 0x5a, 0x2b];
+let getVizMode: () => string = () => 'normal';
 
 /** Inject level dims, the wheelchair flag, the PIXI layers to draw into, and read-only getters for the
  * gate/powerup/wcSolid state that game.js owns (core/collision reads it too, so it is NOT ours to hold). */
@@ -89,6 +95,7 @@ export function initLevelGeometry(ctx: LevelGeometryCtx): void {
   getWcSolid = ctx.wcSolid; getPowerups = ctx.powerups; getPlayers = ctx.getPlayers;
   getGateTiles = ctx.gateTiles; getGate = ctx.gate; getGateOpen = ctx.gateOpen;
   pupTexFor = ctx.pupTexFor; isDirectMode = ctx.isDirectMode; gateRoleColor = ctx.gateRoleColor;
+  getVizMode = ctx.getVizMode;
 }
 
 /* ===================== rampas: detecção pura (degrau de 1 tile) ===================== */
@@ -297,6 +304,7 @@ export function setupExtras(mapItems: MapItem[], mapGate: MapGateTile[], opts: {
 export function rebuildExtras(): void {
   if (!extraLayer) return;
   extraLayer.removeChildren().forEach((s) => s.destroy());
+  const vizMode = getVizMode(); // lido UMA vez por redesenho: as duas leituras abaixo veem o mesmo modo
   for (const pu of getPowerups()) {
     const s = new PIXI.Sprite(pupTexFor(pu.kind, vizMode));
     s.x = pu.x; s.y = pu.y; s.visible = !pu.taken;

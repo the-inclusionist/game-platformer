@@ -4,7 +4,8 @@
 // do monólito (game.js drawSemaforo/initTraffic/spawnCar/setFrontDim/stepTraffic). Ver docs/plano-modularizacao-mapa.md.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRng } from '@the-inclusionist/engine/core/rng.js';
-import { setCenarioValue } from '../app/js/game/state.js'; // GAME desde a Fase B (ADR-0038)
+import { setCenarioValue, initGameState } from '../app/js/game/state.js'; // GAME desde a Fase B (ADR-0038)
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
 import {
 
   lightStateAt, planCarSpawn, nextSpawnThreshold, isBeforeStopLine, shouldBrake, advanceCar, isOffscreen,
@@ -45,6 +46,13 @@ function setup(over = {}) {
   initTraffic({ ...ctx, rng });
   return { carLayer };
 }
+
+
+// ENGINE 11 (ADR-0232 D4): `game/state` não lê mais `localStorage` no import nem emite pelo barramento de
+// módulo — a raiz entrega os dois em `initGameState`. O arreio faz o papel da raiz com um armazenamento SÓ
+// SEU (`memoryBackend()`: nenhuma chave herdada de outro ficheiro) e um barramento mudo, porque nada aqui
+// assina eventos; quem afere os eventos e as chaves é `tests/state-bus.node.test.ts`.
+initGameState({ store: createStorage(memoryBackend()), bus: { emit() { /* ninguém assina neste arreio */ } } });
 
 beforeEach(() => { rng.reseed(20260601); setCenarioValue('cidade'); setFrontDim(false); clearCars(); }); // isola _frontDim/cars entre testes (SEM.t/state/pole ficam por conta de cada teste — só o boot os fixa de novo)
 

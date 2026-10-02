@@ -40,7 +40,21 @@ const players = rodada.players;
 const setNumPlayersValue = (n) => rodada.setNumPlayers(n);
 const numPlayers = () => rodada.numPlayers; // era binding vivo; virou função (o teste chama `numPlayers()`)
 
-import { coins, setCoins } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
+import { coins, setCoins, initGameState } from '../app/js/game/state.js'; // item 19: `coins`/`quizLevel` mudaram para `game/state`
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
+
+// ENGINE 11 (ADR-0232 D4): `game/state` não lê mais `localStorage` no import nem emite pelo barramento de
+// módulo — a raiz entrega os dois em `initGameState`. O arreio faz o papel da raiz com um armazenamento SÓ
+// SEU (`memoryBackend()`: nenhuma chave herdada de outro ficheiro) e um barramento mudo, porque nada aqui
+// assina eventos; quem afere os eventos e as chaves é `tests/state-bus.node.test.ts`.
+initGameState({ store: createStorage(memoryBackend()), bus: { emit() { /* ninguém assina neste arreio */ } } });
+// O TRADUTOR DA RAIZ (ADR-0232 D3, nota CV): `game/session` traduz pelo `ctx.t` que `initSession` recebe. Um tradutor
+// de verdade, com os dicionários do jogo por cima dos da engine (o que o `createGame` faz), porque os casos afirmam
+// as frases em português — uma identidade devolveria as CHAVES e reprovaria por outro motivo.
+import { createTranslator } from '@the-inclusionist/engine/core/i18n.js';
+import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
+const tradutor = createTranslator();
+for (const [lingua, frases] of Object.entries(DICIONARIOS)) tradutor.registerDict(lingua, frases);
 
 /* ===================== 1. A DECISÃO PURA DA COLETA (sem ctx, sem DOM) ===================== */
 
@@ -289,6 +303,7 @@ function novoCtx(over = {}) {
     pauseActor: 0, ownerColors: true, captionsOn: true,
   };
   CTX = {
+    t: tradutor.t, // ADR-0232 D3 (nota CV): o tradutor é o da RAIZ, e o arreio faz esse papel
     getPlayers: () => rodada.players, getNumPlayers: () => rodada.numPlayers,
     setNumPlayers: (n) => rodada.setNumPlayers(n),
     estado, // exposto para o teste inspecionar/mexer
@@ -352,7 +367,7 @@ function montar(n = 1, over = {}) {
     coinContainer: { removeChildren: () => [], addChild() { /* noop */ } },
     createSprite: () => ({ x: 0, y: 0, tint: 0, visible: true, destroy() { /* noop */ } }),
     coinTexFor: () => null, shapeTexFor: () => null, letterTexFor: () => null,
-    pcolor: ctx.PCOLOR, getMode: () => ctx.estado.mode, getOwnerColors: () => ctx.estado.ownerColors,
+    pcolor: ctx.PCOLOR, getMode: () => ctx.estado.mode, getOwnerColors: () => ctx.estado.ownerColors, getVizMode: () => 'normal',
     invalidateSharedViz() { /* noop */ }, powerShort: () => '—', $: ctx.$,
   });
   S = initSession(ctx);

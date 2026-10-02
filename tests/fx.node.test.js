@@ -5,8 +5,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   spawnParticle, getParticles, addShake, shakeAmp, addHitstop, tickHitstop, getHitstopT,
-  setSquash, stepFx,
+  setSquash, stepFx, JUICE, saveJuice, initFx,
 } from '../app/js/render/fx.js';
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
 
 // Zera hit-stop + shake + partículas para um baseline limpo (estado do módulo persiste entre testes).
 function drain() {
@@ -84,5 +85,57 @@ describe('stepFx (física da partícula)', () => {
     expect(p.life).toBe(8);
     stepFx(100); // expira → removida
     expect(getParticles().length).toBe(0);
+  });
+});
+
+// ========================= JUICE: o armazenamento chega por `initFx` (engine 11, ADR-0232 D4) =========================
+//
+// Antes o JUICE era lido no IMPORT, direto do `localStorage` da página; a engine 11 apagou essas funções de módulo e
+// a raiz passou a entregar o store. ⚠️ A CHAVE ESTÁ ESCRITA À MÃO, `'incl_juice'`, e não lida de `KEYS.juice`: ler a
+// chave pelo mesmo registro no semear e no conferir faria o teste andar junto com uma renomeação e passar verde
+// enquanto a criança perde o que desligou. `'incl_juice'` é a string que a engine ≤ 10 gravava (`juice: 'incl_juice'`
+// em `app/js/platform/storage.ts` do repositório da engine, antes de e622b515).
+//
+// 📌 Este bloco fica no FIM do ficheiro de propósito: `initFx` zera partículas/tremor/hit-stop e troca o store do
+// módulo, e os blocos acima testam o módulo sem init nenhum.
+describe('JUICE — restaurado e gravado pelo store injetado', () => {
+  const fxG = { clear() {}, beginFill() {}, drawRect() {}, endFill() {} };
+  const ligar = (entries) => {
+    const store = createStorage(memoryBackend(entries));
+    initFx({ fxG, rm: {}, getPlayers: () => [], store });
+    return store;
+  };
+
+  it('store vazio: tudo LIGADO, o padrão de sempre', () => {
+    ligar([]);
+    expect({ ...JUICE }).toEqual({ dust: true, sparkle: true, squash: true, hitstop: true, shake: true, shimmer: true });
+  });
+
+  it("lê 'incl_juice': o que a criança desligou volta desligado; chave ausente no JSON mantém o padrão", () => {
+    ligar([['incl_juice', JSON.stringify({ shake: false, dust: false, inventado: false })]]);
+    expect(JUICE.shake).toBe(false);
+    expect(JUICE.dust).toBe(false);
+    expect(JUICE.sparkle).toBe(true);
+    expect('inventado' in JUICE).toBe(false); // campo desconhecido no armazenamento não entra no objeto
+  });
+
+  it("saveJuice grava em 'incl_juice' do store INJETADO", () => {
+    const store = ligar([]);
+    JUICE.hitstop = false;
+    saveJuice();
+    expect(JSON.parse(store.get('incl_juice'))).toMatchObject({ hitstop: false, shake: true });
+  });
+
+  it('um SEGUNDO init (outro jogo na mesma página, D14) repõe os padrões antes de ler o SEU store', () => {
+    ligar([['incl_juice', JSON.stringify({ squash: false })]]);
+    expect(JUICE.squash).toBe(false);
+    ligar([]);
+    expect(JUICE.squash).toBe(true);
+  });
+
+  it('o objeto JUICE é o MESMO entre inits — a raiz o entrega por referência ao painel de debug', () => {
+    const antes = JUICE;
+    ligar([]);
+    expect(JUICE).toBe(antes);
   });
 });

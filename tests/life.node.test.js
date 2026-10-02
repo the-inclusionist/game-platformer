@@ -15,9 +15,16 @@ const rodada = createRunState();
 const players = rodada.players;
 const setNumPlayersValue = (n) => rodada.setNumPlayers(n);
 
-import { setCenarioValue } from '../app/js/game/state.js'; // GAME desde a Fase B (ADR-0038)
+import { setCenarioValue, initGameState } from '../app/js/game/state.js'; // GAME desde a Fase B (ADR-0038)
+import { createStorage, memoryBackend } from '@the-inclusionist/engine/platform/storage.js';
 import { TILE } from '@the-inclusionist/engine/core/constants.js';
 import { initLife, spawnCreature, stepLife, getCreatures } from '../app/js/game/life.js';
+
+// ENGINE 11 (ADR-0232 D4): `game/state` não lê mais `localStorage` no import nem emite pelo barramento de
+// módulo — a raiz entrega os dois em `initGameState`. O arreio faz o papel da raiz com um armazenamento SÓ
+// SEU (`memoryBackend()`: nenhuma chave herdada de outro ficheiro) e um barramento mudo, porque nada aqui
+// assina eventos; quem afere os eventos e as chaves é `tests/state-bus.node.test.ts`.
+initGameState({ store: createStorage(memoryBackend()), bus: { emit() { /* ninguém assina neste arreio */ } } });
 
 // A CORRENTE DESTE ARREIO (ADR-0141). Era `reseed` de `core/rng`, que reposiciona a corrente
 // PARTILHADA de escopo de módulo — a mesma que qualquer outro ficheiro importasse. Agora o arreio tem
