@@ -41,7 +41,8 @@ import '@the-inclusionist/engine/style.css';
 import * as PIXI from 'pixi.js'; // PixiJS 7.4.2 via npm (Vite empacota; aposenta o <script> global vendor/pixi.min.js)
 import * as tiles from './core/tiles.js'; // legend + parser do mapa em glifo
 import { createStorage } from '@the-inclusionist/engine/platform/storage.js'; // camada de persistência
-import { createSettingsStore } from '@the-inclusionist/engine/core/state.js';
+import { KEYS } from '@the-inclusionist/engine/platform/storage-keys.js'; // o registro de chaves saiu do `storage` (ADR-0232)
+import type { GameEvent } from '@the-inclusionist/engine/core/state.js';
 import { defaultReducedMotion } from '@the-inclusionist/engine/core/setting-defaults.js';
 import { cenario as CENARIO, setCenarioValue, activity as ACTIVITY, setActivityValue } from './game/state.js'; // GAME (ADR-0038, Fase B)
 import { JOGO } from './game/save-id.js'; // ADR-0080: o id deste jogo, que a engine deixou de guardar
@@ -54,7 +55,6 @@ import type { GamePlayer, ControlledGamePlayer } from './game/entity.js'; // as 
 import type { ModalIntent, ControlsSnapshot } from '@the-inclusionist/engine/input/keydown.js'; // a intenção direcional do ADR-0033
 import type { RenderTextureLike, SpriteLike, GraphicsLike } from '@the-inclusionist/engine/render/screen-pipeline.js'; // o ctx de lá declara estes
 import type { MotionSceneKey, MotionSceneFlags, MotionCharDef } from '@the-inclusionist/engine/ui/settings-motion.js'; // as quatro chaves de movimento reduzido
-import type { HcRoleKey } from '@the-inclusionist/engine/render/hc-role-data.js'; // HC_ROLE é Record<HcRoleKey, …>: a chave não é `string`
 import { quizLevel, setQuizLevelValue, coins, setCoins, initGameState } from './game/state.js'; // item 19: o estado DESTE jogo
 import type { GameCtx, GameInstance } from '../../src/contract.js'; // o contrato do cartucho, deste lado
 import { ligarDeclaracao, desligarDeclaracao, ligarGanchos, desligarGanchos } from './declaration/live.js'; // o contrato do cartucho, deste lado
@@ -70,10 +70,7 @@ import { SOMASUB_SHAPES, WORD_INITIALS } from './game/activity-content.js'; // E
 import { JUICE, saveJuice, puffDust, burstSparkle, addShake, addHitstop, setSquash, stepFx, initFx, tickHitstop, getParticles, getHitstopT, getShakeT } from './render/fx.js'; // Estágio 4 (Tier 2): juice (partículas/shake/hitstop/squash)
 import { parallaxPlaceholder, themeSkyTexture, themeHillsTexture, themeCitySkyTexture, themeSkylineTexture } from './render/scene-parallax.js'; // Estágio 4 (Tier 2): geradores de textura do parallax
 import { worldCanvas, initWorldTex } from './render/world-tex.js'; // Estágio 4 (Tier 2): builder da textura NORMAL do mundo
-import { kb, setKB, saveKB, resetKB, factoryWithGame } from '@the-inclusionist/engine/input/keyboard.js'; // Fase 2: config de teclado (subsistema input)
-import { AUDIO_CATS } from '@the-inclusionist/engine/platform/audio-mixer.js'; // Fase 2: categorias do mixer (dados); audioCat/catNode/setCatGain vêm de audio.js
 import { FONT_GROUPS } from '@the-inclusionist/engine/ui/fonts.js'; // Fase 2: tipografia (catálogo + persistência)
-import { toggleBtn, toggleLabel } from '@the-inclusionist/engine/ui/dom.js';
 
 /*
  * OS DOIS SELETORES SAO DESTA RAIZ AGORA (ADR-0232 D4, nota DE). A engine tirou-os de `ui/dom` porque eram
@@ -87,27 +84,16 @@ import { toggleBtn, toggleLabel } from '@the-inclusionist/engine/ui/dom.js';
  */
 const $ = <T extends Element = HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
 const $$ = <T extends Element = HTMLElement>(sel: string): T[] => [...document.querySelectorAll<T>(sel)];
-import { initSettingsAudio } from '@the-inclusionist/engine/ui/settings-audio.js';
-import { initSettingsControls, keyName } from '@the-inclusionist/engine/ui/settings-controls.js';
-import { escapeHtml } from '@the-inclusionist/engine/core/escape-html.js';
-import { linhasDaAjuda } from './game/help-lines.js'; // a tela de ajuda deixou de ler o ACT_LABEL (#125)
-import { initSettingsVisual, ROLE_LABELS } from '@the-inclusionist/engine/ui/settings-visual.js';
-import { initSettingsCaa } from '@the-inclusionist/engine/ui/settings-caa.js';
 import { cityTiles } from './render/city-tiles.js'; // #16: os tiles da Cidade como dados, não como PNG // 7º menu: Comunicação Aumentada e Alternativa (ADR-0028)
-import { initSettingsEmpathy } from '@the-inclusionist/engine/ui/settings-empathy.js';
-import { initSettingsMotor, playerPrefix } from '@the-inclusionist/engine/ui/settings-motor.js';
-import { initSettingsMotion, setSelectedPlayer as setSelectedMotionPlayer } from '@the-inclusionist/engine/ui/settings-motion.js';
-import { initSettingsTypo } from '@the-inclusionist/engine/ui/settings-typo.js';
 import { initTitle } from '@the-inclusionist/engine/ui/title.js';
 import { createTitleScene } from './render/title-scene.js'; // Fase 2.27: atalho de querySelector (Tier 1)
 import { labellerFrom, shortLabellerFrom, presetActions, type Action } from '@the-inclusionist/engine/core/actions.js';
 import { platformerPreset } from './game/platformer-preset.js';
 import { isBlind, isLowVision, type VisualState } from '@the-inclusionist/engine/render/viz-axes.js'; // os dois eixos (8.0.0): quem responde ao sonar
-import { VIZ_MODES, VIZ_BY_KEY, VIZ_CYCLE, simulatesDisability } from '@the-inclusionist/engine/render/viz-modes.js'; // Fase 2: modos visuais de a11y (dados)
+import { VIZ_MODES, VIZ_BY_KEY, VIZ_CYCLE } from '@the-inclusionist/engine/render/viz-modes.js'; // Fase 2: modos visuais de a11y (dados)
 import { PAD_DESIGNS } from '@the-inclusionist/engine/input/devices.js'; // Fase 2: rótulos de gamepad/toque (dados)
-import { keys, padCur, padPrevAct, held, marcarTecla, marcarTeclaSemOrigem, soltarTecla } from '@the-inclusionist/engine/input/state.js'; // Fase 2.22: estado de input + held
 import { createLatchedEdge } from '@the-inclusionist/engine/input/latch-edge.js';
-import { audioCtx, ensureAC, soundOn, volume, setSoundOn, setVolume, audioOut, hearingLoss, setHearingLossGraph, setMasterMuted, audioCat, catNode, setCatGain, tone, tonePan, noiseBuffer, noiseHit, _footCount } from '@the-inclusionist/engine/platform/audio.js'; // Fase 2: base + mestre + mixer + sínteses (oscilador + ruído)
+import { noiseBuffer } from '@the-inclusionist/engine/platform/audio.js'; // o resto do áudio é `engine.audio` (ADR-0232 D4)
 import { gameSay } from '@the-inclusionist/engine/platform/speech.js';
 import { createAudioJingles } from '@the-inclusionist/engine/platform/audio-jingles.js'; // Tier 2 (áudio r1): jingles de vitória/enigma/fogos
 import { createAudioEarcons } from '@the-inclusionist/engine/platform/audio-earcons.js'; // Tier 2 (áudio r2): earcons (sfx) + porta + legendas
@@ -126,7 +112,6 @@ import { createSceneSky } from './render/scene-sky.js'; // Tier 2 (#43): céu �
 import { coinCanvas, treeCanvas, powerupCanvas } from './game/props.js'; // item 19: a arte dos props e do JOGO, nao da engine
 import { createCityTextures } from './render/city-tex.js'; // D3-a: arte procedural da rua (bichos, pedestres, carros)
 import * as weather from './render/weather.js'; // Onda A: clima visual (chuva/trovao/clarao)
-import { setLq, getLqT } from '@the-inclusionist/engine/render/lq-filter.js'; // Onda A: realce de contraste L->Q
 import * as traffic from './game/traffic.js'; // Onda A: carros + semaforo da rua da frente
 import * as life from './game/life.js'; // Onda A: vida ambiente (pombos/gatos/caes/adultos)
 import { initSceneCity } from './render/scene-city.js'; // Onda A: deco da Cidade + fx de tiles vivos
@@ -137,7 +122,7 @@ import { puTaken } from './game/powerups.js'; // item 19: a regra "chave e globa
 import { initKeyboardRuntime } from '@the-inclusionist/engine/input/keyboard-runtime.js';
 import { initTouchBindings } from '@the-inclusionist/engine/input/touch-bindings.js'; // D3-b: gesto de toque -> entrada (traducao + geometria)
 import { initKeydown } from '@the-inclusionist/engine/input/keydown.js'; // D2-a: o roteador de teclado (a cadeia de precedencia) // Onda A: esquema de teclas por jogador
-import { initTouch, padLayoutFromId } from '@the-inclusionist/engine/input/touch.js'; // Onda A: geometria fisica do pad + config de toque
+import { padLayoutFromId } from '@the-inclusionist/engine/input/touch.js'; // Onda A: geometria fisica do pad + config de toque
 import { initGamepad } from '@the-inclusionist/engine/input/gamepad.js'; // Onda A: leitura da Gamepad API + assistente de mapeamento
 import { initActivitiesMenu, attachAbbr, QL_NAME } from './ui/activities-menu.js'; // the title menu is this game's (engine ADR-0174)
 import { PM_BTNS, PM_OPTIONS_BTNS } from '@the-inclusionist/engine/ui/pause-buttons.js'; // the pause card's buttons stay the engine's
@@ -147,7 +132,6 @@ import { initMenuNav } from '@the-inclusionist/engine/ui/menu-nav.js'; // C3: na
 import { initHud } from '@the-inclusionist/engine/ui/hud.js'; // Onda A: HUD por tela (moedas/poder/abandono/selo de espera)
 import { initScreenPipeline } from '@the-inclusionist/engine/render/screen-pipeline.js'; // D3-c: topologia do render por tela (grade, render-textures, molduras, bolinhas)
 import { initSecretAreas } from './game/secret-areas.js'; // D3-c: area secreta revelada por presenca + anuncio ao leitor de tela
-import { initMapHub } from './ui/map-hub.js'; // D3-c: painel "Mapear controles" do menu de Movimento
 import { initPhysics, stepPlayer as stepPhysics } from './game/physics.js'; // B1: fisica do jogador (ancorada nas trajetorias-ouro)
 import { initQuiz } from './game/quiz.js'; // B3: o desafio educativo (geracao + markup + efeito)
 import { initSettingsPanel } from '@the-inclusionist/engine/ui/settings-panel.js'; // B4: o que as cascas dos paineis realmente compartilham
@@ -174,7 +158,6 @@ import type { Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: R
 import { initCollision, tileAt, solidAt, surfTop } from './core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
-import { srSay, srAlert, setVlibrasSay } from '@the-inclusionist/engine/core/a11y-sr.js'; // Estágio 4 (Tier 1): anúncios p/ leitor de tela (+ Libras injetado)
 import { CRT, applyCrt } from '@the-inclusionist/engine/render/crt.js'; // Estágio 4 (Tier 1): estética CRT (scanlines/vinheta/cantos)
 import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount } from './render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
 import { vlibrasSay, vlibrasOpen, toggleLibras, vlTick, librasOpen, setOnLibrasChange } from '@the-inclusionist/engine/ui/vlibras.js'; // Estágio 4 (Tier 1): intérprete VLibras (modo pessoa surda)
@@ -209,6 +192,10 @@ export async function create(ctx: GameCtx): Promise<GameInstance> {
 // honesta de um `teardown()` existir num ficheiro que nunca teve um `removeEventListener`.
 const CANCELAR = new AbortController();
 const SOLTAR = { signal: CANCELAR.signal } as const;
+// O MESMO, para as escutas na loja de ajustes da engine: ela sobrevive a este cartucho (é da página), então
+// cada `on` devolve o seu desligar e o `teardown()` chama-os todos. Sem isto, o jogo seguinte na mesma página
+// herdaria um ouvinte que refaz as moedas de um mundo que já não existe.
+const DESLIGAR: (() => void)[] = [];
 
 
 /*
@@ -216,20 +203,60 @@ const SOLTAR = { signal: CANCELAR.signal } as const;
  * `localStorage` nem `core/state` por import: quem os tem e' quem compoe, e os entrega.
  *
  * 📌 O nome `store` fica: era um espaco de nomes (`import * as store`) e passa a ser a instancia, entao
- * todas as chamadas `store.get`/`store.setBool`/`store.KEYS` continuam a ler exatamente igual. O que muda
- * e' de onde ela vem — e e' essa a mudanca inteira.
+ * todas as chamadas `store.get`/`store.setBool` continuam a ler exatamente igual. O registro de chaves é que
+ * saiu dela: `KEYS` vem de `platform/storage-keys`.
  *
- * ⚠️ A ordem importa: a loja de ajustes LE a persistencia ao nascer, para que nenhuma escrita ponha um
- * padrao por cima do que a crianca guardou (`createSettingsStore`, erratum D2b).
+ * ⚠️ A LOJA DE AJUSTES JÁ NÃO SE CONSTRÓI AQUI — é a da engine, logo abaixo. Esta `store` crua fica para as
+ * chaves que só este jogo grava; é um invólucro sem memória sobre o mesmo armazenamento, então ler pelas duas
+ * dá a mesma resposta. Se o cartucho deve receber o armazenamento pelo `ctx` em vez de o abrir, é pergunta
+ * de contrato, e está registada no plano como decisão do Dev.
  */
 const store = createStorage(typeof localStorage === 'undefined' ? null : localStorage);
-const settingsStore = createSettingsStore(store);
+
+/*
+ * A ENGINE, UMA SÓ, E É ELA QUEM POSSUI O QUE ERA SINGLETON DE MÓDULO (ADR-0232 D4).
+ *
+ * 🔴 `settingsStore` NÃO SE CONSTRÓI MAIS AQUI. Até 27/09 esta linha fazia `createSettingsStore(store)`, e
+ * isso eram DUAS lojas de ajustes na mesma página: a da engine e esta. Cada uma guarda os valores em memória
+ * — então a criança ligava o alto contraste na barra (que escreve na da engine) e o jogo, lendo a sua, não
+ * via. Sem erro, sem teste vermelho: só um ajuste que não pega.
+ *
+ * 📌 Os nomes ficam iguais aos dos imports antigos (`srSay`, `ensureAC`, `tone`…), e de propósito: o que
+ * mudou foi DE ONDE vêm, não o que fazem, e o diff deste passo deve mostrar só isso. Valores vivos — o
+ * volume, o `AudioContext` — leem-se por `audio.X` a cada uso, porque um `const` copiaria o valor do
+ * arranque para sempre.
+ */
+const engine = ctx.engine;
+// O DOCUMENTO onde as telas se fazem: o que possui a região DESTE cartucho, e não o global `document`
+// (ADR-0232 D4). Na plataforma são o mesmo objeto; num teste ou numa segunda raiz, não.
+const doc = ctx.region.ownerDocument;
+const settingsStore = engine.settings;
+/** Escuta um ajuste da loja da engine e regista o desligar para o `teardown()` (ver `DESLIGAR`). */
 /*
  * O ESTADO DESTE JOGO (nível, moedas, cenário, atividade) restaura-se AQUI, logo que há loja e barramento, e
  * não no import de `game/state` (ADR-0232 D4). E é o primeiro uso: o `setCoins` do arranque e a validação
  * da atividade escolhida vêm abaixo, e os setters recusam-se a correr antes disto.
  */
 initGameState({ store, bus: settingsStore });
+function ouvir<K extends keyof GameEvent>(evt: K, fn: (val: GameEvent[K]) => void): void { DESLIGAR.push(settingsStore.on(evt, fn)); }
+const audio = engine.audio;
+const input = engine.input;
+const srSay = (texto: string): void => engine.say(texto);
+const srAlert = (texto: string): void => engine.alert(texto);
+const ensureAC = () => audio.ensureAC();
+const audioOut = () => audio.audioOut();
+const catNode = (cat: string) => audio.catNode(cat);
+const setCatGain = (cat: string) => audio.setCatGain(cat);
+const tone: typeof audio.tone = (...a) => audio.tone(...a);
+const tonePan: typeof audio.tonePan = (...a) => audio.tonePan(...a);
+const noiseHit: typeof audio.noiseHit = (...a) => audio.noiseHit(...a);
+const setSoundOn = (v: boolean) => audio.setSoundOn(v);
+const setVolume = (v: number) => audio.setVolume(v);
+const setHearingLossGraph = (on: boolean) => audio.setHearingLossGraph(on);
+const setMasterMuted = (m: boolean) => audio.setMasterMuted(m);
+const held: typeof input.held = (pl, act) => input.held(pl, act);
+const setLq = (v: number) => engine.lq.set(v);
+const getLqT = () => engine.lq.t();
 
 /*
  * O TRADUTOR VEM DO SHELL, PELO `ctx` (ADR-0139 §4 e ADR-0232 D3, nota CV).
@@ -239,9 +266,6 @@ initGameState({ store, bus: settingsStore });
  * idioma, e a crianca veria metade do jogo traduzida. Quem possui o tradutor e' quem carrega o cartucho.
  */
 const t = ctx.t;
-// O DOCUMENTO onde as telas se fazem: o que possui a região DESTE cartucho, e não o global `document`
-// (ADR-0232 D4). Na plataforma são o mesmo objeto; num teste ou numa segunda raiz, não.
-const doc = ctx.region.ownerDocument;
 
 const rodada = createRunState<Powerup>({ aoTrocarJogadores: (n) => settingsStore.emit('numPlayers', n) });
 // `players` é um APELIDO, não uma cópia: a lista da rodada nunca é reatribuída (só mutada no lugar), então
@@ -579,21 +603,11 @@ showReachNotice(
 // kbFor/actionOf/whichPlayer/assignControls/applyControls migraram para input/keyboard-runtime.ts (Onda A).
 // KB fica aqui (o painel de controles o edita e persiste); o modulo o le fresco a cada chamada.
 
-// ⚠️ AS DUAS VISTAS MORAM AQUI, ANTES DO PRIMEIRO CONSUMIDOR, e a posição é o contrato.
-// `controlados()` nasceu 500 linhas abaixo, ao lado de `jogadores()`, e o boot morreu com
-// "b_ is not a function": o `initKeyboardRuntime` desta linha chama `getPlayers()` durante a própria
-// inicialização, quando o `const` ainda não tinha sido avaliado. `jogadores()` não sofria disso por
-// acidente — todos os usos dele vêm depois. Quem mover isto daqui quebra o boot, e não o tsc.
-const kbRuntime = initKeyboardRuntime({ getKB: () => kb, getNumPlayers: () => rodada.numPlayers, getPlayers: () => controlados() });
-// O ESQUEMA DE FÁBRICA DESTE ASSENTO (engine 8.0.0, `SettingsControlsCtx.kbPadraoFor`). Uma SEGUNDA leitura
-// sobre a mesma máquina: a regra «quantos jogadores → que balde» é desta raiz, e escrevê-la outra vez à mão
-// criaria uma cópia que diverge no dia em que uma das duas mudar.
-//
-// 🎯 E NÃO SE OBTÉM POR `resetKB()`, embora ele devolva exatamente a configuração de fábrica: o `resetKB`
-// faz `store.remove(CKEY)` ANTES de devolver a cópia. Como este painel chama o leitor a CADA render, usá-lo
-// apagaria o remapeamento da criança a cada abertura do painel — e o estrago só apareceria no arranque
-// seguinte, quando o mapa dela voltasse ao de fábrica sem que nada o tivesse pedido.
-const kbFabrica = initKeyboardRuntime({ getKB: factoryWithGame, getNumPlayers: () => rodada.numPlayers, getPlayers: () => controlados() });
+// O RUNTIME DE TECLADO É O DA ENGINE (`engine.keyboard`). Esta raiz montava o seu — e uma SEGUNDA cópia,
+// sobre o esquema de fábrica, só para o painel de controles comparar «o teu mapa» com «o de origem». O
+// painel é da engine agora, e com ele a comparação; dois runtimes sobre o mesmo teclado seriam duas
+// respostas para «de quem é esta tecla».
+const kbRuntime = engine.keyboard;
 const kbFor = (i: number) => kbRuntime.kbFor(i);
 // controls/KJUMP..KRUN/GAME_KEYS nao moram mais aqui (D1): eram oito copias de kbRuntime.computeControlsState(),
 // e `applyControls` existia so para refaze-las. A memoria foi para dentro de input/keyboard-runtime, que e quem
@@ -665,7 +679,7 @@ const keydownApi = initKeydown({
   handleCaptureKeydown: (e) => ctrlPanel.handleCaptureKeydown(e),
   getNumPlayers: () => rodada.numPlayers, getPlayers: () => players,
   getControls: instantaneoDosControles,
-  heldKeys: keys, isOneButton: () => settingsStore.oneButton,
+  heldKeys: input.keys, isOneButton: () => settingsStore.oneButton,
   // As quatro portas que a engine 8.0.0 passou a exigir: quem marca, quem solta, e de QUE transporte veio
   // a tecla. Sem elas o teclado deixa de contar como aresta do jogador.
   marcarTecla, marcarTeclaSemOrigem, soltarTecla, arestaDoJogador,
@@ -680,7 +694,7 @@ const keydownApi = initKeydown({
   win: window,
 });
 keydownApi.attach();
-addEventListener('blur',()=>keys.clear(), SOLTAR);
+addEventListener('blur',()=>input.keys.clear(), SOLTAR);
 // held(pl,act) movido p/ input/state.js (Fase 2.22) // teclado OU gamepad do jogador
 
 /* ===================== a11y ===================== */
@@ -711,34 +725,34 @@ const RM_CHAR: readonly MotionCharDef[] = [ {prop:'rmWalk',lbl:'rm.walk'},
 // O `as MotionSceneFlags` nos dois acumuladores abaixo: o laço preenche EXATAMENTE as quatro chaves de
 // `RM_KEYS`, que é o que o tipo exige — mas o objeto nasce vazio, e o compilador não acompanha um
 // preenchimento por laço. É afirmação sobre o laço logo ao lado, não sobre dado de fora.
-const rm=(()=>{ const s=store.getJSON(store.KEYS.reducedMotion,null); if(s&&typeof s==='object'){ const o = {} as MotionSceneFlags; RM_KEYS.forEach(k=>o[k]=!!s[k]); return o; }
+const rm=(()=>{ const s=store.getJSON(KEYS.reducedMotion,null); if(s&&typeof s==='object'){ const o = {} as MotionSceneFlags; RM_KEYS.forEach(k=>o[k]=!!s[k]); return o; }
   const o = {} as MotionSceneFlags; RM_KEYS.forEach(k=>o[k]=defaultReducedMotion(matchMedia)); return o; })();
-function saveRM(){ store.setJSON(store.KEYS.reducedMotion,rm); }
+function saveRM(){ store.setJSON(KEYS.reducedMotion,rm); }
 // Movimento por alternância (1 dedo): tocar a direção trava a marcha; segurar acelera; pulo não interrompe. Persistido.
-function loadPlayerA11y(p: Player,i: number){ const v=store.get(store.KEYS.vizP(i)); if(v&&VIZ_BY_KEY[v])p.viz=v;
-  p.audioSink=store.get(store.KEYS.sinkP(i))||null; // saída de áudio própria do jogador (setSinkId)
-  p.easy=store.getBool(store.KEYS.easyP(i)); p.toggleMove=store.getBool(store.KEYS.toggleMoveP(i));
-  p.toggleRun=store.getBool(store.KEYS.toggleRunP(i));
+function loadPlayerA11y(p: Player,i: number){ const v=store.get(KEYS.vizP(i)); if(v&&VIZ_BY_KEY[v])p.viz=v;
+  p.audioSink=store.get(KEYS.sinkP(i))||null; // saída de áudio própria do jogador (setSinkId)
+  p.easy=store.getBool(KEYS.easyP(i)); p.toggleMove=store.getBool(KEYS.toggleMoveP(i));
+  p.toggleRun=store.getBool(KEYS.toggleRunP(i));
   // CONSERTO: os três alvos de PERSONAGEM nasciam SEMPRE `false`, embora o comentário do bloco acima diga
   // "5 alvos; padrão herda prefers-reduced-motion". Só os 4 de CENA herdavam. Quem pediu menos movimento no
   // sistema ganhava o parallax congelado e o personagem andando — metade do pedido, e a metade que se move
   // mais. Agora os cinco herdam, que é o que o código já dizia fazer.
   const rmDef=defaultReducedMotion(matchMedia);
-  p.rmWalk=store.getBool(store.KEYS.rmWalkP(i),rmDef); p.rmBreath=store.getBool(store.KEYS.rmBreathP(i),rmDef); p.rmFlavor=store.getBool(store.KEYS.rmFlavorP(i),rmDef);
-  if(i===0){ const ov=store.get(store.KEYS.viz); if(ov&&VIZ_BY_KEY[ov]&&store.get(store.KEYS.vizP(0))==null)p.viz=ov; // migra chaves antigas
-    if(store.getBool(store.KEYS.toggleMoveLegacy)&&store.get(store.KEYS.toggleMoveP(0))==null)p.toggleMove=true; } }
+  p.rmWalk=store.getBool(KEYS.rmWalkP(i),rmDef); p.rmBreath=store.getBool(KEYS.rmBreathP(i),rmDef); p.rmFlavor=store.getBool(KEYS.rmFlavorP(i),rmDef);
+  if(i===0){ const ov=store.get(KEYS.viz); if(ov&&VIZ_BY_KEY[ov]&&store.get(KEYS.vizP(0))==null)p.viz=ov; // migra chaves antigas
+    if(store.getBool(KEYS.toggleMoveLegacy)&&store.get(KEYS.toggleMoveP(0))==null)p.toggleMove=true; } }
 // AUTOMÁTICA NO TOQUE (pedido do Dev): no controle de tela ninguém "segura" um botão virtual com conforto —
 // o dedo que segura é o mesmo que precisa alcançar os outros. Ligar sozinha ali é o padrão certo, e continua
 // desligável: o valor SALVO vence, então quem desligou de propósito não a vê voltar.
-function setToggleRun(i: number,on: boolean){ const p=players[i]; if(!p)return; p.toggleRun=on; store.setBool(store.KEYS.toggleRunP(i),on); if(!on)p.runLatch=false;
+function setToggleRun(i: number,on: boolean){ const p=players[i]; if(!p)return; p.toggleRun=on; store.setBool(KEYS.toggleRunP(i),on); if(!on)p.runLatch=false;
   srSay(playerPrefix(i,rodada.numPlayers)+t(on?'sr.motor.toggleRunOn':'sr.motor.toggleRunOff')); }
-function setToggleMove(i: number,on: boolean){ const p=players[i]; if(!p)return; p.toggleMove=on; store.setBool(store.KEYS.toggleMoveP(i),on); if(!on)p.walkDir=0;
+function setToggleMove(i: number,on: boolean){ const p=players[i]; if(!p)return; p.toggleMove=on; store.setBool(KEYS.toggleMoveP(i),on); if(!on)p.walkDir=0;
   srSay(playerPrefix(i,rodada.numPlayers)+t(on?'sr.motor.toggleMoveOn':'sr.motor.toggleMoveOff')); }
 function showCaption(txt: string){ const el=$('#caption'); if(!el||!txt)return; el.textContent=txt; el.classList.add('show'); if(capTimer!==null)clearTimeout(capTimer); capTimer=setTimeout(()=>{el.classList.remove('show'); el.textContent='';},1300); }
 // Earcons + ponte com legendas extraídos p/ platform/audio-earcons.ts (Tier 2, áudio rodada 2). captionsOn/showCaption
 // VIVEM aqui (UI alterna captionsOn; win() reusa showCaption) → entram por injeção. Chamado como earcons.sfx(...).
 const earcons = createAudioEarcons({ SFX, ensureAC, catNode, audioOut, noiseHit,
-  getSoundOn: () => soundOn, getVolume: () => volume, getCaptionsOn: () => settingsStore.captionsOn, showCaption });
+  getSoundOn: () => audio.soundOn, getVolume: () => audio.volume, getCaptionsOn: () => settingsStore.captionsOn, showCaption });
 // ===== Vitória: jingle 8-bit ascendente + fogos de artifício (assobio subindo → estouro/crepitar) =====
 // ensureAC() (ciclo do AudioContext) extraído p/ platform/audio.js (Fase 2).
 // Modo empatia — perda auditiva: passa-baixas (perda de agudos) + EXPANSÃO DESCENDENTE (frames fracos abafados → dificulta a fala).
@@ -769,7 +783,7 @@ const caneOn=(pl: PlayerView<'visual'>)=> settingsStore.blindMode || visaoCompro
 // é a raiz de composição do JOGO e fica FORA do pacote publicado, então o nome — e os 135,4 MB de
 // `onnxruntime-web` que ele arrasta — não viajam para consumidor nenhum. O `import()` continua lazy: o Vite
 // deste repositório faz o code-split, e o chunk só é buscado se a criança escolher o motor neural.
-const tts = createTts({ srSay, srAlert, ensureAC, catNode, audioOut, getSoundOn: () => soundOn, getVolume: () => volume, getAudioCat: () => audioCat,
+const tts = createTts({ srSay, srAlert, ensureAC, catNode, audioOut, getSoundOn: () => audio.soundOn, getVolume: () => audio.volume, getAudioCat: () => audio.audioCat,
   carregarVozNeural: () => import('@mintplex-labs/piper-tts-web') });
 // Pistas espaciais a11y (bengala · sonar · guarda de beirada · guia · nado, por dispositivo) extraídas p/ platform/audio-nav.ts
 // (Tier 2, áudio r3). playerCtx/panFor/needsAudioCues expostos na API porque a guarda de beirada + o gate de movimento os
@@ -797,7 +811,7 @@ const sonarNav = createAudioSonar({
   visaoComprometida: (pl) => { const p = players[pl.i]; return !!p && visaoComprometidaDe(p.visual); },
   getModoCego: () => settingsStore.blindMode, LOGICAL_W,
   getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
-  getAudioCtx: () => audioCtx, getSoundOn: () => soundOn, getAudioCat: () => audioCat,
+  getAudioCtx: () => audio.audioCtx, getSoundOn: () => audio.soundOn, getAudioCat: () => audio.audioCat,
 });
 // `held` adaptado: `input/state.held` estreitou para `Action` na 8.0.0 e `audio-nav` ainda declara
 // `act: string` — a mesma costura do `kbFor` acima. O cast é seguro por medição: este módulo só passa
@@ -808,12 +822,12 @@ const nav = createAudioNav({ tileAt, solidAt, held: (pl, act) => held(pl, act as
 // what the engine's guide received from this root before the move: no `roleAt`, bus or master volume, so it keeps the
 // straight-line distance and the `destination` it had.
 const guide = createAudioGuide({ sonar: sonarNav, topology: worldTopology, targetsOf: coinTargetsOf,
-  getPlayers: () => players, getAudioCtx: () => audioCtx, getSoundOn: () => soundOn, getAudioCat: () => audioCat });
+  getPlayers: () => players, getAudioCtx: () => audio.audioCtx, getSoundOn: () => audio.soundOn, getAudioCat: () => audio.audioCat });
 // ===== F4: camadas de AMBIENTE (loops sintetizados) + PISTA/GUIA auditivo (beacon em laço) =====
 // Trilha de ambiente sintetizada + trovão extraídos p/ platform/audio-ambient.ts (Tier 2, áudio r4). O clima VISUAL fica no
 // main.js (updateWeather/drawWeather) e migra p/ render depois. Uso: ambient.updateAmbient / ambient.thunder.
-const ambient = createAudioAmbient({ ensureAC, getAudioCtx: () => audioCtx, catNode, audioOut, noiseBuffer, tileAt, TILE,
-  getSoundOn: () => soundOn, getVolume: () => volume, getAudioCat: () => audioCat, getPlayers: () => players, getRainLevel: () => weather.getRainLevel() });
+const ambient = createAudioAmbient({ ensureAC, getAudioCtx: () => audio.audioCtx, catNode, audioOut, noiseBuffer, tileAt, TILE,
+  getSoundOn: () => audio.soundOn, getVolume: () => audio.volume, getAudioCat: () => audio.audioCat, getPlayers: () => players, getRainLevel: () => weather.getRainLevel() });
 // ===== CLIMA: chuva de verdade (visual + trovão), o áudio segue o visual =====
 let weatherLayer=null; // criado após o `app` existir; o ESTADO do clima (nivel/gotas/clarao) mora em render/weather
 // thunder (rumor do trovão) extraído p/ platform/audio-ambient.ts (Tier 2, áudio r4). Chamado por updateWeather como ambient.thunder.
@@ -829,7 +843,7 @@ let weatherLayer=null; // criado após o `app` existir; o ESTADO do clima (nivel
 // tone (synth de oscilador básico) extraído p/ platform/audio.js (Fase 2).
 // Jingles (vitória · enigma · fogos) extraídos p/ platform/audio-jingles.ts (Tier 2, áudio rodada 1). DI por closure:
 // soundOn/volume vivos via getters (o mixer os reatribui). firework é interno ao módulo (só playVictory o usa).
-const jingles = createAudioJingles({ tone, ensureAC, catNode, audioOut, getSoundOn: () => soundOn, getVolume: () => volume });
+const jingles = createAudioJingles({ tone, ensureAC, catNode, audioOut, getSoundOn: () => audio.soundOn, getVolume: () => audio.volume });
 
 /* ===================== Pixi ===================== */
 PIXI.settings.ROUND_PIXELS=true;
@@ -1295,7 +1309,7 @@ const pauseIcons = initPauseIcons({
   setPauseActor: (i) => rodada.setPauseActor(i),
   getA11yBars: () => vpBars,                // idem: `let` reatribuido a cada remontagem do HUD
   getModoCego: () => settingsStore.blindMode, setModoCego,
-  getAudioCat: () => audioCat, setCatGain,
+  getAudioCat: () => audio.audioCat, setCatGain,
   reflectTtsPanel: () => audioPanel.reflectTts(), // LAZY: audioPanel e const bem abaixo
   // LIGADO. Estava morto desde que reflectTTS foi extraida para ui/settings-audio: a guarda
   // `typeof reflectTTS==='function'` virou sempre falsa e ninguem notou. O sintoma existe e nao e
@@ -1413,7 +1427,7 @@ initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1)
    `dir` e a unica variavel local que atravessa a fronteira, e por isso stepPlayer devolve {ran, dir}:
    `ran:false` reproduz o return seco de quiz/quit/waiting, que abortava a funcao INTEIRA, animacao inclusive. */
 initPhysics({
-  t, input: ctx.engine.input,
+  t, input,
   rng,
   getPlayers: () => rodada.players,
   isWheelchair: ()=>settingsStore.wheelchair, isModoCego: ()=>settingsStore.blindMode, caneOn, WORLD_PX_H: ()=>WORLD_PX_H,
@@ -1709,7 +1723,7 @@ const gamepadApi = initGamepad({
 // Desconectar NÃO abandona o jogo: o teclado é sempre fallback. Só solta a associação do pad.
 addEventListener('gamepaddisconnected',(e)=>{ try{ const owner=players.findIndex(p=>p.pad===e.gamepad.index);
   if(owner>=0){ players[owner].pad=-1; srAlert(t('sr.pad.disconnected',{n:owner+1})); }
-  delete padCur[e.gamepad.index]; }catch(err){} }, SOLTAR);
+  delete input.padCur[e.gamepad.index]; }catch(err){} }, SOLTAR);
 
 /* ===== L1: wizard de mapeamento de gamepad (DirectInput e controles fora do padrão) =====
    Captura botões por índice; analógicos como limiar por eixo/sinal ({ax,s}); D-pad "POV hat" do
@@ -1747,22 +1761,25 @@ function applyLetra(){
   jogadores().forEach(p=>{ if(p.quiz)renderQuiz(p); }); // L3: re-renderiza o quiz de quem estiver num
 }
 applyLetra(); // estado inicial: reflete a caixa persistida no atributo que o CSS lê
-function setLetterCaseAndApply(c: Parameters<typeof settingsStore.setLetterCaseValue>[0]){ settingsStore.setLetterCaseValue(c); applyLetra(); }
-const optLetraBtn=$('#opt-letra'); if(optLetraBtn)optLetraBtn.addEventListener('click',()=>{ caa.open(); });
-// E9: toggles de Som / Legendas / Fácil
-const soundBtn=$('#opt-sound'), capBtn=$('#opt-captions');
-// REFLETE O VALOR PERSISTIDO no boot. O markup do #opt-captions crava `is-on`/`aria-pressed="true"`, e isso
-// era correto por acidente enquanto `captionsOn` sempre nascia ligado. Com a persistência do ADR-0028 o markup
-// passou a poder mentir: a criança desliga as legendas, recarrega, e o botão diz que estão ligadas enquanto
-// elas não estão — o pior estado possível para um controle de acessibilidade, porque quem depende dele não
-// tem como desempatar. Acrescentar persistência a um valor expõe todo lugar que presumia o padrão.
-if(capBtn) toggleBtn(capBtn, settingsStore.captionsOn);
-if(soundBtn){ soundBtn.setAttribute('aria-haspopup','dialog'); soundBtn.addEventListener('click',openAudio); } // botão de áudio agora abre o mixer
-if(capBtn) capBtn.addEventListener('click',()=>{ settingsStore.setCaptionsOnValue(!settingsStore.captionsOn); toggleBtn(capBtn,settingsStore.captionsOn); srSay(t(settingsStore.captionsOn?'sr.captions.on':'sr.captions.off')); });
-// `seguraTeclas: true` — a MESMA resposta do cartão de pausa, e aqui é VALOR e não função: os dois
-// contextos divergem de propósito na engine (o do cartão virou função na 9.0.0 porque o ícone descrevia o
-// jogo que arrancou primeiro; este não tem esse problema). Com `false` a engine esconderia `#opt-altmove`.
-const motor = initSettingsMotor({ $, srSay, store, players, getNumPlayers: () => rodada.numPlayers, seguraTeclas: true, setToggleMove, setToggleRun, rebuildCoins }); // painel motor: ui/settings-motor.ts (registra #opt-facil, #opt-altmove e as abas)
+/*
+ * 🔴 OS PAINÉIS SÃO DA ENGINE, E ESTA RAIZ SÓ REAGE (ADR-0253, ADR-0151).
+ *
+ * Até aqui esta raiz montava À MÃO o que o `createGame` monta sozinho: o painel de ajustes, os sete painéis
+ * (visual, empatia, tipografia, áudio, controles, movimento, CAA), a barra de ícones, a navegação de menus, o
+ * pad e o gamepad. Com o shell a chamar `createGame`, ficar com as duas cópias seriam DUAS barras e dois de
+ * cada painel na mesma página — a verificação do plano diz «uma barra e um cartão de pausa, não dois».
+ *
+ * O que FICA é o que só este jogo sabe fazer quando um ajuste muda: refazer as moedas na cor do dono,
+ * refazer a geometria do nível no modo cadeirante, re-renderizar o quiz na caixa de letra nova. Era o corpo
+ * dos `set*` que os painéis daqui chamavam; agora o painel da engine escreve na loja e esta raiz ESCUTA a
+ * loja (`settings.on`). A guarda de igualdade continua do lado da loja: ela só avisa quando o valor muda.
+ *
+ * ⚠️ DOIS PAINÉIS QUE NÃO VOLTAM, e por decisão registrada, não por esquecimento: o motor velho
+ * (`initSettingsMotor`) — o ADR-0151 tirou dele o Modo Fácil («dificuldade é opção do jogo») e as duas
+ * travas (que moram no ☝️), e a engine monta o painel novo `#motora` —; e o de CAA, que perdeu a porta (a
+ * caixa de letra anda com o 11º botão da barra, o ciclo de COMUNICAÇÃO).
+ */
+ouvir('letterCase', () => applyLetra());
 
 /* Modos de visualização: Normal + Alto contraste + simulações/correções. A FABRICA (parallaxTexFor,
    treeTexFor, playerVizTex, pixiFilterFor, o overlay de baixa visao e as matrizes CVD) migrou para
@@ -1822,54 +1839,33 @@ const _rebakeDirect = viz.rebakeDirect;
 // O ESTADO mora em core/state (setModoCegoValue: grava, persiste, avisa). Aqui ficam só os EFEITOS — refazer
 // os extras do nível, refletir o painel, anunciar —, que são reação e pertencem ao composition root. A guarda
 // de igualdade também está no setter: se o valor não mudou, ele não avisa e nada disto roda.
-function setModoCego(on: boolean){ const antes=settingsStore.blindMode; settingsStore.setBlindModeValue(on); if(settingsStore.blindMode===antes)return;
-  // A guarda que estava aqui — `typeof reflectModoCego==='function'` — testava um nome LIVRE que não existe
-  // neste arquivo desde que a função saiu para `ui/settings-audio`. E `typeof` sobre identificador não
-  // declarado devolve 'undefined' em vez de lançar, então ela virou SEMPRE falsa e ninguém percebeu.
-  // É a gêmea exata do bug do `reflectTTS` já documentado no ctx de `pause-icons` acima, e o sintoma é o
-  // mesmo: ligar o modo cego pelo ícone da pausa ou pela simulação de cegueira deixava o `#opt-modocego`
-  // dizendo 'Desligado' com aria-pressed=false — o controle mentindo o estado para o leitor de tela.
-  // A do `setupExtras` sai junto: é declaração de função hoisted (linha 677), a guarda é sempre verdadeira.
-  // `audioPanel` é const bem abaixo (1418), e o corpo desta função só roda por interação — nenhum caminho
-  // de boot a chama: `loadPlayerA11y` escreve `p.viz` DIRETO, sem passar por `setPlayerViz`.
-  setupExtras(); audioPanel.reflectModoCego();
-  srSay(t(on?'sr.blind.on':'sr.blind.off')); }
+// O MODO CEGO: o estado é da loja e o anúncio é do painel da engine; daqui sai só o efeito no NÍVEL — os
+// extras (bengala, guarda de beirada) que o modo liga e desliga. `viz-setters` pede um escritor quando a
+// simulação de cegueira o liga, e escreve na MESMA loja: a reação abaixo cobre os dois caminhos.
+const setModoCego = (on: boolean): void => settingsStore.setBlindModeValue(on);
+ouvir('blindMode', () => setupExtras());
 // setPlayerViz/applyVizGlobal migraram para render/viz-setters.ts (Onda A).
-const caa = initSettingsCaa({ $, srSay, frontOverlay, fillExplain: (c)=>overlays.fillExplain(c), restoreFocus: (id)=>overlays.restoreFocus(id),
-  getLetterCase: () => settingsStore.letterCase, setLetterCase: setLetterCaseAndApply }); // 7º menu (ADR-0028): ui/settings-caa.ts
-const empathy = initSettingsEmpathy({ $, srSay, store, renderVizGroup, reflectMotorEmpathy, reflectVizButtons, frontOverlay, restoreFocus: (id)=>overlays.restoreFocus(id), setHearingLoss, setOneButton, setWheelchair, getOneButton: () => settingsStore.oneButton, getWheelchair: () => settingsStore.wheelchair, getPlayers: () => players, setPlayerViz }); // painel de empatia: ui/settings-empathy.ts (registra #opt-empathy, #opt-hearing, #opt-onebtn, #opt-settingsStore.wheelchair + restaura o grafo de audio)
 // updateVizIndicator/reapplyVizAll migraram para render/viz-setters.ts (Onda A).
 // Simulações de empatia: o predicado mora em render/viz-modes (simulatesDisability), fonte única. A cópia
 // local respondia pelo `kind` e contava as 3 correções de daltonismo como simulação (#60); `VIZ_SIM`, derivada
 // dela, era declarada e nunca lida — a terceira cópia do mesmo erro, e morta.
 // renderVizGroup migrou para render/viz-setters.ts (Onda A).
-function setOwnerColors(on: boolean){ const antes=settingsStore.ownerColors; settingsStore.setOwnerColorsValue(on); if(settingsStore.ownerColors===antes)return;
-  rebuildCoins(); srSay(t(settingsStore.ownerColors?'sr.visual.ownerColorsOn':'sr.visual.ownerColorsOff')); }
-function setCbSafe(on: boolean){ const antes=settingsStore.cbSafe; settingsStore.setCbSafeValue(on); if(settingsStore.cbSafe===antes)return;
-  const src=settingsStore.cbSafe?PCOLOR_CB:PCOLOR_DEF; PCOLOR.length=0; src.forEach(c=>PCOLOR.push(c)); // troca IN-PLACE (todos referenciam PCOLOR)
-  rebuildCoins(); ensureSprites(); srSay(t(settingsStore.cbSafe?'sr.visual.cbSafeOn':'sr.visual.cbSafeOff')); }
-function setRoleColor(k: HcRoleKey, hex: string){ const rgb=hexRgb(hex); if(!rgb||!HC_ROLE[k])return; HC_ROLE[k]=rgb; saveHcRole();
-  _rebakeDirect(); rebuildExtras(); srSay(t('sr.visual.roleColorSet',{v:ROLE_LABELS[k]})); } // ROLE_LABELS ainda é pt-BR
-function resetRoleColors(){
-  // `for…in` devolve `string`, e HC_ROLE é `Record<HcRoleKey, …>` — o `as` cobre uma limitação do TS ao
-  // enumerar chaves, não uma dúvida sobre o dado. O `.slice()` continua sendo o que impede o reset de
-  // APONTAR para o array de padrões em vez de copiá-lo, e é a razão de ele existir.
-  for (const k of Object.keys(HC_ROLE_DEF) as HcRoleKey[]) HC_ROLE[k] = HC_ROLE_DEF[k].slice() as [number, number, number];
-  saveHcRole();
-  _rebakeDirect(); rebuildExtras(); visual.render(); srSay(t('sr.visual.roleColorsReset')); }
-// Dois contornos configuráveis (1º plano personagem/itens · 2º plano perímetro de plataforma/água/lava).
-// _rebakeDirect migrou para render/viz-setters.ts (Onda A) como viz.rebakeDirect.
-// A tabela ['nenhum','fino','grosso'] estava escrita DUAS vezes, uma em cada função, para o mesmo trio de
-// espessuras — e em pt-BR fixo. Virou chave i18n indexada pelo próprio nível.
-const OUTLINE_KEY=['outline.none','outline.thin','outline.thick'];
-function setOutlineFg(v: number){ const antes=settingsStore.hcOutlineFg; settingsStore.setOutlineFgValue(v); if(settingsStore.hcOutlineFg===antes)return;
-  _rebakeDirect(); visual.render(); srSay(t('sr.visual.outlineFg',{v:t(OUTLINE_KEY[settingsStore.hcOutlineFg])})); }
-function setOutlineBg(v: number){ const antes=settingsStore.hcOutlineBg; settingsStore.setOutlineBgValue(v); if(settingsStore.hcOutlineBg===antes)return;
-  _rebakeDirect(); visual.render(); srSay(t('sr.visual.outlineBg',{v:t(OUTLINE_KEY[settingsStore.hcOutlineBg])})); }
-const visual = initSettingsVisual({ $, srSay, renderEixosVisuais, getPlayers: () => players, getNumPlayers: () => rodada.numPlayers, getVisualSettings: () => ({ lq: getLqT(), ownerColors: settingsStore.ownerColors, cbSafe: settingsStore.cbSafe, outlineFg: settingsStore.hcOutlineFg, outlineBg: settingsStore.hcOutlineBg, roleColors: HC_ROLE }), getSelectedPlayer: () => rodada.selVizPlayer, setSelectedPlayer: (i) => rodada.setSelVizPlayer(i), setPlayerViz, setLq, setOwnerColors, setCbSafe, setOutlineFg, setOutlineBg, setRoleColor, resetRoleColors }); // painel visual: ui/settings-visual.ts
-function reflectVizButtons(){ const help=players.some(p=>{const m=VIZ_BY_KEY[p.viz];return m&&m.kind==='hcnew';});
-  const sim=players.some(p=>simulatesDisability(p.viz));
-  const bv=$('#opt-visual'); if(bv)bv.classList.toggle('is-on',help); const be=$('#opt-empathy'); if(be)be.classList.toggle('is-on',sim||hearingLoss||settingsStore.oneButton||settingsStore.wheelchair); }
+// As cores do dono e a paleta segura para daltonismo: o painel visual da engine escreve, e o jogo refaz o
+// que pinta com elas. O anúncio era desta raiz e passou a ser do painel, que é quem sabe que mudou.
+ouvir('ownerColors', () => rebuildCoins());
+ouvir('cbSafe', (on) => {
+  const src=on?PCOLOR_CB:PCOLOR_DEF; PCOLOR.length=0; src.forEach(c=>PCOLOR.push(c)); // troca IN-PLACE (todos referenciam PCOLOR)
+  rebuildCoins(); ensureSprites(); });
+// Os dois contornos (1º plano personagem/itens · 2º plano perímetro de plataforma/água/lava): o painel da
+// engine escreve o nível, e o jogo re-assa as texturas de renderização direta que os desenham.
+ouvir('hcOutlineFg', () => _rebakeDirect());
+ouvir('hcOutlineBg', () => _rebakeDirect());
+// ⚠️ AS CORES POR PAPEL do alto contraste não têm evento na loja (`GameEvent` não as lista): eram escritas
+// por `setRoleColor`, que o painel DESTA raiz chamava. Com o painel da engine, quem as escreve e como o jogo
+// fica a saber está por medir no navegador — registado no plano, e não adivinhado aqui.
+// `reflectVizButtons` acendia `#opt-visual`/`#opt-empathy`, botões da barra que esta raiz montava. A barra é
+// da engine e reflete-se sozinha; o `viz-setters` ainda pede o gancho, e a resposta honesta é nada a fazer.
+const reflectVizButtons = (): void => {};
 // "tela = canvas": reparenta os diálogos de a11y para dentro do #game-region (ficam presos ao canvas)
 // e empilha o último aberto por cima (z crescente). frontOverlay é chamado em cada open*.
 // _ovZ/fillExplain/frontOverlay migraram para ui/settings-panel.ts (B4).
@@ -1887,97 +1883,42 @@ function reflectVizButtons(){ const help=players.some(p=>{const m=VIZ_BY_KEY[p.v
   // Botões puramente on/off viram TOGGLE (switch) — o texto "Ligado/Desligado" fica oculto (font-size:0).
   ['opt-facil','opt-altmove','opt-togglerun','opt-hearing','opt-onebtn','opt-settingsStore.wheelchair','opt-modocego','opt-tts','audio-master','opt-captions','motion-master'].forEach(id=>{ const b=document.getElementById(id); if(b)b.classList.add('switch'); });
 })();
-function openVisual(){ const ov=$('#visual'); if(!ov)return; visual.render(); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector<HTMLElement>('button[data-viz]')||ov.querySelector('button'); if(f)f.focus(); }
-// Foco de volta para QUEM ABRIU (WCAG 2.4.3), pelo registro de ui/settings-panel. Antes cada um focava um
-// `#opt-*` fixo, e SEIS desses nove ids nao existem no documento — sao ganchos de uma barra de botoes futura.
-// O `if(b)b.focus()` engolia isso calado, entao o foco caia no <body> e quem navega por teclado voltava ao
-// comeco da pagina. Recuo: o dialogo que ficou por baixo.
-function closeVisual(){ const ov=$('#visual'); if(!ov)return; ov.hidden=true; if(!overlays.restoreFocus('visual'))menuFocus(sharedDialogOpen()); }
-const visualBtn=$('#opt-visual'); if(visualBtn)visualBtn.addEventListener('click',openVisual);
-const visualClose=$('#visual-close'); if(visualClose)visualClose.addEventListener('click',closeVisual);
-// Empatia motora: um-botão e cadeirante
-function reflectMotorEmpathy(){ const a=$('#opt-onebtn'); if(a){ toggleBtn(a,settingsStore.oneButton); a.textContent=toggleLabel(settingsStore.oneButton); }
-  const b=$('#opt-settingsStore.wheelchair'); if(b){ toggleBtn(b,settingsStore.wheelchair); b.textContent=toggleLabel(settingsStore.wheelchair); } reflectVizButtons(); }
-// Estado em core/state; aqui só os EFEITOS (refletir o painel, anunciar). Mesma forma que setModoCego.
-function setOneButton(on: boolean){ const antes=settingsStore.oneButton; settingsStore.setOneButtonValue(on); if(settingsStore.oneButton===antes)return;
-  reflectMotorEmpathy(); srSay(t(on?'sr.motor.oneButtonOn':'sr.motor.oneButtonOff')); }
-// Estado em core/state; aqui a REAÇÃO, que neste caso é grande: o modo cadeirante refaz a geometria do
-// nível inteiro. Por isso ele não caberia dentro de um setter — e por isso o setter não o conhece.
-function setWheelchair(on: boolean){ const antes=settingsStore.wheelchair; settingsStore.setWheelchairValue(on); if(settingsStore.wheelchair===antes)return;
+// O MODO CADEIRANTE: a loja é da engine, a REAÇÃO é deste jogo, e ela é grande — refaz a geometria do nível
+// inteiro. Só voo/super-corrida; moedas no chão; escada/trampolim viram elevador; rampas+pontes; lava vira chão.
+ouvir('wheelchair', (on) => {
   players.forEach(p=>{ if(on && p.activePower!=='fly' && p.activePower!=='turbo') p.activePower='off'; if(on) p.owned=p.owned.filter(k=>k==='fly'||k==='turbo'); showPower(p); });
-  setupExtras(); rebuildCoins(); buildWcGeom(); buildRamps(); buildElevators(); reflectMotorEmpathy(); // só voo/super-corrida; moedas no chão; escada/trampolim viram elevador; rampas+pontes; lava vira chão
-  srSay(t(on?'sr.motor.wheelchairOn':'sr.motor.wheelchairOff')); }
+  setupExtras(); rebuildCoins(); buildWcGeom(); buildRamps(); buildElevators(); });
 // bolinha indicadora: duplo toque/clique → volta às cores padrão (em cegueira é a única saída visível)
 (function vizIndicator(){ const el=$('#viz-indicator'); if(!el)return; let last=-9999;
   // `agora` e não `t`: o local chamava-se `t` e SOMBREAVA o tradutor — `t('sr.visual...')` virou "chamar um
   // número". Quinta vez que este nome de uma letra morde neste arquivo; aqui doeria mais que nas outras,
   // porque este duplo-toque é a ÚNICA saída visível de quem ligou a simulação de cegueira.
   el.addEventListener('pointerdown',(e)=>{ e.preventDefault(); const agora=e.timeStamp||0; if(agora-last<450){ setPlayerViz(0,'normal'); last=-9999; srSay(t('sr.visual.defaultColors')); } else last=agora; }); })();
-// O pad de toque nasce AQUI, e nao 50 linhas abaixo, porque a linha seguinte pode precisar dele: aplicar o
-// modo de visao no boot passa por render/viz-setters, que esconde os controles de toque quando o modo e
-// cegueira. O envolucro `hideTouchControls` e declaracao icada, mas o corpo dele dereferencia `touchCtl`, e
-// icar a funcao nao iça a constante: com `incl_viz_p0=blind` salvo, o boot morria inteiro em TDZ — tela
-// branca, sem mensagem, e so voltava limpando o armazenamento. Mesma doenca que o simNaoGlyphs ja teve neste
-// arquivo; ali a cura foi ler do armazenamento, aqui e existir antes de quem chama.
-const touchCtl = initTouch({ $, srSay, store, root: document.documentElement, isMobile,
-  acoesDoJogo,
-  // O pad virtual so aparece com UM jogador, JOGANDO, e sem desafio aberto. A politica e do JOGO (item 19):
-  // era uma linha dentro do `input/touch` lendo `numPlayers`, `phase` e `players[].quiz` por importacao — e a
-  // ultima dizia que a camada de TOQUE sabia que existe atividade de alfabetizacao. Mesmo movimento do
-  // achado 10: injeta-se o BOOLEANO, nao o estado.
-  padAllowed: () => rodada.numPlayers <= 1 && fatosDaCena().worldRunning && !jogadores().some((p) => p.quiz),
-  viewport: () => ({ w: window.innerWidth, h: window.innerHeight }),
-  frontOverlay, onPadDesignApplied: () => { if(typeof renderPauseLegend==='function') renderPauseLegend(); },
-  // AUTOMÁTICA NO TOQUE: liga a alternância do correr só para quem NUNCA escolheu (sem valor salvo). Quem
-  // desligou de propósito não a vê voltar — o valor salvo vence, e desfazer a escolha da criança seria a
-  // mesma coisa que o mixer de áudio já recusa a fazer.
-  //
-  // 🔴 NÃO APAGUE ISTO COM O CHANGELOG DA ENGINE NA MÃO. A 8.0.0 diz, nomeando este ficheiro e esta linha,
-  // que «once `arestaDoJogador` is passed, that repository's `onTouchControlsShown` patch can go: it exists
-  // to compensate for the edge this change delivers». A aresta FOI passada — e a frase está errada.
-  //
-  // Medido na 9.0.0: `input/latch-sync.js` só escreve `p.toggleMove`, e a base chama-se `BASE_DA_MARCHA =
-  // 'togglemove'`. A aresta nova sincroniza a trava de MARCHA. Esta linha liga `p.toggleRun`, a trava do
-  // botão de CORRER. São irmãs e não a mesma, e o comentário da própria engine admite-o em
-  // `latch-sync.js:7`: «`p.toggleRun` tem um leitor de RODADA no cartucho (`game/run-toggle`), com uma
-  // trava própria». Nada na engine escreve `toggleRun` — só a i18n dos anúncios e a chave do armazém.
-  //
-  // E ela ficou LOAD-BEARING com o `seguraPedidas: 3` lá em cima: a exigência da rota padrão são três
-  // posições e o toque segura duas, então é esta linha que põe a criança de telemóvel em dois sem lhe
-  // pedir que descubra o painel motor primeiro. Apagá-la devolve o jogo a uma exigência que o aparelho
-  // dela não alcança — sem erro em lado nenhum, e só ela dá por isso.
-  onTouchControlsShown: () => { players.forEach((p,i)=>{ if(store.get(store.KEYS.toggleRunP(i))==null && !p.toggleRun){ p.toggleRun=true; motor.reflectToggleRun(); } }); } });
-// (o proprio initTouch ja aplica o desenho salvo no fim da sua inicializacao)
+/*
+ * A TRAVA DO BOTÃO DE CORRER LIGA-SE SOZINHA NO TOQUE — e continua a ser deste jogo, porque nada na engine
+ * escreve `toggleRun`. O pad virtual é da engine (`createGame` monta o `initTouch`), e ela não avisa o
+ * cartucho quando o mostra; então a pergunta passou a ser a do APARELHO: é um ecrã táctil? — no arranque e
+ * no primeiro toque na região, que é quando um portátil com ecrã táctil passa a ser jogado com o dedo.
+ *
+ * 🔴 É LOAD-BEARING, e a razão é a mesma de antes: a rota padrão pede três posições seguradas (direção,
+ * correr, pular) e o toque segura duas. Esta trava põe a criança de telemóvel em duas sem lhe pedir que
+ * descubra o painel motor primeiro. A trava de MARCHA (`toggleMove`) é outra coisa, e é da engine (nota DU).
+ *
+ * O valor SALVO vence: quem a desligou de propósito não a vê voltar.
+ */
+function travaDeCorrerNoToque(): void {
+  players.forEach((p,i)=>{ if(store.get(KEYS.toggleRunP(i))==null && !p.toggleRun) p.toggleRun=true; });
+}
+if (ehToque()) travaDeCorrerNoToque();
+ctx.region.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') travaDeCorrerNoToque(); }, { ...SOLTAR, once: true });
 loadPlayerA11y(players[0],0); // carrega viz/easy/alternância persistidos do jogador 1 (migra chaves antigas)
 vizReady=true; applyVizGlobal(players[0].visual); // estado inicial (solo) — o EIXO, e já não a chave legada
 
-/* TIPOGRAFIA — menu próprio na pausa (saiu da Sensibilidade visual, pedido do José 2026-07-02).
-   3 grupos, UMA fonte ativa (radio), pré-visualização com o pangrama "Juiz foge e bota fita de cetim
-   na xícara". Todas as fontes hospedadas são SIL OFL 1.1 (política do fonts.css); as canônicas EdSP
-   mantêm o mecanismo antigo (Lexend preserva o espaçamento BDA via data-fonte="dislexia"). */
-// Tipografia: catalogo em ui/fonts.js, painel em ui/settings-typo.js. Antes: FONT_GROUPS/loadFontKey extraídos p/ ui/fonts.js (Fase 2, tipografia).
-const typo = initSettingsTypo({ $, srSay, store, root: document.documentElement, fillExplain: (c) => overlays.fillExplain(c) }); // painel de tipografia: ui/settings-typo.ts (aplica a fonte persistida no init)
-function openTypo(){ const ov=$('#typo'); if(!ov)return; typo.render(); ov.hidden=false; frontOverlay(ov);   const f=ov.querySelector<HTMLElement>('button[data-font]:not([disabled])')||ov.querySelector('button'); if(f)f.focus(); }
-function closeTypo(){ const ov=$('#typo'); if(!ov)return; ov.hidden=true; if(!overlays.restoreFocus('typo'))menuFocus(sharedDialogOpen()); }
-{ const b=$('#typo-close'); if(b)b.addEventListener('click',closeTypo); }
-
-/* F1: menu de áudio (mixer por categoria) — o botão "Som" abre este menu */
-function openAudio(){ const ov=$('#audio'); if(!ov)return; ensureAC(); audioPanel.renderAudio(); audioPanel.reflectModoCego(); audioPanel.reflectTts(); const cd=$<HTMLSelectElement>('#cane-div'); if(cd)cd.value=String(settingsStore.caneBlockDiv); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector('button'); if(f)f.focus(); }
-function closeAudio(){ const ov=$('#audio'); if(!ov)return; ov.hidden=true; if(!overlays.restoreFocus('audio'))menuFocus(sharedDialogOpen()); }
-// A12e auditiva: Modo cego (só áudio) + seleção de voz (Web Speech agora; neurais em breve)
 // Botões abreviados: hover/foco DESCOMPACTA o número em letras (o "12" vira as 12 letras contando p/ baixo), suave;
 // recomprime ao sair. Genérico: varre a barra (.mode-btn) E o menu de pausa (.pm-btn) casando A12e/S11e.
 // ABBR_MID/attachAbbr migraram para ui/activities-menu.ts (Onda A). A VARREDURA abaixo fica onde
 // esta: ela e sensivel a quando os .pm-btn existem.
 document.querySelectorAll<HTMLElement>('.mode-btn, .pm-btn').forEach(attachAbbr); // `attachAbbr` lê `.title`/`.dataset`
-// Saída de áudio POR JOGADOR (setSinkId): detecta fones/caixas e atribui 1 por jogador
-// DESIGN DOS BOTÕES na tela por controle (Gamepad API: 0=baixo/pulo·sim, 1=direita/especial·não, 2=esquerda/interação, 3=cima/troca-poder)
-// PAD_DESIGNS extraído p/ input/devices.js (Fase 2).
-// padDesign/applyPadDesign migraram para input/touch.ts (Onda A). simNaoGlyphs/renderPauseLegend FICAM:
-// sao a legenda Sim/Nao da pausa, nao geometria de toque — o modulo as avisa por onPadDesignApplied.
-// Le o desenho do ARMAZENAMENTO, nao de touchCtl: o initTouch chama applyPadDesign() antes de retornar, e
-// esse gancho cai aqui com o `const touchCtl` ainda em TDZ. O modulo persiste o valor ANTES de disparar o
-// gancho, entao o armazenamento e a fonte correta e sempre esta pronta.
 function simNaoGlyphs(){ const d=store.get('incl_paddesign','generic'); const set=PAD_DESIGNS[d]||PAD_DESIGNS.generic; const inv=(d==='sony'||d==='nintendo');
   return { sim:set[inv?'1':'0'], nao:set[inv?'0':'1'] }; }
 // A MONTAGEM saiu daqui e virou `pauseLegendHtml` em ui/shell (ADR-0044, item 4). Não foi só mudança de casa:
@@ -1987,79 +1928,6 @@ function simNaoGlyphs(){ const d=store.get('incl_paddesign','generic'); const se
 function renderPauseLegend(){ const g=simNaoGlyphs();
   const html=pauseLegendHtml(g.sim as [string,string], g.nao as [string,string]);
   document.querySelectorAll('.pause-legend').forEach(el=>{ el.innerHTML=html; }); } // todas as pausas por tela
-// START (pílula): função vem do touchMap (padrão pausar) — a fiação fica no touchSetup, junto do doTouch.
-// padLayoutFromId migrou para input/touch.ts (Onda A) — a deteccao do modelo pelo id do controle e
-// dado de apresentacao dos botoes, nao leitura da Gamepad API. A fiacao (gamepadconnected e o seletor
-// #pad-design) desce para junto do initTouch, abaixo.
-// TAMANHO FÍSICO (mm) dos botões de toque — NÃO px. WCAG mede alvos de toque físicos, não botões
-// virtuais sobre canvas. Conversão mm→px ancorada no iPhone 16 a tela cheia (aresta longa 141,1mm
-// do display 1179×2556 @460ppi → ~6,04 px CSS/mm). No aparelho-alvo fica exato; noutros, proporcional.
-// Defaults baseados na ciência (botões que se SEGURA + multitoque, não toque fino):
-//  botão 12,5mm (piso 11mm > alvo de polegar Parhi 9,6mm; segurar cansa mais em botão pequeno),
-//  folga 3mm (evita apertar 2 sem esticar o polegar), analógico 18mm (capuz físico ~18–20mm),
-//  deslocamento 4,5mm. Faixa criança↔adulto estreita: crianças NÃO devem ir a alvos minúsculos.
-// Geometria fisica do pad (mm -> px), presets, direcional e o mapa de toque migraram para input/touch.ts
-// (Onda A). As dimensoes de tela entram INJETADAS: o modulo nunca le window.innerWidth.
-addEventListener('gamepadconnected', (e)=>{ try{ const d=touchCtl.applyPadDesign(padLayoutFromId(e.gamepad.id)); const sel=$<HTMLSelectElement>('#pad-design'); if(sel)sel.value=d; srSay(t('sr.pad.connected',{v:d})); }catch(err){} }, SOLTAR); // A2: layout pelo id do controle
-const padDesignSel=$<HTMLSelectElement>('#pad-design'); if(padDesignSel){ padDesignSel.value=touchCtl.getPadDesign(); padDesignSel.addEventListener('change',()=>{ touchCtl.applyPadDesign(padDesignSel.value); srSay(t('sr.pad.design',{v:padDesignSel.value})); }); } // A4: escolha manual
-// PLAYING WITH THE EYES is the engine's now: the 👀 on its quick bar (engine ADR-0213); WebGazer left the engine (ADR-0214).
-const audioCloseBtn=$('#audio-close'); if(audioCloseBtn)audioCloseBtn.addEventListener('click',closeAudio);
-const audioPanel = initSettingsAudio({ $, srSay, store, audioCats: AUDIO_CATS, toggleBtn, getNumPlayers: () => rodada.numPlayers, getPlayers: () => players, getSoundOn: () => soundOn, setSoundOn, getVolume: () => volume, setVolume, getAudioCat: () => audioCat, setCatGain, tts, getModoCego: () => settingsStore.blindMode, setModoCego, getCaneBlockDiv: () => settingsStore.caneBlockDiv, setCaneBlockDiv: settingsStore.setCaneBlockDivValue }); // painel de audio: ui/settings-audio.ts
-// REFLETE O MODO CEGO PERSISTIDO no boot. `incl_modocego` sobrevive à sessão desde sempre, mas nada refletia o
-// valor no botão ao abrir o jogo: com o modo LIGADO, o `#opt-modocego` dizia "Desligado" e reportava
-// `aria-pressed="false"`. Para quem usa leitor de tela isso é WCAG 4.1.2 (nome, papel, VALOR) quebrado no
-// controle de que essa pessoa depende — e sem a tela para desempatar, a informação errada é a única que há.
-// Verificado numa carga limpa: gravado "1", botão "Desligado". O cadeirante, ao lado, refletia certo.
-audioPanel.reflectModoCego();
-
-/* E10: remap de controles + persistência (B2) */
-const ctrlPanel = initSettingsControls({
-  acoesDoJogo, $, srSay, srAlert, store: { saveKB, resetKB }, kb, setKB, kbFor, kbPadraoFor: (i) => kbFabrica.kbFor(i), getNumPlayers: () => rodada.numPlayers, applyControls, assignControls }); // painel de controles: ui/settings-controls.ts (registra #ctrl-reset e os botoes de remap)
-function openOptions(){ const ov=$('#options'); if(!ov)return; ctrlPanel.render(rodada.pauseActor); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector('button'); if(f)f.focus(); } // E3: edita o controle do jogador que abriu
-function closeOptions(){ const ov=$('#options'); if(!ov)return; ov.hidden=true; ctrlPanel.cancelCapture(); if(!overlays.restoreFocus('options'))menuFocus(sharedDialogOpen()); }
-const ctrlBtn=$('#opt-controls'); if(ctrlBtn)ctrlBtn.addEventListener('click',openOptions);
-// AJUDA (do menu de pausa): controles DO jogador que abriu (pauseActor) + notas desta build.
-function openHelp(){ const ov=$('#help'); if(!ov)return; const c=$('#help-content'); const pa=rodada.pauseActor||0; const map=kbFor(pa);
-  // ⚠️ AS LINHAS VÊM DO PRESET DESTE JOGO (`acoesDoJogo`), e não do `ACT_LABEL` da engine — que conhece OITO
-  // posições enquanto o vocabulário tem catorze, e que é a tabela deste jogo a viver dentro do motor. Era o
-  // último leitor dela, e a issue #125 da engine mede que remover a tabela de lá depende desta linha.
-  //
-  // O `escaparHtml` é defesa em profundidade: o rótulo vem do preset deste repositório, não de fora, mas ele
-  // entra num template que vira `innerHTML` e a regra da casa é não interpolar texto em marcação sem escapar.
-  const rows=linhasDaAjuda(acoesDoJogo(),map).map(l=>`<div class="ctrl-row"><span>${escapeHtml(l.rotulo)}</span><span>${l.teclas.map(keyName).map(k=>'<kbd>'+k+'</kbd>').join(' ')||'—'}</span></div>`).join('');
-  // O cabecalho e' UMA FRASE por caso ('Seus controles' / 'Seus controles · Jogador N'), e nao um prefixo mais
-  // um sufixo: uma lingua que ponha o numero do jogador ANTES do titulo so consegue se a frase inteira morar
-  // no dicionario. Mesma decisao de `sr.audio.*` e dos anuncios motores.
-  const titulo=rodada.numPlayers>1?t('help.controlsPlayer',{n:pa+1}):t('help.controls');
-  const nota=(txt: string)=>`<div class="ctrl-row"><span>${txt}</span></div>`;
-  if(c)c.innerHTML=`<h3 class="panel-sub">${titulo} <span class="panel-sub__tag">${t('help.keyboard')}</span></h3><div class="ctrl-list">${rows}</div>`+
-    `<h3 class="panel-sub">${t('help.buildNotes')}</h3><div class="ctrl-list">`+
-    nota(t('help.powerups'))+nota(t('help.multiplayer'))+nota(t('help.tech',{v:INCL_VERSION}))+`</div>`;
-  ov.hidden=false; frontOverlay(ov); const f=ov.querySelector('button'); if(f)f.focus(); }
-function closeHelp(){ const ov=$('#help'); if(!ov)return; ov.hidden=true; if(!overlays.restoreFocus('help'))menuFocus(sharedDialogOpen()); }
-const helpCloseBtn=$('#help-close'); if(helpCloseBtn)helpCloseBtn.addEventListener('click',closeHelp);
-const ctrlClose=$('#ctrl-close'); if(ctrlClose)ctrlClose.addEventListener('click',closeOptions);
-
-/* Movimento reduzido (WCAG 2.3.3) + Pause/Stop/Hide (2.2.2) */
-// (RM_LABEL e RM_SOON eram CODIGO MORTO aqui: nenhum leitor neste arquivo. Os que o painel usa vivem em
-//  ui/settings-motion, e eram copia palavra por palavra destes. Apagados no item 14.)
-const motion = initSettingsMotion({ $, srSay, store, getPlayers: () => players, getNumPlayers: () => rodada.numPlayers, frontOverlay, restoreFocus: (id)=>overlays.restoreFocus(id), toggleBtn, rm, saveRM, rmKeys: RM_KEYS, rmChar: RM_CHAR }); // painel de movimento/CRT: ui/settings-motion.ts
-// MENU Movimento (GAG: alternância) — separado do menu Animação (WCAG: movimento reduzido)
-function openMovement(){ const ov=$('#movement'); if(!ov)return; motor.renderMovPlayers(); motor.reflectFacil(); motor.reflectAltMove(); renderMapHub(); ov.hidden=false; frontOverlay(ov); const f=ov.querySelector('button'); if(f)f.focus(); }
-function closeMovement(){ const ov=$('#movement'); if(!ov)return; ov.hidden=true; if(!overlays.restoreFocus('movement'))menuFocus(sharedDialogOpen()); }
-// Submenu "Configurar botões de tela touch"
-// openTouchCfg/closeTouchCfg migraram para input/touch.ts (Onda A).
-const touchCfgBtn=$('#opt-touchcfg'); if(touchCfgBtn)touchCfgBtn.addEventListener('click',()=>touchCtl.openTouchCfg());
-const touchCfgClose=$('#touchcfg-close'); if(touchCfgClose)touchCfgClose.addEventListener('click',()=>touchCtl.closeTouchCfg());
-/* ===================== HUB "MAPEAR CONTROLES" -> ui/map-hub.ts (D3-c) =====================
-   A tabela de linhas, o markup e as duas frases faladas sairam; `mapSoon` foi junto (nao tinha outro
-   chamador). Fica o ENVOLUCRO, declaracao de funcao e portanto icada, porque openMovement — que aparece
-   ACIMA deste ponto — o chama pelo nome. */
-const mapHub = initMapHub({ $, srAlert, getNumPlayers: ()=>rodada.numPlayers, openOptions, openPadWiz: ()=>gamepadApi.openPadWiz() });
-function renderMapHub(){ mapHub.render(); }
-const movBtn=$('#opt-movement'); if(movBtn)movBtn.addEventListener('click',openMovement);
-const movClose=$('#movement-close'); if(movClose)movClose.addEventListener('click',closeMovement);
-const animClose=$('#animation-close'); if(animClose)animClose.addEventListener('click',()=>motion.close()); // #opt-animation NAO existe no app (era referencia morta); so o fechar e real
 
 /* ===================== FPS ===================== */
 let fpsAccum=0,fpsFrames=0,fpsMin=Infinity,fpsWarm=0;
@@ -2089,7 +1957,7 @@ function quadro(dt: number): void { gamepadApi.pollPads(); update(dt); draw();
 // ⚠️ O `maxDt` E O `aoFalhar` SAIRAM COM O LACO, e nao foram perdidos: o ADR-0054 poe o aviso de queda no
 // shell, que e' quem sabe que o laco parou. Um cartucho que rebenta tem de parar a si proprio sem parar a
 // plataforma, e isso so quem corre o laco pode garantir.
-window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,pollPads:()=>gamepadApi.pollPads(),update,openPadWiz:()=>gamepadApi.openPadWiz(),padWizTick:()=>gamepadApi.padWizTick(),padMapFor:(id: Parameters<typeof gamepadApi.padMapFor>[0])=>gamepadApi.padMapFor(id),get padWiz(){return gamepadApi.getPadWiz();},get phase(){return cenas.fase();},get padPrev(){return padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[settingsStore.vizMode]||{}).kind==='hcnew';} /* derivado de settingsStore.vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return _footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return guide.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
+window.__incl={app,get player(){return players[0];},players,get numPlayers(){return rodada.numPlayers;},setNumPlayers,activateScreens,fitsN,isMobile,pollPads:()=>gamepadApi.pollPads(),update,openPadWiz:()=>gamepadApi.openPadWiz(),padWizTick:()=>gamepadApi.padWizTick(),padMapFor:(id: Parameters<typeof gamepadApi.padMapFor>[0])=>gamepadApi.padMapFor(id),get padWiz(){return gamepadApi.getPadWiz();},get phase(){return cenas.fase();},get padPrev(){return input.padPrevAct;},get coins(){return coins;},get lixo(){return reciclagem.itens();},get placaX(){return reciclagem.placaX();},get barreiraDaPlaca(){return reciclagem.barreira();},get lixeiras(){return reciclagem.lixeiras();},get pontosDeComportamento(){return pontosDeComportamento;},get collected(){return players[0].collected;},get powerups(){return rodada.powerups;},get gateOpen(){return rodada.gateOpen;},get gate(){return rodada.gate;},get ended(){return rodada.ended;},restartGame,get hcMode(){return (VIZ_BY_KEY[settingsStore.vizMode]||{}).kind==='hcnew';} /* derivado de settingsStore.vizMode (D1); era `let` espelho */,setHC(v: boolean){setPlayerViz(0,v?'hc-direto':'normal');},get vizMode(){return players[0].viz;},applyViz(v: Parameters<typeof setPlayerViz>[1]){setPlayerViz(0,v);},setPlayerViz,VIZ_MODES,get footCount(){return audio.footCount;},get sonarCount(){return nav.sonarCount;},get guideCount(){return guide.guideCount;},get narrateCount(){return tts.narrateCount;},sonar:()=>nav.sonar(controlados()[0]!),setHearingLoss,darkRegions,decoLayer,get minimap(){return getMinimap();},parallaxLayers,PARALLAX,setCenario,get cenario(){return CENARIO;},
   get mmSeen(){return minimapSeenCount();},get MODE(){return MODE();},get letterCase(){return settingsStore.letterCase;},brailleText,tileAt,WORLD_W,WORLD_H,TUNE,
   JUICE,addShake,addHitstop,burstSparkle,puffDust,draw,get particles(){return getParticles();},get hitstopT(){return getHitstopT();},get shakeT(){return getShakeT();},CRT,applyCrt,setLq,get lqT(){return getLqT();},
   setOwnerColors,setCbSafe,setRoleColor,resetRoleColors,PCOLOR,HC_ROLE,get ownerColors(){return settingsStore.ownerColors;},get cbSafe(){return settingsStore.cbSafe;},
@@ -2290,7 +2158,7 @@ function showTouchControls(){ touchCtl.showTouchControls(); }
 const touchBindings = initTouchBindings({
   $, win: window, getSearch: () => location.search,
   getControls: () => kbRuntime.controlsState().controls,
-  getPlayers: () => players, heldKeys: keys,
+  getPlayers: () => players, heldKeys: input.keys,
   // As mesmas portas do `initKeydown`, e a MESMA aresta.
   marcarTecla, soltarTecla, arestaDoJogador,
   attractOnInput: () => attractCtl.onInput(),
@@ -2306,7 +2174,7 @@ window.__incl.showTouch = () => touchBindings.revealForTests(); // p/ testes em 
 /* ===================== ATTRACT: cria o controlador (deps já definidas) → game/attract.ts ===================== */
 const attractCtl = createAttract({
   store,
-  CENARIOS, keys,
+  CENARIOS, keys: input.keys,
   getPlayers: () => players, getCenario: () => CENARIO, // bindings vivos (reatribuídos)
   mundoRodando: () => fatosDaCena().worldRunning,
   entrarNoJogo: () => setPhase('playing'), voltarAoTitulo: () => setPhase('title'),
@@ -2393,6 +2261,7 @@ initDebugPanel({
  */
 function teardown(): void {
   CANCELAR.abort();
+  DESLIGAR.splice(0).forEach((desligar) => desligar());
   // A declaração volta a dizer a verdade do mundo vazio, que é o que ela é depois de um `unmount`.
   desligarDeclaracao();
   desligarGanchos();
