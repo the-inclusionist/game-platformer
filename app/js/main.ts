@@ -33,11 +33,11 @@
 // aquele era o nome do arquivo quando cada um saiu de la.
 // VERSIONAMENTO (recalculado do git em 2026-07-02): MINOR +1 a cada feature (patch zera);
 // PATCH +1 a cada conserto/ajuste; docs/chore não mudam versão. INCL_VERSION agora é DISPLAY (bump em mudança relevante); o cache é por content-hash do vite-plugin-pwa (Estágio 1) — sem sw.js/bump manual.
-// ⚠️ A FOLHA DE ESTILO DA ENGINE, POR IMPORT E NÃO POR `<link>`. No repositório da engine ela era
-// `app/css/style.css`, alcançável por caminho relativo do `index.html`; aqui ela é do PACOTE, e o `exports`
-// dele publica `./style.css` exatamente para isto. Sem esta linha os diálogos abrem sem estilo nenhum — o
-// `package.json` da engine registra que foi o que aconteceu ao primeiro consumidor que a instalou.
-import '@the-inclusionist/engine/style.css';
+// ⚠️ A FOLHA DE ESTILO DA ENGINE NÃO SE IMPORTA AQUI, e sim no SHELL (`src/standalone.ts`). Esta linha
+// existia de quando `main.ts` era a raiz da página; num cartucho ela é defeito: a engine é externa no build do
+// cartucho, então o `import` sobrevive em `cartridge.js`, e importar o cartucho fora de uma página rebenta
+// («Unknown file extension .css») — o `inclusionist-check-cartridge` recusa-o (ADR-0139 §2: importar um
+// cartucho não pode precisar de página). Quem tem a página traz a folha; na plataforma, é o shell dela.
 import * as PIXI from 'pixi.js'; // PixiJS 7.4.2 via npm (Vite empacota; aposenta o <script> global vendor/pixi.min.js)
 import * as tiles from './core/tiles.js'; // legend + parser do mapa em glifo
 import { createStorage } from '@the-inclusionist/engine/platform/storage.js'; // camada de persistência
