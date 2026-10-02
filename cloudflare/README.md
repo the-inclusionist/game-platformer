@@ -59,13 +59,21 @@ com o nome certo — e o `wrangler.toml` deste repo já declara `jurisdiction = 
 Guardar. Fazer o **próximo push qualquer** para re-deploy com o binding ativo (basta `git commit --allow-empty
 -m "trigger: bind LFS"` seguido de `git push`), ou usar o botão `Redeploy` do dashboard.
 
-### 3. Domínio personalizado
+### 3. Domínio personalizado — via Router Worker
 
-`Settings` → `Custom domains` → `Set up a custom domain` → entrar `o-inclusionista.jrocha.dev.br`. O
-Cloudflare cria o CNAME automaticamente se o domínio já está na conta. Certificado TLS automático.
+🔴 **Não dá para adicionar o domínio diretamente** porque `o-inclusionista.jrocha.dev.br` já está associado
+ao projeto Pages do site («That domain is already associated with an existing project», medido em 02/10).
+Um Worker intercepta duas rotas no domínio e proxia para este Pages. Ver `router-worker/README.md` neste
+mesmo diretório. Resumo:
 
-Quando o DNS propagar (minutos no mesmo tenant Cloudflare), `o-inclusionista.jrocha.dev.br/game-platformer/`
-serve o jogo.
+```powershell
+cd cloudflare/router-worker
+wrangler deploy
+```
+
+Com o Worker publicado, `o-inclusionista.jrocha.dev.br/game-platformer/` serve o jogo e
+`o-inclusionista.jrocha.dev.br/heavy/*` serve os ficheiros pesados do R2, ambos na mesma origem que o site
+— cache partilhado como ADR-0117 pede.
 
 ### A partir daqui
 
