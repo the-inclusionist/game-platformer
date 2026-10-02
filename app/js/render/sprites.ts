@@ -54,7 +54,14 @@ export const SPR = `${import.meta.env.BASE_URL}assets/sprites/menino/`;
  */
 let _base: PIXI.BaseTexture | null = null;
 function baseDoAtlas(): PIXI.BaseTexture {
-  if (!_base) { _base = PIXI.BaseTexture.from(ATLAS_URL); _base.scaleMode = PIXI.SCALE_MODES.NEAREST; }
+  if (!_base) {
+    // ⚠️ `BASE_URL + ATLAS_URL`, nao so' `ATLAS_URL`: o plugin do atlas emite um caminho RELATIVO
+    // (`assets/sprite-atlas.png`) e o `<base href="/">` do `index.html` levaria a `PIXI.BaseTexture.from`
+    // a resolver na raiz do dominio em vez de dentro de `/game-platformer/`, servindo um 404 que deixa o
+    // personagem invisivel sem erro no console. O Vite preenche `BASE_URL` com o `base` do build.
+    _base = PIXI.BaseTexture.from(import.meta.env.BASE_URL + ATLAS_URL);
+    _base.scaleMode = PIXI.SCALE_MODES.NEAREST;
+  }
   return _base;
 }
 
