@@ -188,19 +188,47 @@ de estilo da engine (o checador recusava-o), o repositório ganhou o `LICENSE` q
 passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o botão de tipografia oferece.
 
 **O que falta é decisão, e não trabalho:**
-- **Publicar** (passo 8), com `private: false` — e o `git push`, que nunca é meu.
-- **O que (A) custa**, medido na engine e que eu não tinha dito ao propor: só o assento 0 conduz a tela
-  (`leadsTheScreen`), então o START/SELECT dos jogadores 2–4 não abre nada e o «Sair» sai o assento 0; o comando
-  no título ganha o anel genérico da engine (perde-se o ◀▶ do número de jogadores); as moedas do assento 0 ficam no
-  topo, debaixo da barra. Tudo isto é o (C): pedir à engine cartões por assento numa raiz só.
-- `uses.neuralVoice` (Kokoro, 371 MiB) e o armazenamento pelo `ctx`.
+- **Publicar** (passo 8). O Dev vai: `git push` (os commits locais), `"private": false` no `package.json` (uma linha
+  que a trava de segurança do Claude recusou), decidir o número da versão (hoje `0.1.0`) e `npm publish --access public`.
+  Com o `exports["."]` já apontado e o `files: ["dist-lib"]` já declarado, o cartucho vai inteiro — provado em 02/10
+  por um `npm pack` seguido de `npm install` numa pasta fora que só tinha os pares declarados: importou-se e passou o
+  checador do contrato.
+- **O que (A) custa, e por que o (C) é maior do que parecia (medido em 02/10 depois da resposta do Dev):** o Dev
+  decidiu que *só o jogador 1 pausa (e todos pausam), mas cada um tem a sua própria configuração de inclusão e de
+  jogo*. A engine 11 cumpre a primeira metade — `leadsTheScreen` já é o assento 0 — mas a `SettingsStore` é GLOBAL:
+  `blindMode`, `cbSafe`, `wheelchair`, `oneButton`, `hcOutlineFg`, `letterCase`, `captionsOn` são lidas por todos. Só
+  `vizMode` e a saída de áudio já são por jogador. O pedido (C) para a sessão da engine é maior do que a *«pausa por
+  assento»* original: os painéis que a engine monta têm de EDITAR as configurações do assento que `setPauseActor`
+  indica. Perdas visíveis sem (C): só o assento 0 edita qualquer coisa; «Sair» sai do assento 0; as cores por papel
+  do alto contraste já não se podem mudar (ADR-0151, `offer: { roles: false }` no `create-game.js:1476`). As moedas
+  do assento 0 ficam no topo central, debaixo da barra — mesmo problema de assento 0 condutor.
+- **Voz neural: FEITO**, `uses: { neuralVoice: true }` (commit `84475ac`). A engine prefere a voz do aparelho (ADR-0200);
+  o Kokoro entra só como alternativa quando não há voz no idioma da criança. Medido com dois pt-BR no aparelho: usa-se
+  Daniel/Maria, Kokoro fica no `heavy/` para quem não os tem.
 - **As cores por papel do alto contraste — respondido pela leitura, não falta medir.** O painel visual da engine 11
   não as OFERECE (`offer: { roles: false }`, e os escritores são `noEffect`, `create-game.js:1476-1478`): não há
   evento a escutar porque não há quem escreva. As cores que uma criança guardou na versão antiga continuam a valer
   (o `createHighContrast` do jogo lê-as do armazenamento), mas já não se mudam. É perda da 11, do lado da engine —
   vai junto do pedido (C), se o Dev o quiser fazer.
-- **A entrega `heavy/`:** voz, câmara e reconhecimento dão 404 num `dist/` recém-construído até correr
-  `npx inclusionist-heavy dist`, que DESCARREGA centenas de MB do espelho — por isso pede o aval do Dev.
+- **A entrega `heavy/`: espelho local montado em 02/10** (`C:\Users\candi\Claude\inclusionist-heavy-mirror\heavy\`,
+  340 MiB — Kokoro + eSpeak NG + MediaPipe vision + Vosk pt + `onnxruntime-web`). ⚠️ Esse espelho é no FORMATO DE
+  ENTREGA (`heavy/<host><path>`), **não** no formato que o `--base` do `inclusionist-heavy` espera (o layout do
+  `the-inclusionist-lfs`, mapeado em `platform/heavy-mirror.MIRROR_FOLDERS`). Para pôr voz e visão a correr num
+  `dist/` de qualquer jogo, basta `cp -r <espelho>/heavy dist/` — foi o que fez a pré-visualização local responder
+  200 em todos os ficheiros pesados em 02/10, e o `__incl.loadTTS()` carregar sem erro.
+  📌 **Centralização de verdade (resposta ao Dev):** o Cache Storage do navegador é isolado por origem (ADR-0117),
+  então a crianca so paga uma vez quando TODOS os jogos vivem na MESMA origem — uma plataforma só, com cada jogo
+  num caminho. Em dev entre repos, o `cp` do espelho basta; para o `--base` do script, teria que haver um espelho
+  construído no formato do `MIRROR_FOLDERS` (hoje o repo da engine ainda não oferece a receita, só o layout).
+- **Armazenamento pelo `ctx`:** o cartucho hoje guarda, pela loja crua (não a `settings`), estas chaves próprias:
+  `KEYS.quizlevel(JOGO)`, `.cenario(JOGO)`, `.activity(JOGO)`, `.tabsel`, `.fracnot`, `.attract(JOGO,cen)` (as gravações
+  do attract por cenário), `.reducedMotion` (JSON com as quatro flags de cena), e por jogador: `.easyP(i)`,
+  `.toggleMoveP(i)`, `.toggleRunP(i)`, `.rmWalk/Breath/FlavorP(i)`, `.vizP(i)`, `.sinkP(i)`, e um `incl_hearingloss`
+  avulso. **Resposta curta ao Dev**: nenhuma dessas chaves muda o modo como a página armazena — tudo cai no mesmo
+  `localStorage` que a engine abre. Passar a loja pelo `ctx` só vale a pena se a plataforma vier a querer dar a cada
+  criança a sua loja isolada (um `memoryBackend` por criança, ou um escopo com prefixo). É mudança pequena no
+  cartucho (um `host.storage?` já existe no `createGame`), mas depende de a plataforma a pedir — a decisão **pode
+  ficar para quando a plataforma a pedir, sem bloquear a publicação**.
 
 ### DW medido em 02/10: `uses.fonts` fica vazio
 
