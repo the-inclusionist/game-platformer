@@ -252,15 +252,19 @@ passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o 
 A publicação no Cloudflare (CF Pages + R2 + Router Worker) revelou tres bugs do MESMO padrao e um bug de
 contrato que o plano original nao tinha listado como itens de trabalho:
 
-**O padrao «caminho relativo + `<base href="/">`» — tres ocorrencias ate 02/10 20h:**
+**O padrao «caminho relativo + `<base href="/">`» — quatro ocorrencias ate 02/10 21h:**
 - `fetch('assets/levels/clarity.map.txt')` em `main.ts` → mapa 404 → mundo vazio → `910e3ba`.
 - `SPR = 'assets/sprites/menino/'` em `render/sprites.ts` → sprites do demo do pad → `910e3ba`.
 - `ATLAS_URL = 'assets/sprite-atlas.png'` carregado por `PIXI.BaseTexture.from` → personagem invisivel → `29033ee`.
+- `img.src = ATLAS_URL` na «rede» do `inpaintInto` (`render/sprites.ts:152`) — fallback raro mas 404 silencioso
+  quando dispara em producao: as frestas de 1px voltariam no tronco do personagem sem erro no console →
+  medido em 02/10 21h e consertado nesta mesma rodada.
 
 Em todos: o `<base href="/">` (adicionado para a engine resolver `/heavy/*` na raiz do dominio, ADR-0117)
 leva qualquer path relativo carregado por JS em RUNTIME a cair na raiz, fora do subpath `/game-platformer/`.
-**Receita:** prefixar com `import.meta.env.BASE_URL`. 🔴 Se aparecer uma quarta, a receita e' a mesma — e
-este bloco deve passar a listar «cada ocorrencia encontrada» como item cumprido.
+**Receita:** prefixar com `import.meta.env.BASE_URL`. 🔴 Padrao estavel: cada ocorrencia nova vai como item
+cumprido neste bloco; nova varredura em 02/10 21h (`grep` por `fetch(`, `BaseTexture.from(`, `.src =`) nao
+achou uma quinta.
 
 **O contrato do `word()` da engine 11 (nota DN que o plano citava mas nao aplicava):**
 - Painel «Mapear teclado» abria vazio porque `word('act.up')` devolvia `null`, apesar de `t('act.up')`

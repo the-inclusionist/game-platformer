@@ -149,7 +149,10 @@ function inpaintInto(doc: CanvasDoc, file: string, arr: PIXI.Texture[], idx: num
   const buscarDeNovo = (): void => { // rede: só roda se a imagem do PIXI não estiver acessível
     const img = doc.createElement('img'); // era `new Image()`: o construtor global amarra ao `document` da janela
     img.onload = () => aplicarInpaint(doc, img, r, arr, idx);
-    img.src = ATLAS_URL; // era o PNG do quadro; hoje é o atlas, e o recorte vem de `r`
+    // ⚠️ MESMA RECEITA de `baseDoAtlas`: `ATLAS_URL` e' relativo e o `<base href="/">` levaria a raiz do
+    // dominio. A rede so' dispara em producao raramente, mas quando dispara era 404 silencioso — o inpaint
+    // nao se aplicava e as frestas de 1px voltavam no tronco do personagem sem erro no console.
+    img.src = import.meta.env.BASE_URL + ATLAS_URL;
   };
   if (doPixi()) return;
   if (base) base.once('loaded', () => { if (!doPixi()) buscarDeNovo(); });
