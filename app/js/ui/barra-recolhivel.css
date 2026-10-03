@@ -1,6 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* A BARRA DE ACESSIBILIDADE RECOLHE-SE EM JOGO — ver `barra-recolhivel.ts` para a regra de QUANDO. */
 
+/* 🔴 NO TÍTULO A BARRA TEM DE RECEBER O CLIQUE, e não recebia (pedido do Dev em 03/10: «no início, a barra
+   de acessibilidade rápida precisa ser funcional!»).
+   📏 MEDIDO: o `#title-overlay` é `.overlay` e a engine dá-lhe `z-index: 60` dentro da região (`#game-region .overlay`, `style.css:568`); o `#title-icons`
+   nasce com `z-index: auto`. No ecrã de título o overlay fica POR CIMA da barra — ela via-se (o overlay é
+   transparente ali), o `pointer-events` dizia `auto`, e mesmo assim um clique real não chegava: o
+   `elementFromPoint` sobre o 🌗 devolvia `.title-wrap`, dentro do `#title-overlay`. Um controle que se vê,
+   se aponta e não responde é o defeito que o ADR-0106 §5 proíbe — e aqui estava em TODOS os ícones.
+   ⚠️ SÓ NO TÍTULO, pelo `body.at-title` que a raiz já escreve a cada quadro (`main.ts`). Subir a barra
+   sempre poria os painéis de ajustes (também `z:60`) por baixo dela, e mexeria no cartão de pausa (`z:6`),
+   que o Dev pediu para ficar *«do jeito que ela sempre esteve»*. Em jogo nada muda. */
+body.at-title #title-icons {
+  z-index: 61;
+}
+
 /* ⚠️ O `transform` DA ENGINE É A CENTRAGEM, e esta regra tem de a repetir. O `#title-icons` nasce com
    `left:50%; transform:translateX(-50%)` no `style.css` da engine; escrever só `translateY(…)` aqui
    apagava o `-50%` e a barra saltava meia largura para a direita antes de subir. */
