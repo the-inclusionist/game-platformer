@@ -76,10 +76,46 @@ export function redrawMinimapIfDirty(): void {
   _dirty = false;
 }
 
+/**
+ * O MINIMAPA FOGE DO PERSONAGEM (pedido do Dev, 03/10: *«se o personagem "toca" no minimapa, ele deve mudar
+ * de posição para a direita da tela»*).
+ *
+ * 🔴 PORQUE UM MAPA QUE TAPA O CHÃO É PIOR QUE NENHUM. O minimapa mora num canto fixo, e numa plataforma a
+ * criança acaba por caminhar por baixo dele — perde de vista exatamente o pedaço onde está a pisar. Fugir
+ * para o outro lado devolve-lhe o chão sem lhe tirar o mapa.
+ *
+ * 📌 FOGE NOS DOIS SENTIDOS: tocado à esquerda vai para a direita, tocado à direita volta para a esquerda.
+ * O Dev nomeou só o primeiro sentido, que é o do canto onde o mapa nasce; sem o regresso, a criança que
+ * atravessasse a tela empurrava o mapa uma vez e ficava sem o canto esquerdo para sempre.
+ */
+let _mmNaDireita = false;
+/** A folga que conta como «tocar»: o personagem não precisa de encostar para o mapa já o estar a atrapalhar. */
+const MM_FOLGA = 6;
+
+/** Põe o minimapa no canto, respeitando o lado em que ele está agora. */
+function colocarNoCanto(): void {
+  if (!_minimap) return;
+  _minimap.x = _mmNaDireita ? LOGICAL_W - MM_VIEW_W - MM_PAD : MM_PAD;
+}
+
+/** O personagem, na tela, está sobre o retângulo do minimapa (com folga)? */
+function tocaOMinimapa(telaX: number, telaY: number): boolean {
+  if (!_minimap) return false;
+  const x0 = _minimap.x - MM_FOLGA, x1 = _minimap.x + MM_VIEW_W + MM_FOLGA;
+  const y0 = _minimap.y - MM_FOLGA, y1 = _minimap.y + MM_VIEW_H + MM_FOLGA;
+  return telaX >= x0 && telaX <= x1 && telaY >= y0 && telaY <= y1;
+}
+
 // Ponto do jogador (worldX,worldY em px do mundo; o game.js passa o centro do corpo). ALEM do dot, translada
 // `_mmView` para que o jogador caia sempre no centro da janela — e' isto que torna o minimapa um "recorte".
-export function drawMinimapPlayer(worldX: number, worldY: number): void {
+// ⚠️ `camX`/`camY` SÃO OPCIONAIS e só servem à fuga acima: sem eles o minimapa desenha-se igual, e é assim
+// que os testes o chamam. Com eles, o mapa sai da frente de quem anda por baixo.
+export function drawMinimapPlayer(worldX: number, worldY: number, camX?: number, camY?: number): void {
   if (!_mmView || !_mmPlayer) return;
+  if (camX !== undefined && camY !== undefined && tocaOMinimapa(worldX - camX, worldY - camY)) {
+    _mmNaDireita = !_mmNaDireita;
+    colocarNoCanto();
+  }
   const px = (worldX / TILE) * MM_SCALE;
   const py = (worldY / TILE) * MM_SCALE;
   // `Math.round` para o conteudo nao fazer sub-pixel shimmer ao mover-se de frame para frame.
@@ -96,8 +132,12 @@ export function resetMinimap(): void { _seen.forEach((r) => r.fill(0)); _dirty =
 // Reposiciona o minimapa: no toque vai p/ o canto sup-dir (não briga com os controles); senão inf-esq.
 export function setMinimapCorner(touch: boolean): void {
   if (!_minimap) return;
-  if (touch) { _minimap.x = LOGICAL_W - MM_VIEW_W - MM_PAD; _minimap.y = MM_PAD; }
-  else { _minimap.x = MM_PAD; _minimap.y = LOGICAL_H - MM_VIEW_H - MM_PAD; }
+  // ⚠️ ESCREVE TAMBÉM O LADO DA FUGA, senão as duas regras discordavam: o toque punha o mapa à direita e o
+  // `_mmNaDireita` continuava a dizer «esquerda», de modo que o primeiro encontro com o personagem o
+  // mandava para a direita onde ele já estava — uma fuga que não fugia.
+  _mmNaDireita = touch;
+  _minimap.y = touch ? MM_PAD : LOGICAL_H - MM_VIEW_H - MM_PAD;
+  colocarNoCanto();
 }
 
 export function setMinimapVisible(v: boolean): void { if (_minimap) _minimap.visible = v; } // some no título / no multiplayer

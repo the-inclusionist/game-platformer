@@ -234,7 +234,7 @@ export interface DrawCtx {
   drawElevators(): void;                        // game/level-geometry.drawElevators(elevLayer) — importa PIXI
   markSeen(camX: number, camY: number): void;   // render/minimap — importa PIXI
   redrawMinimapIfDirty(): void;
-  drawMinimapPlayer(worldX: number, worldY: number): void;
+  drawMinimapPlayer(worldX: number, worldY: number, camX?: number, camY?: number): void;
   applySharedTextures(viz: string): void;       // render/viz-setters (instância criada no game.js)
   renderVpOverlay(i: number, viz: string): void; // render/viewports (idem)
   playerVizTex(base: Frame, viz: string): unknown; // idem — recolor do quadro por modo de visão
@@ -354,7 +354,9 @@ export function initDraw(ctx: DrawCtx): DrawApi {
       for (let j = 0; j < itens.length; j++) { const s = itens[j]; if (s) s.alpha = shimOn ? 0.8 + 0.2 * Math.sin(fxClock * 0.12 + j * 1.7) : 1; }
       const { camX, camY } = placeCam(PLS[0]);
       ctx.markSeen(camX, camY); ctx.redrawMinimapIfDirty();
-      ctx.drawMinimapPlayer(PLS[0].x, PLS[0].y - ctx.BOX.h / 2);
+      // ⚠️ A CÂMARA VAI JUNTO desde 03/10: é com ela que o minimapa sabe onde o personagem está NA TELA,
+      // e é isso que lhe permite sair da frente de quem anda por baixo (ver `render/minimap`).
+      ctx.drawMinimapPlayer(PLS[0].x, PLS[0].y - ctx.BOX.h / 2, camX, camY);
     } else {
       // Otimização: se TODOS estão no mesmo modo (caso comum), troca as texturas UMA vez; senão, por viewport.
       // ⚠️ A COMPARAÇÃO PASSOU A SER PELA CHAVE DE TEXTURA, e isso é output-preservador e mais barato ao
