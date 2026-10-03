@@ -1,9 +1,13 @@
 # Router Worker — `o-inclusionista.jrocha.dev.br` → jogos
 
 Este Worker resolve o impasse: o dominio `o-inclusionista.jrocha.dev.br` ja pertence ao projeto Pages do
-SITE, e CF Pages so permite um dominio por projeto. Para servir o jogo em `.../game-platformer/*` do MESMO
-dominio (necessario para partilhar o cache por origem, ADR-0117), este Worker intercepta duas rotas e
-proxia-as para `game-platformer.pages.dev`. Tudo o resto cai para o site, como se o Worker nao existisse.
+SITE, e CF Pages so permite um dominio por projeto. Para servir CADA jogo em `.../<slug>/*` do MESMO
+dominio (necessario para partilhar o cache por origem, ADR-0117), este Worker intercepta uma rota por jogo
+mais a rota partilhada do `/heavy/*`, e proxia cada uma para o projeto Pages certo. Tudo o resto cai para o
+site, como se o Worker nao existisse.
+
+**Jogos encaminhados hoje** (02/10): `game-platformer` → `game-platformer.pages.dev`, `game-2048` →
+`game-2048-32g.pages.dev`.
 
 ## Fluxo em producao
 
@@ -71,18 +75,27 @@ curl -I https://o-inclusionista.jrocha.dev.br/heavy/huggingface.co/onnx-communit
 
 Ambos devem devolver `200 OK` (ou `304` para o segundo com `If-None-Match`).
 
-## Adicionar um segundo jogo
+## Adicionar um jogo
 
-Quando o `game-chess` existir e tiver o seu proprio projeto Pages:
+Feito uma vez em 02/10 para o `game-2048`; a receita e' esta. Quando o jogo tiver o seu proprio projeto
+Pages a responder:
 
-1. No `src/index.js`, descomentar a linha `'game-chess': 'game-chess.pages.dev'`.
+1. No `src/index.js`, uma linha no mapa `GAMES`.
+   ⚠️ **A chave e' o segmento do caminho; o valor e' a ORIGEM REAL.** Os dois nao tem de coincidir — o
+   namespace `.pages.dev` e' global, entao quando o nome ja pertence a outra conta o Cloudflare mantem o
+   nome do projeto e sufixa o subdominio. O `game-2048` e' exatamente isso: projeto `game-2048`, subdominio
+   `game-2048-32g.pages.dev`. Confirmar no dashboard antes de escrever o valor.
 2. Em `wrangler.toml`, acrescentar uma rota:
    ```toml
    [[routes]]
-   pattern = "o-inclusionista.jrocha.dev.br/game-chess/*"
+   pattern = "o-inclusionista.jrocha.dev.br/<slug>/*"
    zone_name = "jrocha.dev.br"
    ```
 3. `wrangler deploy`.
+
+📌 **A ORDEM IMPORTA**: o projeto Pages tem de estar a responder ANTES da rota existir. Com a rota a apontar
+para um `.pages.dev` que ainda nao existe, o 404 vem do lado do Cloudflare e fica dificil dizer se o erro e'
+da rota ou do projeto.
 
 O `/heavy/*` continua a ir para `game-platformer.pages.dev` (que tem a Pages Function com o binding R2);
 nenhum outro jogo precisa de uma Function propria. Qualquer requer, inclui tudo entre uma e outra origem.

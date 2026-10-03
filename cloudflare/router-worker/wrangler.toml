@@ -11,11 +11,19 @@ pattern = "o-inclusionista.jrocha.dev.br/game-platformer/*"
 zone_name = "jrocha.dev.br"
 
 [[routes]]
+pattern = "o-inclusionista.jrocha.dev.br/game-2048/*"
+zone_name = "jrocha.dev.br"
+
+[[routes]]
 pattern = "o-inclusionista.jrocha.dev.br/heavy/*"
 zone_name = "jrocha.dev.br"
 
 # ⚠️ UMA ROTA POR JOGO. Para acrescentar `game-chess`, descomenta-se a linha aqui E a entrada em `GAMES`
 # dentro de `src/index.js`. Nao e' preciso tocar em nenhum repo de jogo nem no do site.
+#
+# 📌 O `/heavy/*` NAO GANHA UMA ROTA POR JOGO — e' uma so, partilhada, e aponta sempre para o projeto Pages
+# que tem a Pages Function com o binding R2 (hoje o `game-platformer`). O `game-2048` traz uma Function
+# igual no seu repo por paridade, mas ela fica dormente: este router nunca lhe manda `/heavy/*`.
 #
 # [[routes]]
 # pattern = "o-inclusionista.jrocha.dev.br/game-chess/*"
