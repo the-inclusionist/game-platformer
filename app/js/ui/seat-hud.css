@@ -81,6 +81,25 @@
    ⚠️ `--hud-row-bottom` É DA ENGINE e ela reescreve-o quando o pad aparece (`ui/hud-row` segue o pad): por
    isso a regra não mexe nessa variável — ancora pelo `top` e deixa o `bottom` em `auto`, senão as duas
    escreviam a mesma posição e a última a correr ganhava. */
+/* 🔴 O RODAPÉ DEIXA DE RESERVAR LUGAR PARA O RELÓGIO, porque ele já não está em baixo. A engine calcula
+   `--rodape-h: calc(var(--hud-row-bottom) + var(--hud-row-h))` (`style.css:618`) — «o que um jogo deixa
+   livre no fundo» —, e o cartão de pausa reserva esse espaço no fim (`.pause-card::after`, `:285`). Com a
+   linha movida para o topo, a reserva ficou a pagar por um relógio ausente, e a legenda «2: confirmar ·
+   3: voltar» ficava suspensa acima da base (o Dev, 03/10, com um print: «deve estar alinhada com a base
+   da tela»). A zero, a legenda desce até ao fundo e o `--footer-band-h` continua a dar-lhe a sua própria
+   faixa. */
+#game-region {
+  --rodape-h: 0px;
+}
+
+/* ⚠️ E O RELÓGIO SOME NO MENU SELECT (pedido do Dev, 03/10: «apesar de necessário neste momento, ele
+   atrapalha mais que ajuda»). Com o cartão aberto a tela é dele; o tempo volta assim que ela fecha. O
+   `:has` pergunta pelo cartão à vista, que é a definição exata de «no menu».
+   📌 NOME: o Dev chama-lhe menu SELECT e não menu de pausa, porque a pausa deixou de o abrir. */
+#game-region:has(.screen-pause:not([hidden])) .hud-row {
+  display: none;
+}
+
 .hud-row {
   top: 0;
   bottom: auto;
