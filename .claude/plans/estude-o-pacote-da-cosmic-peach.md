@@ -368,6 +368,73 @@ forma).
   é bug da engine, mesmo sem controle físico, porque o `ctx.navTitle` nunca sai do `steerPause`.
 - **C.7 (`inclusionist-heavy --base` layout)**: backlog, não bloqueia.
 
+### Estado em 02/10, ~22h30 — pivô para Tauri (abandono do PWA)
+
+O Dev decidiu: *«vamos trabalhar diretamente com Tauri e esquecer PWA»*. O alvo final deixa de ser um PWA
+hospedado em `o-inclusionista.jrocha.dev.br` e passa a ser **uma shell Tauri instalada em Windows, Linux e
+Android que carrega o motor localmente e baixa cartuchos sob demanda** — modelo de console: a shell é a
+consola, o cartucho é o jogo, os pesados (Kokoro, MediaPipe, Vosk, leitura) ficam na pasta de dados da
+instalação do app.
+
+🔴 **Isto reorganiza o que estávamos a fazer. Nada do que já está commitado foi perdido** — o cartucho em
+si está certo (foi para isto que ADR-0036/0068/0082/0083 o desenharam, como artefato autônomo que uma shell
+instancia); o que muda é o CONSUMIDOR, e por consequência o MECANISMO de distribuição e entrega de pesados.
+
+**Perde propósito principal (não é apagado, é desclassificado — pedido do Dev por 2 perguntas em aberto):**
+- A rota `o-inclusionista.jrocha.dev.br/game-platformer/` **deixa de ser a entrega oficial**. Pergunta ao
+  Dev: fica como canal de demonstração (`axe` público, feedback de professores sem instalar) ou derrubamos?
+- `<base href="/">` no `index.html` foi introduzido para a engine resolver `/heavy/*` na raiz do domínio
+  (ADR-0117). Em Tauri (`tauri://localhost/`) o WebView interpreta diferente — a verificar na primeira
+  passagem da shell. Pode sair, pode ficar reformulado.
+- Os 4 fixes do padrão `<base>+relative` (`910e3ba`, `29033ee`, `9ef512e`) **continuam úteis mas só para o
+  canal de demo**, se mantido.
+- Infra CF Pages + Router Worker + Pages Function `/heavy/*` + R2 jurisdicional, pensada para cache por
+  origem no navegador (ADR-0117), **perde a razão principal**. Se o demo cai, a infra sai junto.
+- `vite base` configurável para `/game-platformer/` — no Tauri o cartucho não vive em subpath; sai, se o
+  demo cair.
+
+**Não muda (continua FEITO e certo):**
+- O cartucho (`{ slug, declaration, hooks, create(ctx) }`), o jogo, a i18n, a acessibilidade, os testes, o
+  checador do cartucho, o `axe`.
+- `uses.neuralVoice: true`, `uses.reading: true` — a engine ainda precisa saber que modelos pedir; muda só
+  o MECANISMO de entrega (sistema de ficheiros via `tauri://` em vez de `CacheStorage` do navegador).
+
+**Vira trabalho novo (não deste repositório):**
+- **Projeto shell Tauri** (pastinha nova, `cargo tauri init`). Importa `@the-inclusionist/engine`, tem
+  catálogo de cartuchos (JSON com URL do bundle), download manager Rust-side para cartuchos e pesados,
+  builds para Win/Linux/Android. Rotulagem a decidir pelo Dev (sugiro «the-inclusionist-shell»).
+- **Catálogo de cartuchos** em algum endpoint — pode ficar nos CF Pages reaproveitados, ou mudar para outro
+  host, decisão depois.
+
+**Reformulação do pedido à engine (sessão da engine precisa saber):**
+- O pedido anterior «`inclusionist-heavy --base` gerar o layout do CF Pages» torna-se **«resolução abstrata
+  de `/heavy/*` que a shell cumpre»**: no navegador (se demo), HTTP + `CacheStorage`; em Tauri, protocolo
+  `tauri://heavy/*` + ficheiro em `app_local_data_dir`, baixado pela shell na primeira execução. O cartucho
+  continua a dizer `fetch('/heavy/kokoro.onnx')` — a engine (ou o `host` que a shell injeta) troca a
+  resolução.
+- O pedido «uma tela por viewport» da secção anterior **permanece inalterado**. Tauri é WebView; a divisão
+  de tela continua a ser um `<div>` dividido no mesmo documento.
+
+**Trava nova de Android:** APK no Google Play ≤ 150 MiB base, até 2 GiB com Asset Packs. **1,2 GiB de heavy
+NÃO cabe no APK base** — a shell precisa de UI de progresso para primeira execução, confirmação de rede, e
+tratar sem internet. Desenho da shell, não do cartucho.
+
+**Decisões do Dev em 02/10 ~22h40:**
+1. ✓ **URL de demo FICA como canal de demonstração** (`axe` público, feedback de professores sem
+   instalar). Logo: `<base>`, Router Worker, Pages Function `/heavy/*`, `wrangler.toml`, os 4 fixes de
+   `BASE_URL` e o `vite base` configurável **permanecem**. Nada a derrubar.
+2. ✓ **Ordem de trabalho: (c) primeiro, (b) depois, (a) por último.**
+   - **(c)** Rascunhar mensagem para a sessão da engine comunicando o pivô Tauri + pedido novo de
+     abstração `/heavy/*`. Dev revisa, Dev manda.
+   - **(b)** Terminar limpeza PWA-específico que ainda faça sentido com o demo mantido (provavelmente
+     pouca ou nenhuma coisa a limpar; medir antes de assumir).
+   - **(a)** Começar a shell Tauri como projeto novo.
+3. Nome do projeto da shell: **ainda em aberto** (sugiro «the-inclusionist-shell»).
+
+**Decisões adiadas (ficam para depois do pivô assentar):**
+- Publicação do cartucho (A/B): **deixa de ser urgente** no modelo Tauri (a shell faz `fetch` do bundle,
+  não `npm install`). Mantém-se `private: true` por ora; revisita quando a shell tiver forma.
+
 ### DW medido em 02/10: `uses.fonts` fica vazio
 
 O jogo desenha texto com uma família só, `system-ui, sans-serif` (`render/textures.ts:90`), e nenhum CSS dele
