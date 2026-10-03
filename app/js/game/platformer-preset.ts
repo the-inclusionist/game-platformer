@@ -44,11 +44,32 @@ export function platformerPreset(): ActionPreset {
     action2: { labelKey: 'act.jump', shortKey: 'legend.jump' },
     action3: { labelKey: 'act.especial', shortKey: 'legend.especial' },
     action4: { labelKey: 'act.swap', shortKey: 'legend.swap' },
+
+    /**
+     * 🔴 O R2, DECLARADO EM 03/10 — a primeira posição que esta plataforma tira da fileira dos ombros e
+     * gatilhos. O Dev: *«botão R2 altera a disposição do mapa na tela, entre canto inferior esquerdo, canto
+     * inferior direito e canto superior direito»*. Quem executa é `render/minimap.proximoCantoDoMinimapa`,
+     * chamado pela raiz em `receberComando`.
+     *
+     * ⚠️ DECLARAR É MAIS DO QUE LIGAR UM BOTÃO, e o Dev confirmou-o sabendo disso: a posição passa a ter
+     * nome, e com o nome vem o resto — o assistente de controle pergunta-a, a tela de remapeamento mostra-a,
+     * a tabela de ajuda ganha a sua linha, e os transportes que não são o pad alcançam-na pela mesma porta
+     * (tecla `O`, quatro dedos à câmara, a boca para a direita, o ciclo do olhar). Não declarar deixaria o
+     * R2 a funcionar em silêncio para quem o descobrisse por acaso — que é a barreira que o ADR-0086 e o
+     * `labellerFrom` existem para não deixar acontecer.
+     *
+     * 📌 EM 3-4 JOGADORES O TECLADO PARTILHADO NÃO O ALCANÇA (`input/keyboard`,
+     * `UNREACHABLE_ON_A_SHARED_KEYBOARD`), e a ajuda vai dizê-lo com a linha sem tecla. Combina: o minimapa
+     * não se desenha em multijogador (`setMinimapVisible`), então não há canto nenhum a mudar.
+     */
+    rightTrigger: { labelKey: 'act.mapa', shortKey: 'legend.mapa' },
+
     // 🔴 `start` SAIU, e não por esquecimento: a engine 11 é DONA da pausa (decisão (A) do Dev, 02/10) e o
     // `createGame` RECUSA um preset que reclame `start` ou `select` — o jogo não arrancava. O START abre a pausa
     // rápida e o SELECT o cartão em qualquer transporte, e quem os rotula é a engine.
-    // ⚠️ `select` e os quatro ombros/gatilhos NÃO são declarados, e a ausência é a declaração: esta
-    // plataforma não os usa. O assistente de controle não vai perguntar por eles, o que é exatamente o que
-    // `labellerFrom` devolver `null` significa — uma ausência vira menos um passo, nunca um passo mudo.
+    // ⚠️ `select` e os outros TRÊS ombros/gatilhos continuam por declarar, e a ausência continua a ser a
+    // declaração: esta plataforma não os usa. O assistente de controle não vai perguntar por eles, o que é
+    // exatamente o que `labellerFrom` devolver `null` significa — uma ausência vira menos um passo, nunca
+    // um passo mudo. O R2 saiu dessa lista acima porque ganhou trabalho, não porque a regra mudou.
   };
 }

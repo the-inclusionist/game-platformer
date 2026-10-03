@@ -211,6 +211,10 @@ const pt: Record<string, string> = {
   // `legend.especial` e `legend.swap` ja' estao mais acima, no bloco original; so' as duas aqui sao novas.
   'legend.run': 'correr',
   'legend.jump': 'pular',
+  // 🔴 O R2 E AS SUAS DUAS PALAVRAS (Dev, 03/10: «botão R2 altera a disposição do mapa na tela»). A longa
+  // é a da lista de remapeamento; a curta vai debaixo do glifo na legenda, onde «Mover o mapa» não cabe.
+  'act.mapa': 'Mover o mapa',
+  'legend.mapa': 'mapa',
 };
 
 const en: Record<string, string> = {
@@ -414,6 +418,8 @@ const en: Record<string, string> = {
   // see pt above — the other two are already defined earlier in this block.
   'legend.run': 'run',
   'legend.jump': 'jump',
+  'act.mapa': 'Move the map',
+  'legend.mapa': 'map',
 };
 
 const es: Record<string, string> = {
@@ -617,6 +623,8 @@ const es: Record<string, string> = {
   // ver pt arriba — las otras dos ya están declaradas antes en este bloque.
   'legend.run': 'correr',
   'legend.jump': 'saltar',
+  'act.mapa': 'Mover el mapa',
+  'legend.mapa': 'mapa',
 };
 
 /**

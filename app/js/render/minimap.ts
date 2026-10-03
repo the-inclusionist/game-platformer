@@ -30,7 +30,12 @@ let _W = 0, _H = 0;
 export function initMinimap(stage: PIXI.Container, W: number, H: number): void {
   _W = W; _H = H;
   _minimap = new PIXI.Container();
-  _minimap.x = MM_PAD; _minimap.y = LOGICAL_H - MM_VIEW_H - MM_PAD; _minimap.alpha = 0.92;
+  // ⚠️ O ESTADO DO CANTO VOLTA AO INÍCIO AQUI, e não é zelo: remontar o stage (trocar de cenário, trocar o
+  // número de telas) cria um container novo no canto inferior esquerdo, e um `_mmNaDireita` sobrevivente
+  // diria «direita» sobre um mapa desenhado à esquerda — o primeiro R2 ou a primeira fuga saltariam um canto.
+  _mmNaDireita = false; _mmEmCima = false;
+  colocarNoCanto();
+  _minimap.alpha = 0.92;
   stage.addChild(_minimap);
 
   // Fundo com o tamanho da JANELA (nao do mundo). O +2/-1 e' uma moldura de 1px.
@@ -89,13 +94,47 @@ export function redrawMinimapIfDirty(): void {
  * atravessasse a tela empurrava o mapa uma vez e ficava sem o canto esquerdo para sempre.
  */
 let _mmNaDireita = false;
+/**
+ * A ALTURA DO CANTO, separada do lado — e é a separação que faz as duas regras coexistirem.
+ *
+ * 🔴 O R2 PERCORRE TRÊS CANTOS (pedido do Dev, 03/10: *«botão R2 altera a disposição do mapa na tela, entre
+ * canto inferior esquerdo, canto inferior direito e canto superior direito»*) e a FUGA troca só o LADO. Com
+ * um índice de 0 a 2 as duas escreviam a mesma variável e pisavam-se: fugir a partir do canto de cima teria
+ * de escolher entre descer o mapa (que ninguém pediu) ou não fugir (que é não resolver o problema dele).
+ * Com lado e altura independentes, fugir no canto de cima leva o mapa ao superior esquerdo — um quarto
+ * canto que o R2 não visita de propósito, e de onde ele recomeça do primeiro (ver `proximoCantoDoMinimapa`).
+ */
+let _mmEmCima = false;
 /** A folga que conta como «tocar»: o personagem não precisa de encostar para o mapa já o estar a atrapalhar. */
 const MM_FOLGA = 6;
 
-/** Põe o minimapa no canto, respeitando o lado em que ele está agora. */
+/** Os três cantos do R2, na ordem que o Dev deu: `[naDireita, emCima]`. */
+const CANTOS: readonly (readonly [boolean, boolean])[] = Object.freeze([
+  [false, false], // inferior esquerdo — onde o mapa nasce
+  [true, false],  // inferior direito
+  [true, true],   // superior direito
+]);
+
+/** Põe o minimapa no canto em que ele está agora — a única linha que escreve a posição. */
 function colocarNoCanto(): void {
   if (!_minimap) return;
   _minimap.x = _mmNaDireita ? LOGICAL_W - MM_VIEW_W - MM_PAD : MM_PAD;
+  _minimap.y = _mmEmCima ? MM_PAD : LOGICAL_H - MM_VIEW_H - MM_PAD;
+}
+
+/**
+ * O R2 ADIANTA O MAPA UM CANTO. Chamado pela raiz de composição quando o `rightTrigger` é pressionado, por
+ * qualquer transporte — tecla, gatilho do pad, quatro dedos à câmara ou a voz (ver `main.ts`,
+ * `receberComando`).
+ *
+ * 📌 UM CANTO FORA DA LISTA RECOMEÇA DO PRIMEIRO, e isso sai de graça em vez de ser um caso à parte: o
+ * `findIndex` devolve `-1` para o superior esquerdo — o canto a que só a fuga chega — e `(-1 + 1) % 3` é 0.
+ */
+export function proximoCantoDoMinimapa(): void {
+  const i = CANTOS.findIndex(([dir, cima]) => dir === _mmNaDireita && cima === _mmEmCima);
+  const [dir, cima] = CANTOS[(i + 1) % CANTOS.length]!;
+  _mmNaDireita = dir; _mmEmCima = cima;
+  colocarNoCanto();
 }
 
 /** O personagem, na tela, está sobre o retângulo do minimapa (com folga)? */
@@ -129,16 +168,16 @@ export function drawMinimapPlayer(worldX: number, worldY: number, camX?: number,
 // Fim de fase: o fog-of-war volta a escurecer (o mapa some até ser revisto).
 export function resetMinimap(): void { _seen.forEach((r) => r.fill(0)); _dirty = true; }
 
-// Reposiciona o minimapa: no toque vai p/ o canto sup-dir (não briga com os controles); senão inf-esq.
-export function setMinimapCorner(touch: boolean): void {
-  if (!_minimap) return;
-  // ⚠️ ESCREVE TAMBÉM O LADO DA FUGA, senão as duas regras discordavam: o toque punha o mapa à direita e o
-  // `_mmNaDireita` continuava a dizer «esquerda», de modo que o primeiro encontro com o personagem o
-  // mandava para a direita onde ele já estava — uma fuga que não fugia.
-  _mmNaDireita = touch;
-  _minimap.y = touch ? MM_PAD : LOGICAL_H - MM_VIEW_H - MM_PAD;
-  colocarNoCanto();
-}
+/* 🔴 `setMinimapCorner(touch)` SAIU DAQUI em 03/10, e a ausência fica escrita porque ela é uma decisão.
+ *
+ * Ela punha o mapa no canto superior direito quando o pad de toque aparecia, «para não brigar com os
+ * controles» — uma boa intenção que NUNCA chegou a correr: era exportada e nenhum ponto do produto a
+ * chamava, nem a raiz, nem o `__incl`. Era um canto que o código prometia e a criança não via.
+ *
+ * ⚠️ E AGORA HÁ QUEM FAÇA O TRABALHO DELA, à mão: o `proximoCantoDoMinimapa` acima, no R2. Deixá-la viva
+ * ao lado dele punha duas escritas sobre o mesmo canto, uma automática e muda, e o Dev nunca decidiu que
+ * quer a automática — manter o mapa parado onde ele o pôs é o comportamento menos surpreendente das duas.
+ * Se um dia a quisermos de volta, ela é `proximoCantoDoMinimapa` com um canto fixo em vez do seguinte. */
 
 export function setMinimapVisible(v: boolean): void { if (_minimap) _minimap.visible = v; } // some no título / no multiplayer
 export function getMinimap(): PIXI.Container | null { return _minimap; }                     // p/ o __incl (debug/teste)

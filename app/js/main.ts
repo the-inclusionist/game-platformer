@@ -154,7 +154,7 @@ import type { Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: R
 import { initCollision, tileAt, solidAt, surfTop } from './core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
-import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount } from './render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
+import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount, proximoCantoDoMinimapa } from './render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
 import { createLayout } from '@the-inclusionist/engine/ui/layout.js'; // Estágio 4 (Tier 1): escala do jogo (múltiplo inteiro de 320×180 em px reais)
 // Mundo carregado do texto-glifo assets/levels/clarity.map.txt (Fase 1.2). Construtor em core/world.js.
 import { buildWorldFromText } from './core/world.js';
@@ -1275,7 +1275,7 @@ const screenPipeline = initScreenPipeline({
 function configureRender(){ screenPipeline.configureRender(); }
 
 // E5: minimapa estilo Metroid (canto inferior esquerdo, fixo na tela, fog-of-war)
-initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1): container + fog-of-war (markSeen/redrawMinimapIfDirty/drawMinimapPlayer/resetMinimap/setMinimapCorner/…)
+initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1): container + fog-of-war (markSeen/redrawMinimapIfDirty/drawMinimapPlayer/resetMinimap/proximoCantoDoMinimapa/…)
 // A MONTAGEM DO HUD (`buildGameHud()`) mora lá embaixo, junto da tela de título — ver a nota lá.
 
 /* ===================== física (por jogador — E11) -> game/physics.ts (B1) =====================
@@ -1585,6 +1585,17 @@ function receberComando(comando: VirtualCommand): void {
   const campo = ARESTA_DA_ACAO[comando.action];
   const jogador = players[comando.player] as unknown as Record<string, unknown> | undefined;
   if (campo && jogador) jogador[campo] = true;
+  /*
+   * 🔴 O R2 ADIANTA O CANTO DO MAPA (pedido do Dev, 03/10). Aqui e não na física, por dois motivos:
+   *
+   *  · é UM TOQUE e não uma tecla segurada — a física lê `held()` a cada quadro, e o mapa saltaria três
+   *    cantos por segundo enquanto o dedo estivesse no gatilho. A aresta existe exatamente neste ponto;
+   *  · e é desenho, não mundo. A física não sabe que existe um minimapa, e é bom que continue sem saber.
+   *
+   * 📌 QUALQUER ASSENTO SERVE porque o mapa é UM só, partilhado pela tela toda — e em multijogador ele nem
+   * se desenha (`setMinimapVisible`), de modo que não há canto para dois pedirem ao mesmo tempo.
+   */
+  if (comando.action === 'rightTrigger') proximoCantoDoMinimapa();
 }
 
 /*
