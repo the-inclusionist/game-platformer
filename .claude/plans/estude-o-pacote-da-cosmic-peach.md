@@ -192,21 +192,41 @@ passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o 
 
 **O que falta é decisão, e não trabalho:**
 - **Publicar: pergunta ABERTA.** Medido em 02/10, 15h40: o cartucho `npm pack`+instala-se de fora e passa o
-  checador — tecnicamente está pronto. O que falta é RAZÃO para publicar no npm público. A arquitectura (ADR-0036,
-  0082, 0083) assume publicação, mas o único consumidor é a plataforma do próprio Dev; dentro de UMA origem, um
-  `git+https://.../game-platformer#v0.2.0`, um workspace do pnpm ou um tarball do próprio servidor servem o mesmo
-  propósito sem gravar o pacote em pedra na pré-versão `0.1.0`. **A pergunta ao Dev é «a plataforma já importa do
-  npm, ou está num ponto que podia referir o cartucho por git+https / workspace?»**: a resposta decide se o passo 8
-  é hoje ou mais tarde. Em todos os casos, `git push` dos 13 commits locais é o próximo passo real.
-- **O que (A) custa, e por que o (C) é maior do que parecia (medido em 02/10 depois da resposta do Dev):** o Dev
-  decidiu que *só o jogador 1 pausa (e todos pausam), mas cada um tem a sua própria configuração de inclusão e de
-  jogo*. A engine 11 cumpre a primeira metade — `leadsTheScreen` já é o assento 0 — mas a `SettingsStore` é GLOBAL:
-  `blindMode`, `cbSafe`, `wheelchair`, `oneButton`, `hcOutlineFg`, `letterCase`, `captionsOn` são lidas por todos. Só
-  `vizMode` e a saída de áudio já são por jogador. O pedido (C) para a sessão da engine é maior do que a *«pausa por
-  assento»* original: os painéis que a engine monta têm de EDITAR as configurações do assento que `setPauseActor`
-  indica. Perdas visíveis sem (C): só o assento 0 edita qualquer coisa; «Sair» sai do assento 0; as cores por papel
-  do alto contraste já não se podem mudar (ADR-0151, `offer: { roles: false }` no `create-game.js:1476`). As moedas
-  do assento 0 ficam no topo central, debaixo da barra — mesmo problema de assento 0 condutor.
+  checador — tecnicamente está pronto. O que falta é RAZÃO para publicar no npm público.
+  📌 **Correção da sessão da engine em 02/10 ~21h: o argumento mais forte contra (A) `npm publish` público
+  é o PILAR 10 — o `dist-lib/` leva uma `.png` de arte, e a arte NÃO é FOSS.** Publicar no npm público
+  distribuiria a arte via unpkg/jsdelivr/`npm search`/scanners. Eu nem toquei nisso na análise original.
+  Também corrigiu o URL que citei (é `github.com/the-inclusionist/game-platformer`, não `jrocha-dev`).
+  📌 **Fato novo (02/10 ~22h): o repositório passou a público.** Isso derruba o argumento *«git+https pede
+  token em cada consumidor»* (que valia enquanto era privado); e enfraquece o argumento contra (A), porque
+  a arte já está distribuível por `git clone` — pilar 10 virou pergunta de LICENÇA do próprio repo, não de
+  método de publicação. **Recomendação (B) git+https por tag mantém-se**, agora pelo motivo isolado da
+  imutabilidade do npm: `npm publish` grava `0.1.0` em pedra (unpublish só nas primeiras 72h), e em
+  pré-versão isso é custo real; `git tag` é apagável. (B) exige commitar `dist-lib/` em cada tag (hoje está
+  no `.gitignore`). Promover para (A) depois é mudar uma linha no `package.json` da plataforma.
+- **O que (A) custa, e por que o pedido à engine é mais fundo do que «pausa por assento» (corrigido pela
+  sessão da engine em 02/10 ~21h):** o Dev decidiu que *só o jogador 1 pausa (e todos pausam), mas cada um
+  tem a sua própria configuração de inclusão e de jogo*. 🔴 **Correções que a sessão da engine fez à minha
+  análise:**
+  1. **A causa raiz é «uma raiz por tela», não «pausa por assento».** O pilar 7 diz *«N viewports, one sim»*
+     — telas separadas vivem na MESMA raiz. A engine implementou pensando «uma raiz por tela» e por isso
+     trata os jogadores 2–4 (que têm tela própria no platformer) como outro assento da MESMA tela. O id
+     `#vp-pause-0` («pausa do viewport **0**») mostra que o cartão POR VIEWPORT estava previsto e nunca foi
+     feito. O HUD tem o mesmo defeito (a engine monta UMA faixa, do assento 0, via `mountHudBands(…, numbers,
+     0, …)`). **Nome correto do bloco: «uma tela por viewport», não «pausa por assento».**
+  2. **Eu inventei o ADR-0151 como fonte de «SettingsStore global».** Esse ADR não diz isso. Memória
+     violada: «identificador não resolvido é invenção».
+  3. **Meu inventário de «já por jogador» na 11 estava curto.** Correto: `vizMode`, saída de áudio,
+     `easyMode`, as alternâncias (`toggleMove`, `toggleRun`) e partes do `reducedMotion`. Globais que a 11
+     ainda não resolveu: modo cego, caixa das letras, legendas, paleta segura, contorno do alto contraste,
+     cadeira de rodas, um botão só.
+  4. **Faltam restrições no pedido** (sem elas o conserto cria defeito novo):
+     - **ADR-0014:** volume, voz e modo cego só editáveis por quem tem SAÍDA DE ÁUDIO PRÓPRIA — dois modos
+       cegos no mesmo alto-falante viram ruído para os dois.
+     - **Legendas têm um rodapé SÓ POR TELA** — não por assento.
+  5. **A frase «cada um tem a sua própria configuração de inclusão» muda contrato e chaves guardadas** →
+     vira **12.0** (breaking) e pede ADR na engine ANTES do código, registrando a decisão + as restrições
+     acima.
 - **Voz neural: FEITO**, `uses: { neuralVoice: true }` (commit `84475ac`). A engine prefere a voz do aparelho (ADR-0200);
   o Kokoro entra só como alternativa quando não há voz no idioma da criança. Medido com dois pt-BR no aparelho: usa-se
   Daniel/Maria, Kokoro fica no `heavy/` para quem não os tem.
@@ -215,11 +235,11 @@ passaram a ser exatamente as da 11 — faltavam as quinze letras cursivas que o 
   O `dicts` já declara os três, e com `reading: true` a engine carrega modelos de leitura para o idioma vigente
   mais todos os `availableLocales()` (`create-game.js:3419`); os modelos de COMANDO vêm para todos os três de qualquer
   modo («Toda criança vai experimentar as três línguas imediatamente», o Dev no `create-game.js:3408`).
-- **As cores por papel do alto contraste — respondido pela leitura, não falta medir.** O painel visual da engine 11
-  não as OFERECE (`offer: { roles: false }`, e os escritores são `noEffect`, `create-game.js:1476-1478`): não há
-  evento a escutar porque não há quem escreva. As cores que uma criança guardou na versão antiga continuam a valer
-  (o `createHighContrast` do jogo lê-as do armazenamento), mas já não se mudam. É perda da 11, do lado da engine —
-  vai junto do pedido (C), se o Dev o quiser fazer.
+- **As cores por papel do alto contraste — NÃO é defeito da engine (correção da sessão da engine, 02/10 ~21h).**
+  O painel visual não oferece a linha porque OS PAPÉIS (perigo, água, portão…) são PALAVRAS DE UM JOGO. Para a
+  engine oferecer a linha, o cartucho tem de DECLARAR os papéis que pinta. `offer: { roles: false }` é o
+  default correto; `offer: { roles: true }` com a lista dos papéis do jogo é o que falta aqui. **Item pequeno
+  e SEPARADO** do bloco «uma tela por viewport».
 - **A entrega `heavy/`: espelho de 02/10 ampliado para pt-BR + en + es** (`C:\Users\candi\Claude\inclusionist-heavy-mirror\heavy\`,
   **1,2 GiB** — Kokoro + eSpeak NG + MediaPipe vision + Vosk pt/en/es + leitura pt/en/es + `onnxruntime-web`).
   Formato de ENTREGA (`heavy/<host><path>`): `cp -r <espelho>/heavy dist/` revive voz, visão e reconhecimento em
@@ -293,10 +313,12 @@ loop nao as atacava. Lista agora, com estado:
   medicao de 15h, que diagnosticou «classe nao esta a ser escondida», estava errada — a classe nao precisa
   de ser escondida porque o ancestral o é.
 - **Jogadores 2–4 nao abrem o cartao de pausa com START/SELECT** → engine 11 `leadsTheScreen === 0`
-  (`create-game.js:2520`). Pedido (C) para a sessao da engine.
+  (`create-game.js:2520`). **Vai no bloco «uma tela por viewport» da engine (ver secao de 02/10 ~21h).**
 - **Painel visual nao oferece as cores por papel do alto contraste** → `offer: { roles: false }`
-  (`create-game.js:1476`). Pedido (C).
-- **«Sair» so' sai do assento 0, nao os outros assentos individualmente** → pedido (C).
+  (`create-game.js:1476`). **Correcao da sessao da engine: NAO e defeito; e' que o cartucho precisa de
+  DECLARAR os papeis que pinta. Item SEPARADO do bloco «uma tela por viewport».**
+- **«Sair» so' sai do assento 0, nao os outros assentos individualmente** → vai no bloco «uma tela por
+  viewport» (depende de pausa+settings por assento).
 - **Gamepad no ecra de titulo cai no anel generico da engine (perde-se o ◀▶ no numero de jogadores)** →
   medido pela leitura da engine em 02/10 20h55: **bug da engine, nao do jogo**. O pad vai por
   `menuWithDpad = () => !!overlays.topVisibleOverlay() || ...` (`create-game.js:2634`); o `#title-overlay` e um
@@ -310,8 +332,41 @@ loop nao as atacava. Lista agora, com estado:
   precisa cair para `steerTitle` quando nenhum menu da engine reage, OU o `steerFrame` precisa consultar o
   jogo pela mesma via do teclado antes de rotular como «pausa».
 - **HUD «0 de 10 moedas» da engine fica no topo central** sobreposto a outros elementos (medido em jogo em
-  02/10 17h). Decidir se o jogo esconde a HUD da engine (passando `hud: []`) e desenha a sua, ou aceita a
-  posicao.
+  02/10 17h). **Mesmo defeito arquitetural: a engine monta UMA faixa de HUD, do assento 0
+  (`mountHudBands(…, numbers, 0, …)`); HUD por tela vai junto no bloco «uma tela por viewport»**. Correcao
+  da sessao da engine: a uniformidade do HUD foi decisao do Dev em ADR-0168 (13/09) e ADR-0239 — eu
+  justifiquei errado dizendo que era «so' sobre menu de pausa». **Paliativo acordado ate o HUD por tela
+  existir: passar `hud: []`** (medido na engine: sem numeros, a faixa nao nasce). Quando o HUD por tela
+  chegar, o platformer volta a usar o da engine.
+
+### Estado em 02/10, ~22h — resposta da sessão da engine
+
+A sessão da engine respondeu à minha mensagem de 02/10 ~21h e corrigiu-me em quase todos os pontos. As
+correções já foram aplicadas nos blocos acima; esta secção consolida o PEDIDO ÚNICO como a sessão da engine
+propôs, para servir de referência estável:
+
+**Bloco «uma tela por viewport» (pedido único à engine, começa por ADR, vira 12.0):**
+1. **Cartão de pausa POR VIEWPORT**, não só o do assento 0 (`#vp-pause-0` passa a ter irmãos `#vp-pause-1/2/3`).
+2. **Menus POR VIEWPORT** (incluindo painéis de inclusão), ligados ao cartão daquele viewport.
+3. **HUD POR VIEWPORT** (`mountHudBands` recebe o viewport, não só o assento 0).
+4. **«Sair» POR VIEWPORT** — sai só a tela daquele viewport, deixa os outros a jogar.
+5. **Ajustes de inclusão POR ASSENTO** no `SettingsStore`, com estas restrições do ADR-0014 e da
+   acomodação de legendas:
+   - **Modo cego, volume, voz** → só editáveis por assento com SAÍDA DE ÁUDIO PRÓPRIA (ADR-0014).
+   - **Legendas** → um rodapé SÓ POR TELA, não por assento.
+6. **Pad no título chama `navTitle` do jogo** (bug `menuWithDpad` descrito acima em 02/10 20h55).
+
+**Começa com um ADR** registrando a decisão «cada criança tem a sua própria configuração de inclusão»
++ as duas restrições do item 5 + a lista de chaves do `localStorage` que vão mudar de global para
+por-assento (necessário para o shim de migração). **Vira 12.0** (breaking: as chaves guardadas mudam de
+forma).
+
+**Fora deste bloco** (itens separados que a sessão da engine confirmou):
+- **C.5 (cores por papel do alto contraste)**: pequeno item do CARTUCHO — declarar os papéis que pinta
+  (`offer: { roles: true }` + lista), não da engine.
+- **C.6 (pad no título)**: FICA no bloco acima (item 6) — a leitura da engine em 02/10 20h55 confirmou que
+  é bug da engine, mesmo sem controle físico, porque o `ctx.navTitle` nunca sai do `steerPause`.
+- **C.7 (`inclusionist-heavy --base` layout)**: backlog, não bloqueia.
 
 ### DW medido em 02/10: `uses.fonts` fica vazio
 
@@ -379,7 +434,9 @@ módulos que vieram para casa **ficam** — não voltam para a engine.
 
 - Cada acomodação, uma a uma.
 - `uses.fonts` (depois de medir se o jogo desenha fora das famílias da engine), `genero`, `uses.neuralVoice`.
-- Publicar o pacote — e o `git push`, que nunca é meu.
-- A pausa e o HUD numa tela dividida: (A), (B) ou (C) acima.
+- **Publicar o pacote** — e o `git push`, que nunca é meu. Rota recomendada: (B) `git+https` por tag, pela
+  imutabilidade do npm em pré-versão; mudança para (A) depois é trivial.
+- **HUD do jogo em tela dividida enquanto o bloco «uma tela por viewport» da engine não existir:** aceitar
+  o paliativo `hud: []` + manter o HUD do jogo (acordado com a sessão da engine em 02/10 ~22h).
 - Se o cartucho recebe o armazenamento pelo `ctx` em vez de abrir o `localStorage` (hoje abre um invólucro
   sem memória sobre o mesmo armazenamento da engine; mudar é mexer no contrato do cartucho).
