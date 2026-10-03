@@ -51,4 +51,11 @@
 .hud-row {
   top: 0;
   bottom: auto;
+  /* ⚠️ ALINHA PELAS MEDIDAS DA ENGINE, e não por um número meu (pedido do Dev em 03/10: «use o padding da
+     engine… e o tamanho de fonte também»). O `.vphud` recua `.4em` do topo (`style.css:255`) e desenha com
+     `--hud-fs`; a `.hud-row` nascia sem recuo de topo e com `--ui-fs`, que é a medida da INTERFACE e não a
+     do HUD — daí o TEMPO ficar uma linha acima das moedas. Com as mesmas duas, as duas colunas caem à mesma
+     altura sozinhas, e continuam a cair juntas se a engine mudar qualquer das medidas. */
+  padding-top: 0.4em;
+  font-size: var(--hud-fs, 16px);
 }
