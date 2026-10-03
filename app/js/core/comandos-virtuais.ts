@@ -21,9 +21,41 @@
 import type { Action } from '@the-inclusionist/engine/core/actions.js';
 import type { VirtualCommand } from '@the-inclusionist/engine/input/virtual-controller.js';
 
+/**
+ * A ARESTA QUE CADA POSIÇÃO MARCA NO JOGADOR, e por que esta tabela existe.
+ *
+ * 🔴 A ALTERNÂNCIA DE MARCHA LÊ ARESTAS, NÃO ESTADO. Com `toggleMove` ligada, `horizontalMove` chama
+ * `nextLatchedDir(pl.walkDir, pl.leftEdge, pl.rightEdge)` (`game/physics.ts:223`) — um toque numa direção
+ * TRAVA a marcha, e é a aresta que conta o toque. A física limpa as seis no fim de cada passo
+ * (`physics.ts:423,432`), então elas valem um quadro e quem pressiona tem de as marcar.
+ *
+ * ⚠️ E NINGUÉM AS MARCAVA. Medido em 03/10: a única escrita a `true` em todo o repositório era o bot do
+ * attract. Logo a alternância estava morta para TODOS os transportes — o teclado incluído, o que se vê
+ * ligando-a e apertando D: o boneco não anda.
+ *
+ * 📌 E ISSO APANHA A CÂMERA EM CHEIO, por desenho da engine e não por acidente: nos quatro transportes de
+ * um comando — olhos, rosto, gestos, fala — a trava NASCE do que o jogo responde em `holdsKeys()`
+ * (ADR-0249, `input/latch-scope`), e este jogo responde `true` porque «direita» tem de MANTER o boneco a
+ * andar. Então a criança que joga por gesto é encaminhada para o caminho da alternância — exatamente o que
+ * o cartucho nunca implementou.
+ */
+export const ARESTA_DA_ACAO: Readonly<Record<string, string>> = Object.freeze({
+  left: 'leftEdge', right: 'rightEdge',
+  action1: 'runEdge',      // correr / interagir
+  action2: 'jumpEdge',     // pular
+  action3: 'specialEdge',  // especial
+  action4: 'swapEdge',     // trocar poder
+});
+
 export interface ComandosVirtuais {
-  /** O gancho que vai no `onCommand` do cartucho: a engine chama-o a cada aperto e a cada largada. */
-  receber(comando: VirtualCommand): void;
+  /**
+   * O gancho que vai no `onCommand` do cartucho: a engine chama-o a cada aperto e a cada largada.
+   *
+   * Devolve `true` quando o estado MUDOU — e é por isso que devolve alguma coisa: a aresta marca-se na
+   * transição, nunca na repetição. Uma tecla segurada com auto-repeat do sistema chega aqui muitas vezes
+   * por segundo, e marcar a aresta em cada uma inverteria a direção da marcha a cada repetição.
+   */
+  receber(comando: VirtualCommand): boolean;
   /** O assento `i` está a segurar `acao` AGORA, por um transporte que não produz tecla? */
   segura(i: number, acao: string): boolean;
   /** Larga tudo do assento `i` — a tela dele fechou, ou a rodada recomeçou. */
@@ -40,13 +72,15 @@ export function criarComandosVirtuais(): ComandosVirtuais {
   const chave = (i: number, acao: string): string => `${i}:${acao}`;
 
   return {
-    receber(comando: VirtualCommand): void {
+    receber(comando: VirtualCommand): boolean {
       const k = chave(comando.player, comando.action as Action);
+      const tinha = segurados.has(k);
       // ⚠️ A LARGADA CHEGA MESMO COM MENU ABERTO, de propósito da engine: *«delivered even if a menu opened
       // meanwhile: a game must never be left believing a button is still down»* (`virtual-controller.js:65`).
       // Por isso o `delete` nunca é condicional — é essa entrega que impede o boneco de andar para sempre.
       if (comando.pressed) segurados.add(k);
       else segurados.delete(k);
+      return tinha !== comando.pressed;
     },
     segura: (i, acao) => segurados.has(chave(i, acao)),
     soltarAssento(i): void {

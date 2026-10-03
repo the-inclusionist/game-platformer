@@ -21,7 +21,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { criarComandosVirtuais } from '../app/js/core/comandos-virtuais.js';
+import { criarComandosVirtuais, ARESTA_DA_ACAO } from '../app/js/core/comandos-virtuais.js';
 
 const RAIZ = readFileSync(join(process.cwd(), 'app', 'js', 'main.ts'), 'utf8');
 
@@ -57,9 +57,60 @@ describe('a física recebe o `held` que ouve o controlador virtual', () => {
 
   it('o cartucho declara `onCommand`, senão a engine entrega a ninguém', () => {
     // `boot/create-game.js:3682` é `cartridge.onCommand?.(cmd)` — sem o gancho, o `?.` come o comando.
-    expect(RAIZ).toMatch(/onCommand:\s*\(comando\)\s*=>\s*comandosVirtuais\.receber\(comando\)/);
+    expect(RAIZ).toMatch(/onCommand:\s*receberComando/);
+    expect(RAIZ).toMatch(/function receberComando\(comando: VirtualCommand\)/);
     const VIVOS = readFileSync(join(process.cwd(), 'app', 'js', 'declaration', 'live.ts'), 'utf8');
     expect(VIVOS).toMatch(/onCommand:\s*\(comando\)\s*=>\s*ganchos\.vivos\?\.onCommand\?\.\(comando\)/);
+  });
+
+  it('🔴 a SONDA atravessa o mesmo caminho do gesto, e não um atalho', () => {
+    // 📏 Medido em 03/10: a sonda chamava `comandosVirtuais.receber` diretamente, saltava a marcação da
+    // aresta, e deu «não marca» sobre código que marcava. Uma sonda que não passa pela porta real mede
+    // outra coisa — e custou uma volta inteira de diagnóstico.
+    expect(RAIZ).toMatch(/cmdInjeta:[^\n]*receberComando\(/);
+    expect(RAIZ).not.toMatch(/cmdInjeta:[^\n]*comandosVirtuais\.receber\(/);
+  });
+});
+
+describe('a aresta que a alternância de marcha lê', () => {
+  it('🎯 o gancho marca a aresta no PRIMEIRO aperto e não na repetição', () => {
+    // Reproduz o corpo de `receberComando`: o registo diz se MUDOU, e só a mudança marca. Sem isso, o
+    // auto-repeat de uma tecla segurada inverteria a marcha muitas vezes por segundo.
+    const cv = criarComandosVirtuais();
+    const jogador = {};
+    const receber = (acao, on) => {
+      const mudou = cv.receber({ action: acao, pressed: on, source: 'gestos', player: 0 });
+      if (!mudou || !on) return;
+      const campo = ARESTA_DA_ACAO[acao];
+      if (campo) jogador[campo] = true;
+    };
+    receber('right', true);
+    expect(jogador.rightEdge).toBe(true);
+    jogador.rightEdge = false;
+    receber('right', true);                       // repetição sem largar
+    expect(jogador.rightEdge).toBe(false);        // não remarca
+    receber('right', false);
+    receber('right', true);                       // largou e apertou de novo: é toque novo
+    expect(jogador.rightEdge).toBe(true);
+  });
+
+  it('a tabela cobre as seis posições que a física limpa, e não inventa outras', () => {
+    // `physics.ts:423,432` limpa exatamente estas seis. Uma a mais seria um campo que ninguém consome;
+    // uma a menos é uma ação cuja aresta nunca chega — que foi o defeito.
+    expect(new Set(Object.values(ARESTA_DA_ACAO))).toEqual(
+      new Set(['leftEdge', 'rightEdge', 'runEdge', 'jumpEdge', 'specialEdge', 'swapEdge']));
+  });
+
+  it('⚠️ as direções NÃO marcam a aresta uma da outra', () => {
+    // `nextLatchedDir` inverte conforme a aresta: trocar `left` por `right` aqui faria o boneco andar ao
+    // contrário do que a criança apontou, e é o tipo de troca que um teste de igualdade de conjunto não vê.
+    expect(ARESTA_DA_ACAO.left).toBe('leftEdge');
+    expect(ARESTA_DA_ACAO.right).toBe('rightEdge');
+  });
+
+  it('`start` e `select` não têm aresta — são da engine, nunca do jogo (ADR-0144 §4)', () => {
+    expect(ARESTA_DA_ACAO.start).toBeUndefined();
+    expect(ARESTA_DA_ACAO.select).toBeUndefined();
   });
 });
 

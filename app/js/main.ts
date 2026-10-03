@@ -124,7 +124,8 @@ import { createTitleScreen } from './ui/title-screen.js';
 import { createSeatHud } from './ui/seat-hud.js';
 import { createPadWizardDemo } from './ui/pad-wizard-demo.js';
 import { createBarraRecolhivel } from './ui/barra-recolhivel.js';
-import { criarComandosVirtuais } from './core/comandos-virtuais.js';
+import { criarComandosVirtuais, ARESTA_DA_ACAO } from './core/comandos-virtuais.js';
+import type { VirtualCommand } from '@the-inclusionist/engine/input/virtual-controller.js';
 import { keyName } from '@the-inclusionist/engine/ui/control-choices.js';
 import { createPadMaps } from '@the-inclusionist/engine/input/pad-wizard.js';
 import { initScreenPipeline } from '@the-inclusionist/engine/render/screen-pipeline.js'; // D3-c: topologia do render por tela (grade, render-textures, molduras, bolinhas)
@@ -1569,6 +1570,22 @@ const demoDoAssistente = createPadWizardDemo({ $, spriteBase: SPR });
 // A BARRA DE ACESSIBILIDADE RECOLHE-SE EM JOGO (pedido do Dev, 03/10). 🔴 PALIATIVO: a barra é da engine e o
 // comportamento serve a todos os jogos — ver o cabeçalho de `ui/barra-recolhivel`, que diz o que apagar daqui
 // quando a engine o absorver. O `mundoRodando` é a regra inteira: fora do mundo a correr a barra fica.
+/*
+ * O QUE O CARTUCHO FAZ COM UM COMANDO DA ENGINE (ADR-0111) — uma função com nome, e não um literal no
+ * `ligarGanchos`, porque a sonda `__incl.cmdInjeta` tem de atravessar ESTE caminho e não outro.
+ * 📏 Medido em 03/10: a sonda chamava o registo diretamente e saltava a marcação da aresta, então media um
+ * caminho que o gesto nunca toma — e deu «não marca» sobre código que marcava. Uma sonda que não passa pela
+ * porta real mede outra coisa.
+ */
+function receberComando(comando: VirtualCommand): void {
+  const mudou = comandosVirtuais.receber(comando);
+  if (!mudou || !comando.pressed) return;
+  // A ARESTA: a alternância de marcha conta TOQUES, e é aqui que o toque existe (ver `core/comandos-virtuais`).
+  const campo = ARESTA_DA_ACAO[comando.action];
+  const jogador = players[comando.player] as unknown as Record<string, unknown> | undefined;
+  if (campo && jogador) jogador[campo] = true;
+}
+
 const barraRecolhivel = createBarraRecolhivel({
   $, signal: CANCELAR.signal, mundoRodando: () => fatosDaCena().worldRunning,
 });
@@ -1826,7 +1843,7 @@ window.__incl={app,get player(){return players[0];},players,get numPlayers(){ret
   get cmdVirtuais(){return comandosVirtuais.tamanho();},cmdSegura:(i: number,a: string)=>comandosVirtuais.segura(i,a),
   // SONDA DO CAMINHO: injeta um comando como a engine o entrega, e responde o que cada degrau vê. Existe
   // porque o degrau que falha não se alcança de fora — nem com a câmera, que exige um gesto humano.
-  cmdInjeta:(a: string,on: boolean,i=0)=>comandosVirtuais.receber({action:a as Action,pressed:on,source:'gestos',player:i}),
+  cmdInjeta:(a: string,on: boolean,i=0)=>receberComando({action:a as Action,pressed:on,source:'gestos',player:i}),
   cmdDiag:(a: string)=>{const p0=players[0] as unknown as Parameters<typeof input.held>[0];
     return {assento:assentoDe(players[0]),registo:comandosVirtuais.segura(0,a),
       engine:input.held(p0,a as Action),envelope:held(p0,a as Action)};},
@@ -2105,9 +2122,19 @@ ligarGanchos({
     quit: () => { engine.pause.hide(0); quitGame(); },
   }),
   setPauseActor: (i: number) => rodada.setPauseActor(i),
-  // O NOME VIRTUAL DO BOTÃO (ADR-0111): a engine entrega, o registo guarda, e o `held` acima lê junto com o
-  // `input.held` dela. É por aqui — e só por aqui — que os gestos, o rosto, os olhos e a voz comandam o jogo.
-  onCommand: (comando) => comandosVirtuais.receber(comando),
+  /*
+   * O NOME VIRTUAL DO BOTÃO (ADR-0111): a engine entrega, o registo guarda, e o `held` acima lê junto com o
+   * `input.held` dela. É por aqui — e só por aqui — que os gestos, o rosto, os olhos e a voz comandam o jogo.
+   *
+   * 🔴 E A ARESTA MARCA-SE AQUI TAMBÉM, pelo mesmo motivo de ser este o lugar: a alternância de marcha lê
+   * `pl.leftEdge`/`pl.rightEdge` e nenhum transporte as marcava (ver `core/comandos-virtuais`). Como o
+   * teclado, o pad e o toque também atravessam o `virtualController`, marcá-las aqui conserta os seis
+   * transportes de uma vez — e não só os que não produzem tecla.
+   *
+   * ⚠️ SÓ NA TRANSIÇÃO (`mudou`): a aresta conta um TOQUE. Numa tecla segurada o auto-repeat do sistema
+   * entrega muitos apertos por segundo, e marcar a aresta em cada um inverteria a marcha a cada repetição.
+   */
+  onCommand: receberComando,
   setPlayerTheme: (...a: Parameters<typeof setPlayerTheme>) => setPlayerTheme(...a),
   setPlayerCorrection: (...a: Parameters<typeof setPlayerCorrection>) => setPlayerCorrection(...a),
   // O que só este jogo sabe do gamepad (o transporte é da engine — ver a nota junto de `demoDoAssistente`).
