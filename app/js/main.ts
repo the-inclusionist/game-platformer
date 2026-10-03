@@ -1284,7 +1284,12 @@ initMinimap(app.stage, WORLD_W, WORLD_H); // render/minimap (Estágio 4, Tier 1)
    `dir` e a unica variavel local que atravessa a fronteira, e por isso stepPlayer devolve {ran, dir}:
    `ran:false` reproduz o return seco de quiz/quit/waiting, que abortava a funcao INTEIRA, animacao inclusive. */
 initPhysics({
-  t, input,
+  // 🔴 `{ held }` E NÃO `input`: a física guarda `ctx.input.held` no arranque (`game/physics.ts:160`), e o
+  // `held` da engine só conhece TECLAS. Passar o `input` cru aqui deixava a física surda ao controlador
+  // virtual — 📏 medido em 03/10 com a câmera: a criança apontava o dedo, o comando chegava ao registo
+  // (`__incl.cmdVirtuais` subia) e o boneco não andava, porque quem o move lia outra fonte. O envelope da
+  // linha 263 é o que soma as duas, e tem de ser ELE a atravessar esta fronteira.
+  t, input: { held },
   rng,
   getPlayers: () => rodada.players,
   isWheelchair: ()=>settingsStore.wheelchair, isModoCego: ()=>settingsStore.blindMode, caneOn, WORLD_PX_H: ()=>WORLD_PX_H,
