@@ -123,6 +123,7 @@ import { initActivitiesMenu, attachAbbr, QL_NAME } from './ui/activities-menu.js
 import { createTitleScreen } from './ui/title-screen.js';
 import { createSeatHud } from './ui/seat-hud.js';
 import { createPadWizardDemo } from './ui/pad-wizard-demo.js';
+import { createBarraRecolhivel } from './ui/barra-recolhivel.js';
 import { keyName } from '@the-inclusionist/engine/ui/control-choices.js';
 import { createPadMaps } from '@the-inclusionist/engine/input/pad-wizard.js';
 import { initScreenPipeline } from '@the-inclusionist/engine/render/screen-pipeline.js'; // D3-c: topologia do render por tela (grade, render-textures, molduras, bolinhas)
@@ -1541,6 +1542,13 @@ const quizApi = initQuiz({
 // `#padwiz-demo` saiu do `index.html` com o resto do painel (o `#padwiz` é montado pela engine com a marcação dela),
 // então ela nasce aqui, dentro do cartão da engine, na primeira vez que o assistente pede um passo.
 const demoDoAssistente = createPadWizardDemo({ $, spriteBase: SPR });
+
+// A BARRA DE ACESSIBILIDADE RECOLHE-SE EM JOGO (pedido do Dev, 03/10). 🔴 PALIATIVO: a barra é da engine e o
+// comportamento serve a todos os jogos — ver o cabeçalho de `ui/barra-recolhivel`, que diz o que apagar daqui
+// quando a engine o absorver. O `mundoRodando` é a regra inteira: fora do mundo a correr a barra fica.
+const barraRecolhivel = createBarraRecolhivel({
+  $, signal: CANCELAR.signal, mundoRodando: () => fatosDaCena().worldRunning,
+});
 function caixaDaDemo(): void {
   if ($('#padwiz-demo')) return;
   const cartao = $('#padwiz .overlay__card') ?? $('#padwiz');
@@ -1771,6 +1779,7 @@ function quadro(dt: number): void { update(dt); draw();
   titleG.visible=fatosDaCena().titleScreen; if(titleG.visible)titleScene.draw(); // cena do título da v3 cobre o mundo
   attractCtl.titleIdleTick(titleG.visible); // attract após 60s parado no menu (José)
   setMinimapVisible(!titleG.visible&&rodada.numPlayers<=1); document.body.classList.toggle('at-title',titleG.visible); // HUD/minimapa não vazam no menu
+  barraRecolhivel.tick(); // a barra de acessibilidade some aos 5s em jogo e volta no pico/foco (paliativo, ver o módulo)
   fpsTick();
   if(fatosDaCena().worldRunning){ weather.updateWeather(); ambient.updateAmbient(); guide.updateGuide(); } } // F4: clima + ambiente + guia auditivo (só durante o jogo)
   // ⚠️ O 2 E O `aoFalhar` FALTAVAM AQUI: a chamada tinha DOIS argumentos (ADR-0054, issue #109). O laço já

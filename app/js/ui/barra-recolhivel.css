@@ -1,0 +1,53 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* A BARRA DE ACESSIBILIDADE RECOLHE-SE EM JOGO — ver `barra-recolhivel.ts` para a regra de QUANDO. */
+
+/* ⚠️ O `transform` DA ENGINE É A CENTRAGEM, e esta regra tem de a repetir. O `#title-icons` nasce com
+   `left:50%; transform:translateX(-50%)` no `style.css` da engine; escrever só `translateY(…)` aqui
+   apagava o `-50%` e a barra saltava meia largura para a direita antes de subir. */
+#title-icons {
+  transition: transform 260ms ease, opacity 200ms ease;
+  will-change: transform;
+}
+
+#title-icons.barra-recolhida {
+  /* `-100%` da ALTURA DELA mais a folga do `margin-bottom` que a engine lhe dá (`.35rem`): sobe até sair
+     inteira do topo do `#game-region`, sem deixar uma fatia de 2px a espreitar. */
+  transform: translateX(-50%) translateY(calc(-100% - 0.5rem));
+  opacity: 0;
+}
+
+/* 🔴 OS ÍCONES CONTINUAM TABULÁVEIS COM A BARRA RECOLHIDA, de propósito: uma criança que navega por teclado
+   chega a eles por Tab, e o `focusin` do módulo faz a barra descer antes de ela ver o foco perdido. Tirá-los
+   da ordem de tabulação (`visibility:hidden` ou `inert`) fechava o único caminho de quem não usa rato. Só o
+   PONTEIRO é cortado, para o clique atravessar para o jogo por baixo. */
+#title-icons.barra-recolhida .pi-btn {
+  pointer-events: none;
+}
+
+/* A FAIXA DE PICO: uma fita no topo do `#game-region` que só existe para o ponteiro e para o dedo. Mora
+   abaixo da barra no empilhamento (a barra é `z-index:13`) para nunca roubar um clique dos ícones quando
+   eles estão à vista. */
+#barra-pico {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  z-index: 12;
+  pointer-events: none;
+}
+
+/* Só arma o ponteiro enquanto a barra está em cima — fora disso a fita é transparente ao toque e o jogo
+   recebe os cliques do seu próprio topo. */
+#barra-pico.pico-armado {
+  pointer-events: auto;
+}
+
+/* ⚠️ MOVIMENTO REDUZIDO DESLIGA O DESLIZE, não o recolhimento. Quem marcou `prefers-reduced-motion` pediu
+   para não ver coisas a correr pelo ecrã; continua a querer o ecrã limpo em jogo. Sem transição a barra
+   troca de estado num quadro, que é o que essa preferência quer dizer. */
+@media (prefers-reduced-motion: reduce) {
+  #title-icons {
+    transition: none;
+  }
+}
