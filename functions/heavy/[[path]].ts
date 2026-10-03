@@ -104,8 +104,26 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   };
   if (MIME[ext]) headers.set('content-type', MIME[ext]);
   headers.set('etag', obj.httpEtag);
-  // 📌 IMMUTABLE porque a engine chega com `?sha256=<hash>` no URL (`platform/heavy.js:284`).
-  headers.set('cache-control', 'public, max-age=31536000, immutable');
+  /*
+   * 🔴 `immutable` SÓ ONDE O TIPO NÃO PODE MUDAR, e esta distinção nasceu de um defeito meu de 03/10.
+   *
+   * Eu servia TUDO com `max-age=31536000, immutable`, a contar com o `?sha256=<hash>` que a engine põe no
+   * URL (`platform/heavy.js:284`). Mas `immutable` promete que a RESPOSTA inteira nunca muda — e o que mudou
+   * foi um CABEÇALHO: os `.mjs` saíam como `text/plain` por omissão do bucket, e o conserto (`fdf5abb`) não
+   * alcança quem já os tinha guardado. 📏 Medido no Brave do Dev: o mesmo URL devolvia `text/plain` do cache
+   * enquanto o servidor já respondia `text/javascript`, e a câmera, a voz e a leitura ficavam mortas sem
+   * uma linha de erro. Cache imutável já servido não se invalida do servidor: só mudando o URL, e o URL é
+   * da engine.
+   *
+   * Então os SCRIPTS revalidam. São pequenos (o `vision_bundle.mjs` tem 155 KB) e o seu tipo é o que o
+   * navegador usa para decidir se os executa; um `304` por sessão é barato ao pé de uma criança sem câmera.
+   * Os MODELOS ficam imutáveis: são os megabytes que ADR-0117 existe para não pagar duas vezes, e o tipo
+   * deles é `application/octet-stream`, que não tem como ficar errado.
+   */
+  const TIPO_PODE_MUDAR = new Set(['mjs', 'js', 'json']);
+  headers.set('cache-control', TIPO_PODE_MUDAR.has(ext)
+    ? 'public, max-age=0, must-revalidate'
+    : 'public, max-age=31536000, immutable');
   // CORS: so por preserva de porta aberta — hoje a plataforma e o bucket vivem na mesma origem servida.
   headers.set('access-control-allow-origin', '*');
   return new Response(obj.body, { headers });
