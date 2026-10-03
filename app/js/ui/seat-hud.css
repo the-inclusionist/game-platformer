@@ -4,14 +4,8 @@
    menus, a barra de acessibilidade e o pad de toque. Carregado pelo `seat-hud.ts` porque é o módulo de HUD
    que sempre existe; se um dia crescer para além disto, vale um ficheiro por assunto. */
 
-/* 🔴 O PAD DE TOQUE A 30% (pedido do Dev, 03/10). No `.touch`, que é o contentor de tudo o que a engine
-   desenha para o dedo — direcional, botões, ombros, START e SELECT —, para que a atenuação alcance as
-   peças todas e não só as que eu tivesse lembrado de nomear.
-   ⚠️ A OPACIDADE NÃO MEXE NO ALCANCE: o `pointer-events` continua a ser o da engine, e um botão a 30%
-   recebe o toque exatamente como a 100%. O que muda é quanto do cenário a criança vê por baixo. */
-#touch-controls.touch {
-  opacity: 0.3;
-}
+/* 📌 A OPACIDADE DO PAD DE TOQUE MUDOU-SE PARA `pad-opaco.css`, com a regra de quando em `pad-opaco.ts`:
+   ela deixou de ser um número fixo e passou a depender do tempo e do alto contraste (Dev, 03/10). */
 
 /* ⚠️ ESTAS REGRAS SOBREPÕEM-SE ÀS DA ENGINE, de propósito e com o nome dela: `.vphud` nasce em
    `style.css:255` como uma LINHA (`display:flex`) com as moedas e o poder lado a lado, cada um a metade.

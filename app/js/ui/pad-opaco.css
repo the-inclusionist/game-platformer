@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* A OPACIDADE DO PAD DE TOQUE — ver `pad-opaco.ts` para a regra de QUANDO. */
+
+/* Sólido por omissão: é assim que ele nasce, e é assim que fica sempre que a criança toca no meio da tela. */
+#touch-controls.touch {
+  opacity: 1;
+  transition: opacity 400ms ease;
+}
+
+/* A classe é posta pelo `pad-opaco.ts` ao fim de 5 s sem toque no meio da tela. */
+#touch-controls.touch.pad-esmaecido {
+  opacity: 0.3;
+}
+
+/* 🔴 NOS TRÊS MODOS DE ALTO CONTRASTE, NUNCA ESMAECE (pedido do Dev, 03/10). Quem escolheu alto contraste
+   pediu para ver melhor, e esmaecer os botões seria desfazer com uma mão o que a outra acabou de dar — e
+   logo para quem mais precisa deles nítidos.
+   📌 `#dom-layer.hc` É A PERGUNTA CERTA e já existe: o jogo põe essa classe em `applyHighContrastToDom`
+   (`main.ts`), e os três modos — `hc-direto` (3:1), `hc-direto-45` (4,5:1) e `hc-direto-7` (7:1), medidos
+   em 03/10 — partilham-na. Ler a classe em vez de listar os três nomes aqui significa que um quarto modo
+   de alto contraste, se a engine o criar, entra sozinho. */
+#dom-layer.hc #touch-controls.touch.pad-esmaecido {
+  opacity: 1;
+}
+
+/* ⚠️ MOVIMENTO REDUZIDO TIRA O ESMAECIMENTO GRADUAL, não o esmaecimento. Quem marcou
+   `prefers-reduced-motion` pediu para não ver coisas a mudar devagar à sua frente; continua a querer ver o
+   cenário por baixo dos botões. Sem transição a troca acontece num quadro. */
+@media (prefers-reduced-motion: reduce) {
+  #touch-controls.touch {
+    transition: none;
+  }
+}

@@ -124,6 +124,7 @@ import { createTitleScreen } from './ui/title-screen.js';
 import { createSeatHud } from './ui/seat-hud.js';
 import { createPadWizardDemo } from './ui/pad-wizard-demo.js';
 import { createBarraRecolhivel } from './ui/barra-recolhivel.js';
+import { criarPadOpaco } from './ui/pad-opaco.js';
 import { criarComandosVirtuais, ARESTA_DA_ACAO } from './core/comandos-virtuais.js';
 import type { VirtualCommand } from '@the-inclusionist/engine/input/virtual-controller.js';
 import { keyName } from '@the-inclusionist/engine/ui/control-choices.js';
@@ -1586,6 +1587,12 @@ function receberComando(comando: VirtualCommand): void {
   if (campo && jogador) jogador[campo] = true;
 }
 
+/*
+ * O PAD DE TOQUE NASCE SÓLIDO E ESMAECE AOS 5 s (pedido do Dev, 03/10) — ver `ui/pad-opaco` para a regra
+ * inteira, incluindo a parte que vive no CSS: nos três modos de alto contraste ele não esmaece.
+ */
+const padOpaco = criarPadOpaco({ $, signal: CANCELAR.signal });
+
 const barraRecolhivel = createBarraRecolhivel({
   $, signal: CANCELAR.signal, mundoRodando: () => fatosDaCena().worldRunning,
 });
@@ -1820,6 +1827,7 @@ function quadro(dt: number): void { update(dt); draw();
   attractCtl.titleIdleTick(titleG.visible); // attract após 60s parado no menu (José)
   setMinimapVisible(!titleG.visible&&rodada.numPlayers<=1); document.body.classList.toggle('at-title',titleG.visible); // HUD/minimapa não vazam no menu
   barraRecolhivel.tick(); // a barra de acessibilidade some aos 5s em jogo e volta no pico/foco (paliativo, ver o módulo)
+  padOpaco.tick();        // o pad de toque nasce sólido e esmaece aos 5s, salvo em alto contraste
   fpsTick();
   if(fatosDaCena().worldRunning){ weather.updateWeather(); ambient.updateAmbient(); guide.updateGuide(); } } // F4: clima + ambiente + guia auditivo (só durante o jogo)
   // ⚠️ O 2 E O `aoFalhar` FALTAVAM AQUI: a chamada tinha DOIS argumentos (ADR-0054, issue #109). O laço já
