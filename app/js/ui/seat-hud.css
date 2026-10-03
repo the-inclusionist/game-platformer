@@ -30,21 +30,25 @@
    cenário. A legibilidade sobre um fundo claro vem do `text-shadow` que a engine já põe no `.vphud`
    (`0 1px 2px #000, 0 0 3px #000, 0 0 6px #000`), que é contorno e não caixa. */
 
+/* 🔴 TUDO ENCOSTADO AO TOPO (pedido do Dev em 03/10, com um print feito à mão: «o ideal é que todas
+   ficassem na parte mais acima»). A engine baixa o HUD para não ficar debaixo da barra de acessibilidade
+   (`style.css:321`, `.screen-exp .vphud { top: var(--a11y-h) }`) — reservava-lhe uma faixa de ~137 px no
+   ecrã de 900.
+   📌 ESSA RESERVA DEIXOU DE SE PAGAR quando a barra passou a recolher-se aos 5 s (`ui/barra-recolhivel`),
+   e o Dev mediu-o e aceitou o custo: *«o menu de acessibilidade rápida ao aparecer tapa estes elementos do
+   HUD, mas ele desaparece segundos após ser usado, o que acaba não criando problema algum.»* Então o HUD
+   fica onde a criança o lê sempre, e quem cede os poucos segundos é a barra. */
+.screen-exp .vphud,
+.vphud {
+  top: 0;
+}
+
 /* O RELÓGIO NO TOPO, AO CENTRO (pedido do Dev: «o tempo no meio na parte superior»). A `.hud-row` da engine
-   (ADR-0239) nasce em baixo, acima do pad de toque. Aqui ela sobe.
+   (ADR-0239) nasce em baixo, acima do pad de toque.
    ⚠️ `--hud-row-bottom` É DA ENGINE e ela reescreve-o quando o pad aparece (`ui/hud-row` segue o pad): por
    isso a regra não mexe nessa variável — ancora pelo `top` e deixa o `bottom` em `auto`, senão as duas
    escreviam a mesma posição e a última a correr ganhava. */
 .hud-row {
-  top: var(--barra-a11y-h, 0px);
-  bottom: auto;
-}
-
-/* A barra de acessibilidade recolhe-se aos 5 s em jogo (`ui/barra-recolhivel`), e quando ela sobe o relógio
-   não precisa de lhe dar espaço. 📌 O Dev mediu isto e aceitou: *«o menu de acessibilidade rápida ao
-   aparecer tapa estes elementos do HUD, mas ele desaparece segundos após ser usado, o que acaba não
-   criando problema algum.»* */
-#title-icons.barra-recolhida ~ .hud-row,
-#title-icons.barra-recolhida + * .hud-row {
   top: 0;
+  bottom: auto;
 }
