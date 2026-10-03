@@ -32,6 +32,35 @@
 .vphud-obj { order: 0; }
 .vphud-power { order: 1; }
 
+/* 🔴 O QUE A CRIANÇA CARREGA, NO CANTO SUPERIOR DIREITO (pedido do Dev, 03/10). O desenho na barriga do
+   personagem FICA — ele é quem diz que *alguém está carregando alguma coisa* (ver o bloco «onde o objeto
+   carregado aparece», em `game/recycling-scene`) —, e este canto é onde se CONSULTA o que é, sem ter de
+   procurar o boneco com os olhos no meio do cenário.
+   ⚠️ FORA DO FLUXO DA COLUNA: o `.vphud` é `position:absolute`, então este filho ancora no retângulo desta
+   tela. O `.55em`/`.4em` são o `padding` que a engine deu ao `.vphud` (`style.css:255`), copiados para que a
+   carga caia na MESMA linha das moedas — e continuem juntas se a engine mudar o recuo.
+   📌 SÓ O ÍCONE, sem o nome ao lado — 📏 medido no navegador em 03/10: o nome escrito ocupava 295 dos 640 px
+   do HUD, ao lado do relógio, porque a letra é a da engine e não encolhe para caber. Quem diz o nome é o
+   `aria-label` (ver `seat-hud.ts`), que não ocupa largura nenhuma. */
+.vphud-carga {
+  position: absolute;
+  /* 🔴 ABAIXO DO OMBRO DIREITO QUANDO ELE EXISTE, e quem mede é a engine. 📏 Medido em 03/10, depois de o R2
+     passar a ser declarado (`game/platformer-preset`): o pad de toque ganhou um botão R2 no canto superior
+     direito, e um `elementFromPoint` sobre o 📦 devolvia `touch-btn touch-ombro` — o ícone estava lá, por
+     baixo do botão, que é o defeito que «existe no DOM» esconde. `--shoulders-right-reach` é a resposta da
+     própria engine a esta colisão («where they and anything else meet, the other thing moves»): quanto a
+     coluna de ombros desce daquele lado, e `0px` quando aquele canto não tem nenhum.
+     ⚠️ `max()` E NÃO SOMA: sem pad o recuo é o da engine (`.4em`, o mesmo das moedas), e não `.4em` mais
+     zero escrito de outra maneira — a conta tem de dar exatamente a linha das moedas no caso comum. */
+  top: max(0.4em, var(--shoulders-right-reach, 0px));
+  right: 0.55em;
+  white-space: nowrap;
+}
+
+.vphud-carga[hidden] {
+  display: none;
+}
+
 /* ⚠️ NENHUM FUNDO, e é o ponto do pedido: a `.hud-numero` da engine trazia `rgba(8,8,16,.92)` e tapava o
    cenário. A legibilidade sobre um fundo claro vem do `text-shadow` que a engine já põe no `.vphud`
    (`0 1px 2px #000, 0 0 3px #000, 0 0 6px #000`), que é contorno e não caixa. */

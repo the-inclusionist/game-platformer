@@ -32,6 +32,15 @@ export interface SeatHudCtx {
   /** O ícone do objetivo (🪙). */
   icon: string;
   powerShort: (kind: string) => string;
+  /**
+   * O QUE ESTE ASSENTO CARREGA, para o canto superior direito — ou `null` com as mãos vazias (Dev, 03/10:
+   * *«os itens "lixo" que o personagem estiver carregando devem aparecer a parte superior direita da tela»*).
+   *
+   * ⚠️ O VOCABULÁRIO NÃO MORA AQUI, e é de propósito: este módulo desenha «o que o assento carrega» e não
+   * sabe o que é lixo. Quem resolve ícone e nome é a raiz de composição, que já é dona do `t()` e da cena de
+   * reciclagem — assim um jogo que carregue outra coisa reusa a mesma caixa sem lhe mudar uma linha.
+   */
+  carga: (i: number) => { icone: string; rotulo: string } | null;
 }
 
 export interface SeatHud {
@@ -92,6 +101,14 @@ export function createSeatHud(ctx: SeatHudCtx): SeatHud {
       const pw = doc.createElement('span'); pw.className = 'vphud-pw'; pw.textContent = '—';
       poder.append(pIco, ' ', pw);
       hud.append(poder);
+      // 🔴 A CARGA VAI NO CANTO OPOSTO, e é por isso que ela é filha ABSOLUTA do `.vphud` em vez de mais um
+      // item da coluna: as moedas e o poder empilham-se à esquerda, e empurrar um terceiro para a direita
+      // dentro do mesmo fluxo pedia um `space-between` que desalinharia os dois de cima. Fora do fluxo, ela
+      // ancora no retângulo desta tela (o `.vphud` é `position:absolute`) e nada do resto se mexe.
+      const carga = doc.createElement('span'); carga.className = 'vphud-carga'; carga.hidden = true;
+      const cIco = doc.createElement('b'); cIco.className = 'vphud-ico';
+      carga.append(cIco);
+      hud.append(carga);
       exp.append(hud);
       // 📌 O texto do selo é o MESMO literal que `ui/hud` da engine escrevia (pt-BR cru lá também): não é regressão,
       // e traduzi-lo pede uma chave nova que nenhuma frase deste jogo tem hoje.
@@ -121,6 +138,20 @@ export function createSeatHud(ctx: SeatHudCtx): SeatHud {
         obj.setAttribute('aria-label', v.label);
       }
       const pw = hud.querySelector('.vphud-pw'); if (pw) pw.textContent = v.power;
+      const carga = hud.querySelector<HTMLElement>('.vphud-carga');
+      if (carga) {
+        const c = ctx.carga(i);
+        carga.hidden = c === null;
+        if (c) {
+          const ico = carga.querySelector('.vphud-ico'); if (ico) ico.textContent = c.icone;
+          // 🔴 O NOME VAI SÓ NO `aria-label`, e a escolha mediu-se na tela em 03/10: com ele visível, «CAIXA
+          // DE PAPELÃO» ocupava 295 dos 640 px do HUD — quase metade — ao lado do relógio, porque o tamanho
+          // de letra é o da engine (`--hud-fs`, pedido do Dev) e não encolhe para caber. O ícone É o objeto,
+          // que é o que ele pediu que aparecesse; e para quem lê com o ouvido nada se perdeu, porque o
+          // atributo diz o nome inteiro — e o jogo já o fala ao apanhar (`sr.lixo.pegou`).
+          carga.setAttribute('aria-label', c.rotulo);
+        }
+      }
       if (abandonos[i]) abandonos[i].hidden = v.quitHidden;
       hud.style.visibility = v.visibility; // quem saiu: tela preta com o selo de abandono
     }

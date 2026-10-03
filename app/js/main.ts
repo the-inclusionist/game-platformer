@@ -1235,6 +1235,20 @@ let vpTex: RenderTextureLike[] = [], vpSpr: SpriteLike[] = [], vpFrames: Graphic
    (gancho `hud`, em `src/index.ts`); daqui sai o resto do que cada tela mostrava: as moedas dos assentos 1–3, o
    poder de todos, o selo de abandono e o de «aperte para entrar» — e a `.player-screen` onde o desafio multi-tela
    se pendura (`getScreen`, lido por `game/quiz`). */
+/**
+ * O ÍCONE DE CADA MATERIAL NO HUD — o que o canto superior direito mostra enquanto a criança carrega.
+ *
+ * 📌 EMOJI E NÃO A TEXTURA, pela mesma razão por que o 🪙 e o ✨ são emoji: o HUD é DOM sobre o canvas, e
+ * trazer a arte procedural do lixo (`render/recycling-tex`) para cá pedia um segundo caminho de render —
+ * uma render-texture, um `<img>` por material e um cache — para desenhar algo de 16 px. Os quatro emoji
+ * dizem o mesmo e seguem o tamanho da letra que a criança escolheu, inclusive na fonte grande.
+ * ⚠️ O NOME NÃO ENTRA AQUI: ele é `t('lixo.obj.' + material)`, como em `anunciar` acima — três idiomas, uma
+ * fonte só.
+ */
+const ICONE_DO_LIXO: Readonly<Record<string, string>> = Object.freeze({
+  papel: '📦', plastico: '🧴', metal: '🥫', vidro: '🫙',
+});
+
 const seatHud = createSeatHud({
   t, $,
   getPlayers: () => players, getNumPlayers: () => rodada.numPlayers,
@@ -1246,6 +1260,12 @@ const seatHud = createSeatHud({
   }),
   icon: '🪙',
   powerShort: POWER_SHORT,
+  // ⚠️ LIDO A CADA QUADRO e não guardado: a carga muda por botão (`game/carry`) e o nome muda de idioma a
+  // meio da partida, como o objetivo logo acima — uma tabela resolvida uma vez ficaria no idioma do arranque.
+  carga: (i) => {
+    const it = reciclagem.itens().find((x) => x.dono === i && !x.descartado);
+    return it ? { icone: ICONE_DO_LIXO[it.material] ?? '🗑️', rotulo: t('lixo.obj.' + it.material) } : null;
+  },
 });
 // ⚠️ O `applyLetra()` depois de remontar NÃO é enfeite: ele vinha no `onScreensBuilt` do `ui/hud` da engine. Remontar
 // apaga as `.player-screen`, e com elas o desafio multi-tela pendurado nelas; o `applyLetra` re-renderiza o desafio
