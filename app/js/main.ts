@@ -124,6 +124,7 @@ import { createTitleScreen } from './ui/title-screen.js';
 import { createSeatHud } from './ui/seat-hud.js';
 import { createPadWizardDemo } from './ui/pad-wizard-demo.js';
 import { createBarraRecolhivel } from './ui/barra-recolhivel.js';
+import { criarComandosVirtuais } from './core/comandos-virtuais.js';
 import { keyName } from '@the-inclusionist/engine/ui/control-choices.js';
 import { createPadMaps } from '@the-inclusionist/engine/input/pad-wizard.js';
 import { initScreenPipeline } from '@the-inclusionist/engine/render/screen-pipeline.js'; // D3-c: topologia do render por tela (grade, render-textures, molduras, bolinhas)
@@ -242,7 +243,24 @@ const tonePan: typeof audio.tonePan = (...a) => audio.tonePan(...a);
 const noiseHit: typeof audio.noiseHit = (...a) => audio.noiseHit(...a);
 const setHearingLossGraph = (on: boolean) => audio.setHearingLossGraph(on);
 const setMasterMuted = (m: boolean) => audio.setMasterMuted(m);
-const held: typeof input.held = (pl, act) => input.held(pl, act);
+/*
+ * O ESTADO DO CONTROLADOR VIRTUAL DA ENGINE (ADR-0111, issue #197) — ver `core/comandos-virtuais`.
+ * A engine entrega aqui cada posição que o aparelho da criança alcançou; o `held` abaixo soma-o ao dela.
+ */
+const comandosVirtuais = criarComandosVirtuais();
+/*
+ * ⚠️ OS DOIS, E NÃO UM: `input.held` da engine responde pelo TECLADO e pelo PAD, que produzem tecla; o
+ * registo acima responde pelos transportes que não produzem nenhuma — gestos, rosto, olhos, voz, varrimento.
+ * 📏 Medido em 03/10: o `virtualController.press` só segura tecla `if (code)`, isto é, se o esquema do
+ * assento nomear uma para aquela posição; mas ENTREGA o comando sempre. Ler só as teclas deixava a câmera e
+ * metade da voz a comandar coisa nenhuma, com o ícone aceso e o jogo parado.
+ */
+/* ⚠️ O ASSENTO SAI POR IDENTIDADE e nao por um campo: o `held` da engine recebe `HeldPlayer`, que e'
+ * `Pick<ControlledPlayer,'ctrl'|'pad'>` — uma vista sem indice, e o `pad` que ela traz e' o do gamepad, nao
+ * o do assento. Em tempo de execucao o objeto E' um dos de `players`, entao a comparacao por referencia
+ * responde certo; um objeto de fora da lista da' -1, e `segura(-1, …)` e' falso, que e' a resposta certa. */
+const assentoDe = (pl: object): number => players.findIndex((p) => p === pl);
+const held: typeof input.held = (pl, act) => input.held(pl, act) || comandosVirtuais.segura(assentoDe(pl), act);
 const setLq = (v: number) => engine.lq.set(v);
 const getLqT = () => engine.lq.t();
 
@@ -1798,6 +1816,9 @@ window.__incl={app,get player(){return players[0];},players,get numPlayers(){ret
   setOwnerColors:(on: boolean)=>settingsStore.setOwnerColorsValue(on),setCbSafe:(on: boolean)=>settingsStore.setCbSafeValue(on),PCOLOR,HC_ROLE:hc.role,get ownerColors(){return settingsStore.ownerColors;},get cbSafe(){return settingsStore.cbSafe;},
   setQuizLevel,get quizLevel(){return quizLevel;},openSilabas,quizMove,quizConfirm,quizErase,get quiz(){return jogadores()[0].quiz;},INCL_VERSION,fmtFrac,fracGraphic,speakChoice,get fracNot(){return fracNot;},
   FONT_GROUPS,get mmSeen2(){return minimapSeenCount();},
+  // O CONTROLADOR VIRTUAL, PELA JANELA (ADR-0111): quantas posições a engine entregou e estão seguradas, e a
+  // pergunta por assento. É por aqui que se mede se um gesto, um olhar ou uma palavra chegou ao jogo.
+  get cmdVirtuais(){return comandosVirtuais.tamanho();},cmdSegura:(i: number,a: string)=>comandosVirtuais.segura(i,a),
   startAttract:()=>attractCtl.startAttract(),stopAttract:()=>attractCtl.stopAttract(),get attract(){return attractCtl.isAttract();}, // attract → game/attract.ts
   loadTTS:tts.loadTTS,ttsSpeak:tts.ttsSpeak,narrate:tts.narrate,get ttsEngine(){return tts.getEngine();},get ttsLoading(){return tts.loading;},get ttsFailed(){return tts.failed;},setTtsEngineSel(v: Parameters<typeof tts.setEngineSel>[0]){tts.setEngineSel(v);},
   updateWeather:weather.updateWeather,get rainLevel(){return weather.getRainLevel();},set weatherT(v){weather.setWeatherT(v);},get weatherT(){return weather.getWeatherT();},rm,
@@ -1984,6 +2005,7 @@ initDebugPanel({
  */
 function teardown(): void {
   CANCELAR.abort();
+  comandosVirtuais.soltarTudo(); // nenhuma posição fica segurada para o próximo `mount()` herdar
   DESLIGAR.splice(0).forEach((desligar) => desligar());
   // A declaração volta a dizer a verdade do mundo vazio, que é o que ela é depois de um `unmount`.
   desligarDeclaracao();
@@ -2072,6 +2094,9 @@ ligarGanchos({
     quit: () => { engine.pause.hide(0); quitGame(); },
   }),
   setPauseActor: (i: number) => rodada.setPauseActor(i),
+  // O NOME VIRTUAL DO BOTÃO (ADR-0111): a engine entrega, o registo guarda, e o `held` acima lê junto com o
+  // `input.held` dela. É por aqui — e só por aqui — que os gestos, o rosto, os olhos e a voz comandam o jogo.
+  onCommand: (comando) => comandosVirtuais.receber(comando),
   setPlayerTheme: (...a: Parameters<typeof setPlayerTheme>) => setPlayerTheme(...a),
   setPlayerCorrection: (...a: Parameters<typeof setPlayerCorrection>) => setPlayerCorrection(...a),
   // O que só este jogo sabe do gamepad (o transporte é da engine — ver a nota junto de `demoDoAssistente`).

@@ -131,6 +131,13 @@ export const GANCHOS_VIVOS: GanchosVivos = {
   setPlayerTheme: (i, tema) => ganchos.vivos?.setPlayerTheme?.(i, tema),
   setPlayerCorrection: (i, correcao) => ganchos.vivos?.setPlayerCorrection?.(i, correcao),
   /*
+   * O NOME VIRTUAL DO BOTÃO, QUE A ENGINE ENTREGA (ADR-0111, issue #197). Sem este gancho o
+   * `cartridge.onCommand?.(cmd)` da engine não acha ninguém e o comando cai no chão calado — e cai para
+   * TODO transporte que não produz tecla: os gestos, o rosto, os olhos, a voz e o varrimento. Antes do
+   * `create()` não há rodada a comandar, e por isso o mundo vazio não guarda nada: é verdade, não enchimento.
+   */
+  onCommand: (comando) => ganchos.vivos?.onCommand?.(comando),
+  /*
    * O QUE SÓ ESTE JOGO SABE DO GAMEPAD (`GamepadGameHooks`): a engine monta o transporte e lê os pads sozinha; daqui
    * saem o título, a demonstração, o desafio, quem entra e quem renasce, o selo e o desenho do assistente.
    *
