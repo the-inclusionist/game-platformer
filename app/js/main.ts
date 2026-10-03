@@ -1824,6 +1824,12 @@ window.__incl={app,get player(){return players[0];},players,get numPlayers(){ret
   // O CONTROLADOR VIRTUAL, PELA JANELA (ADR-0111): quantas posições a engine entregou e estão seguradas, e a
   // pergunta por assento. É por aqui que se mede se um gesto, um olhar ou uma palavra chegou ao jogo.
   get cmdVirtuais(){return comandosVirtuais.tamanho();},cmdSegura:(i: number,a: string)=>comandosVirtuais.segura(i,a),
+  // SONDA DO CAMINHO: injeta um comando como a engine o entrega, e responde o que cada degrau vê. Existe
+  // porque o degrau que falha não se alcança de fora — nem com a câmera, que exige um gesto humano.
+  cmdInjeta:(a: string,on: boolean,i=0)=>comandosVirtuais.receber({action:a as Action,pressed:on,source:'gestos',player:i}),
+  cmdDiag:(a: string)=>{const p0=players[0] as unknown as Parameters<typeof input.held>[0];
+    return {assento:assentoDe(players[0]),registo:comandosVirtuais.segura(0,a),
+      engine:input.held(p0,a as Action),envelope:held(p0,a as Action)};},
   startAttract:()=>attractCtl.startAttract(),stopAttract:()=>attractCtl.stopAttract(),get attract(){return attractCtl.isAttract();}, // attract → game/attract.ts
   loadTTS:tts.loadTTS,ttsSpeak:tts.ttsSpeak,narrate:tts.narrate,get ttsEngine(){return tts.getEngine();},get ttsLoading(){return tts.loading;},get ttsFailed(){return tts.failed;},setTtsEngineSel(v: Parameters<typeof tts.setEngineSel>[0]){tts.setEngineSel(v);},
   updateWeather:weather.updateWeather,get rainLevel(){return weather.getRainLevel();},set weatherT(v){weather.setWeatherT(v);},get weatherT(){return weather.getWeatherT();},rm,
