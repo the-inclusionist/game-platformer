@@ -30,6 +30,39 @@
    cenário. A legibilidade sobre um fundo claro vem do `text-shadow` que a engine já põe no `.vphud`
    (`0 1px 2px #000, 0 0 3px #000, 0 0 6px #000`), que é contorno e não caixa. */
 
+/* ═══════════════ OS PAINÉIS DE INCLUSÃO TÊM DE SE VER (pedido do Dev, 03/10) ═══════════════
+ *
+ * 🔴 O DEFEITO, medido com os olhos e não só com o DOM: clicar em «Modo empatia» no cartão de pausa não
+ * mostrava nada — a lista ficava igual. O painel ESTAVA montado, com o conteúdo certo e `z-index: 61`; o
+ * que o tapava era o cartão de pausa com `z-index: 6`. Parece impossível, e não é: os painéis vivem dentro
+ * do `#dom-layer` (`main.ts:1758` move para lá todo `.overlay`, para que os menus recebam o filtro de
+ * correção de daltonismo — issue #82), e essa camada tem `z-index: 1`. Quem compete com o cartão não é o
+ * `61` do painel, é o `1` da camada — e perde. O Dev descreveu-o exatamente: *«ficam numa camada mais
+ * profunda e por isso nenhum é visível»*.
+ *
+ * 📌 O MESMO EXPLICA MAIS DOIS SINTOMAS do mesmo ecrã: a `.hud-row` (z:12) escrevia o «TEMPO» por cima do
+ * «Voltar» do painel, e o `#rodape-da-tela` (z:12) punha a legenda «2: confirmar · 3: voltar» por cima da
+ * lista. As três são irmãs da camada, e por isso passavam-lhe à frente.
+ *
+ * ⚠️ A CAMADA SOBE SÓ ENQUANTO UM PAINEL ESTÁ ABERTO. Subi-la sempre poria o `#game-hud` e o `#quiz`, que
+ * moram lá dentro, por cima do cartão de pausa — trocaria um defeito por outro. O `:has` pergunta pelo que
+ * importa: há um `.overlay` à vista aqui dentro?
+ *
+ * 📌 O CARTÃO DE PAUSA NÃO ENTRA NA CAMADA, e é decisão: ele é `.screen-pause` e não `.overlay`, nasceu com
+ * a engine 11 (decisão A, 02/10) e é o fundo contra o qual o painel abre. Movê-lo para dentro daria o mesmo
+ * resultado visual com uma mudança de DOM; esta regra muda só pintura.
+ */
+/* 🔴 `:not(#title-overlay)` NÃO É DETALHE — sem ele o conserto troca um defeito por outro. O ecrã de título
+   é um `.overlay` e mora nesta mesma camada, e está à vista o tempo todo que a criança lá está: sem a
+   exclusão a camada subiria SEMPRE no título, levando o título para cima da barra de acessibilidade — e os
+   dez ícones voltavam a não responder, que é o defeito consertado em `d8df2ae`. 📏 Medido por isolamento em
+   03/10: com a regra ligada e sem esta exclusão, nenhum ícone do título mudava de estado; com a regra
+   desligada, todos mudavam. A camada só precisa de subir por um PAINEL, que é o que abre por cima do
+   cartão de pausa. */
+#dom-layer:has(> .overlay:not([hidden]):not(#title-overlay)) {
+  z-index: 62;
+}
+
 /* 🔴 TUDO ENCOSTADO AO TOPO (pedido do Dev em 03/10, com um print feito à mão: «o ideal é que todas
    ficassem na parte mais acima»). A engine baixa o HUD para não ficar debaixo da barra de acessibilidade
    (`style.css:321`, `.screen-exp .vphud { top: var(--a11y-h) }`) — reservava-lhe uma faixa de ~137 px no

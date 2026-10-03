@@ -12,6 +12,9 @@
    sempre poria os painéis de ajustes (também `z:60`) por baixo dela, e mexeria no cartão de pausa (`z:6`),
    que o Dev pediu para ficar *«do jeito que ela sempre esteve»*. Em jogo nada muda. */
 body.at-title #title-icons {
+  /* ⚠️ 61 BASTA porque a camada NÃO sobe no título: a regra de `seat-hud.css` exclui o `#title-overlay` de
+     propósito, e a razão está escrita lá. Se um dia essa exclusão cair, a camada passa a 62 aqui e este 61
+     deixa de chegar — por isso o teste compara os dois números, em vez de afirmar cada um por si. */
   z-index: 61;
 }
 

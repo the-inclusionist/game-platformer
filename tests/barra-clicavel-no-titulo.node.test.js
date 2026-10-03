@@ -69,6 +69,36 @@ describe('a barra de acessibilidade é clicável no ecrã de título', () => {
   });
 });
 
+describe('os painéis de inclusão veem-se por cima do cartão de pausa', () => {
+  const HUD = readFileSync(join(process.cwd(), 'app', 'js', 'ui', 'seat-hud.css'), 'utf8');
+  const regraDaCamada = HUD.match(/#dom-layer:has\(([^)]*\)?[^{]*)\)\s*\{[^}]*z-index:\s*(\d+)/);
+
+  it('🔴 a camada sobe quando um painel está aberto', () => {
+    // Sem isto o painel fica em `z:61` DENTRO de uma camada de `z:1`, e o cartão de pausa (`z:6`), que é
+    // irmão dela, tapa-o. Foi o defeito de 03/10: a lista não mudava ao escolher «Modo empatia».
+    expect(regraDaCamada, 'a regra do `#dom-layer` saiu do `seat-hud.css`').toBeTruthy();
+    expect(Number(regraDaCamada[2])).toBeGreaterThan(6); // acima do cartão
+  });
+
+  it('🎯 e NÃO sobe pelo ecrã de título — senão a barra volta a não receber cliques', () => {
+    // 📏 Medido por isolamento: com a regra sem esta exclusão, nenhum dos dez ícones do título respondia,
+    // porque o `#title-overlay` vive nesta camada e está sempre à vista ali. É a troca de um defeito por
+    // outro, e só este caso a apanha.
+    expect(regraDaCamada[1]).toContain('#title-overlay');
+    expect(regraDaCamada[1]).toMatch(/:not\(\s*#title-overlay\s*\)/);
+  });
+
+  it('⚠️ a barra do título fica acima do overlay, e a camada acima da barra quando sobe', () => {
+    // Os dois números moram em ficheiros diferentes e relacionam-se: se um subir sem o outro, um dos dois
+    // defeitos volta. Este caso lê-os juntos, que é a única forma de os manter coerentes.
+    const zBarra = Number(CSS.match(/body\.at-title\s+#title-icons\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
+    const zCamada = Number(regraDaCamada[2]);
+    const zOverlay = Number(zDaRegra(ENGINE, '#game-region .overlay{'));
+    expect(zBarra).toBeGreaterThan(zOverlay);   // a barra passa à frente do título
+    expect(zCamada).toBeGreaterThan(zBarra);    // e o painel, quando sobe, passa à frente da barra
+  });
+});
+
 // ========================= MUTAÇÕES CONFERIDAS =========================
 // 1. Apagar a regra inteira: caem os dois primeiros casos.
 // 2. `z-index: 61` → `59` (abaixo do `.overlay`): cai o caso que compara com a medida da engine.
