@@ -1,5 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-/* O HUD DESTE JOGO, posto onde o Dev o pediu em 03/10 — ver `seat-hud.ts` para quem o desenha. */
+/* O QUE ESTE JOGO AJUSTA NA APRESENTAÇÃO DA ENGINE — o seu HUD (ver `seat-hud.ts`, quem o desenha), e as
+   peças da engine que ele reposiciona ou atenua a pedido do Dev em 03/10: a linha do relógio, a camada dos
+   menus, a barra de acessibilidade e o pad de toque. Carregado pelo `seat-hud.ts` porque é o módulo de HUD
+   que sempre existe; se um dia crescer para além disto, vale um ficheiro por assunto. */
+
+/* 🔴 O PAD DE TOQUE A 30% (pedido do Dev, 03/10). No `.touch`, que é o contentor de tudo o que a engine
+   desenha para o dedo — direcional, botões, ombros, START e SELECT —, para que a atenuação alcance as
+   peças todas e não só as que eu tivesse lembrado de nomear.
+   ⚠️ A OPACIDADE NÃO MEXE NO ALCANCE: o `pointer-events` continua a ser o da engine, e um botão a 30%
+   recebe o toque exatamente como a 100%. O que muda é quanto do cenário a criança vê por baixo. */
+#touch-controls.touch {
+  opacity: 0.3;
+}
 
 /* ⚠️ ESTAS REGRAS SOBREPÕEM-SE ÀS DA ENGINE, de propósito e com o nome dela: `.vphud` nasce em
    `style.css:255` como uma LINHA (`display:flex`) com as moedas e o poder lado a lado, cada um a metade.
