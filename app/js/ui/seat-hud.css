@@ -92,6 +92,20 @@
   --rodape-h: 0px;
 }
 
+/* 🔴 O MENU SELECT COMEÇA ABAIXO DA BARRA DE ACESSIBILIDADE (pedido do Dev, 03/10: «o menu precisa
+   diminuir de tamanho, de modo que as opções fiquem sempre abaixo do menu de acessibilidade rápida»).
+   📌 E A ENGINE JÁ DIZ COMO: `--barra-a11y-h` é a banda que ela reserva no topo, e o `create-game` manda os
+   jogos lerem-na — *«read `--barra-a11y-h` on #game-region and leave that room free (ADR-0148)»*. O quiz
+   dela faz exatamente isto (`style.css:572`, `.quiz-app{padding-top:var(--barra-a11y-h,0px)}`); o cartão
+   do menu ficou de fora porque nasceu depois, com a engine 11.
+   ⚠️ A BANDA É MAIOR QUE A BARRA, e é de propósito: mede 149 px contra os 88 px dos ícones, porque inclui
+   a linha onde aparece o NOME do ícone apontado (`ui/top-band`). Usar a altura dos ícones deixaria o
+   primeiro item do menu debaixo desse nome — que é o mesmo defeito, um nome mais tarde. */
+.screen-pause {
+  padding-top: var(--barra-a11y-h, 0px);
+  box-sizing: border-box;
+}
+
 /* ⚠️ E O RELÓGIO SOME NO MENU SELECT (pedido do Dev, 03/10: «apesar de necessário neste momento, ele
    atrapalha mais que ajuda»). Com o cartão aberto a tela é dele; o tempo volta assim que ela fecha. O
    `:has` pergunta pelo cartão à vista, que é a definição exata de «no menu».
