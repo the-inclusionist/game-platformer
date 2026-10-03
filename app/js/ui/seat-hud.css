@@ -1,0 +1,50 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* O HUD DESTE JOGO, posto onde o Dev o pediu em 03/10 — ver `seat-hud.ts` para quem o desenha. */
+
+/* ⚠️ ESTAS REGRAS SOBREPÕEM-SE ÀS DA ENGINE, de propósito e com o nome dela: `.vphud` nasce em
+   `style.css:255` como uma LINHA (`display:flex`) com as moedas e o poder lado a lado, cada um a metade.
+   O Dev pediu-os EMPILHADOS à esquerda: *«deveria estar desenhado a esquerda, acima de ultra pulo»*.
+   📌 Sobrepor em vez de pedir à engine é escolha para o MVP, e é reversível numa linha: quando o bloco
+   «uma tela por viewport» chegar, estas regras saem com o resto do paliativo. */
+.vphud {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Sem o `flex: 1 1 50%` da linha, cada um ocupa só o que o seu texto pede — e o `text-overflow: ellipsis`
+   da engine deixa de cortar «👟 Super-corrida» ao meio quando as duas dividiam a largura. */
+.vphud-obj,
+.vphud-power {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+/* 🔴 A ORDEM É O PEDIDO: moedas EM CIMA, poder por baixo. Em vez de trocar a ordem dos nós no `seat-hud.ts`
+   — que mudaria também a ordem de leitura para quem usa leitor de ecrã —, a ordem visual muda aqui e a do
+   documento fica. Quem lê com os olhos vê as moedas primeiro; quem lê com o ouvido continua a ouvir na
+   ordem que o módulo escreve. */
+.vphud-obj { order: 0; }
+.vphud-power { order: 1; }
+
+/* ⚠️ NENHUM FUNDO, e é o ponto do pedido: a `.hud-numero` da engine trazia `rgba(8,8,16,.92)` e tapava o
+   cenário. A legibilidade sobre um fundo claro vem do `text-shadow` que a engine já põe no `.vphud`
+   (`0 1px 2px #000, 0 0 3px #000, 0 0 6px #000`), que é contorno e não caixa. */
+
+/* O RELÓGIO NO TOPO, AO CENTRO (pedido do Dev: «o tempo no meio na parte superior»). A `.hud-row` da engine
+   (ADR-0239) nasce em baixo, acima do pad de toque. Aqui ela sobe.
+   ⚠️ `--hud-row-bottom` É DA ENGINE e ela reescreve-o quando o pad aparece (`ui/hud-row` segue o pad): por
+   isso a regra não mexe nessa variável — ancora pelo `top` e deixa o `bottom` em `auto`, senão as duas
+   escreviam a mesma posição e a última a correr ganhava. */
+.hud-row {
+  top: var(--barra-a11y-h, 0px);
+  bottom: auto;
+}
+
+/* A barra de acessibilidade recolhe-se aos 5 s em jogo (`ui/barra-recolhivel`), e quando ela sobe o relógio
+   não precisa de lhe dar espaço. 📌 O Dev mediu isto e aceitou: *«o menu de acessibilidade rápida ao
+   aparecer tapa estes elementos do HUD, mas ele desaparece segundos após ser usado, o que acaba não
+   criando problema algum.»* */
+#title-icons.barra-recolhida ~ .hud-row,
+#title-icons.barra-recolhida + * .hud-row {
+  top: 0;
+}

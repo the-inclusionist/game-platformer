@@ -16,6 +16,7 @@
  * (`getScreen(i)`, lido por `game/quiz`) e o selo «aperte para entrar» (`showWaitingBadge`), e porque o CSS da
  * engine ainda as posiciona.
  */
+import './seat-hud.css';
 import { screenRect, screenCount, hudRowView, type HudPlayer } from '@the-inclusionist/engine/ui/hud.js';
 import type { Objective } from '@the-inclusionist/engine/core/contract.js';
 import type { Translate } from '@the-inclusionist/engine/core/i18n.js';
@@ -41,8 +42,17 @@ export interface SeatHud {
   clearWaitingBadge(i: number): void;
 }
 
-/** Os assentos cujas moedas este jogo desenha: todos menos o 0, que é da faixa da engine. */
-export const desenhaMoedas = (assento: number): boolean => assento > 0;
+/**
+ * Os assentos cujas moedas este jogo desenha: TODOS.
+ *
+ * 🔴 ERA `assento > 0`, e o 0 ficava de fora porque a faixa `mission` da engine o cobria. O Dev em 03/10:
+ * *«Número de moedas não deveria aparecer com o fundo preto atrás, é HUD do jogo, não da engine.»* Com
+ * `hud: []` no cartucho essa faixa não nasce, e sem esta mudança o jogador 1 ficaria sem contador nenhum.
+ *
+ * ⚠️ AS DUAS LINHAS ANDAM JUNTAS: tirar o `hud` do cartucho sem abrir o 0 aqui apaga o contador de quem
+ * joga sozinho — que é quase toda a gente.
+ */
+export const desenhaMoedas = (_assento: number): boolean => true;
 
 export function createSeatHud(ctx: SeatHudCtx): SeatHud {
   let telas: HTMLElement[] = [];

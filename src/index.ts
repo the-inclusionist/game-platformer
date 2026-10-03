@@ -10,7 +10,6 @@ import { createPlatformerDeclaration } from '../app/js/declaration/platformer-de
 import { DEPS_VIVAS, GANCHOS_VIVOS, JOGADORES_VIVOS } from '../app/js/declaration/live.js';
 import { ACOMODACOES } from '../app/js/declaration/accommodations.js';
 import { platformerPreset } from '../app/js/game/platformer-preset.js';
-import { COIN_TARGET } from '../app/js/game/tuning.js';
 import type { CartridgeHooks } from '@the-inclusionist/engine';
 export { create };
 import { DICIONARIOS } from '../app/js/i18n/game-keys.js';
@@ -94,16 +93,23 @@ export const hooks: CartridgeHooks = {
    */
   onScreenPad: true,
   /*
-   * AS MOEDAS DO ASSENTO 0, na faixa da missão («tem de precisa»). ⚠️ Só o assento 0: a engine monta o HUD de uma
-   * tela (`create-game.js:2133`). As moedas dos assentos 1–3 e o poder de todos continuam deste jogo, em
-   * `ui/seat-hud`, cada um na própria tela — o poder é um rótulo, e a faixa `power` só mostra número.
-   * Lido a cada quadro, então lê o array estável dos assentos: vazio no import, «zero de dez» antes de haver jogo.
+   * 🔴 VAZIO, E O VAZIO É A DECLARAÇÃO (pedido do Dev, 03/10): *«Número de moedas não deveria aparecer com o
+   * fundo preto atrás, é HUD do jogo, não da engine.»* Com `hud: []` o `mountHudBands` não nasce
+   * (`create-game.js:2131`, `cartridge.hud ?? []`), e com ele vai-se a `.hud-numero` — a faixa com
+   * `background: rgba(8,8,16,.92)` que ficava no MEIO da tela, por cima do cenário.
+   *
+   * 📌 QUEM DESENHA AS MOEDAS AGORA É `ui/seat-hud`, que já desenhava as dos assentos 1–3: elas sobem para
+   * a coluna da esquerda, acima do poder, sem fundo. Um dono só para a mesma informação, que é o que faltava
+   * — a engine desenhava a do assento 0 e o jogo as outras três, com formas diferentes na mesma tela.
+   *
+   * ⚠️ A LEITURA POR LEITOR DE ECRÃ NÃO VAI JUNTO: ela vive nos `.hud__item--sr` do `app/index.html` deste
+   * jogo, não na faixa da engine. Medido em 03/10 antes de tirar.
+   *
+   * 📌 E ISTO É PALIATIVO ATÉ O HUD POR TELA EXISTIR na engine (bloco «uma tela por viewport» do plano): a
+   * faixa dela cobre só o assento 0, e este jogo é de tela dividida. Quando ela souber desenhar por
+   * viewport, o cartucho volta a declarar os números aqui e `ui/seat-hud` encolhe.
    */
-  hud: [{
-    band: 'mission',
-    nameKey: 'hud.nome.moedas',
-    value: (assento: number) => ({ have: JOGADORES_VIVOS[assento]?.collected ?? 0, need: COIN_TARGET }),
-  }],
+  hud: [],
 };
 
 /**

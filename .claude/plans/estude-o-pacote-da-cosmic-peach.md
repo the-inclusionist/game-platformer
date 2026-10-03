@@ -367,6 +367,22 @@ forma).
 - **C.6 (pad no título)**: FICA no bloco acima (item 6) — a leitura da engine em 02/10 20h55 confirmou que
   é bug da engine, mesmo sem controle físico, porque o `ctx.navTitle` nunca sai do `steerPause`.
 - **C.7 (`inclusionist-heavy --base` layout)**: backlog, não bloqueia.
+- 🔴 **C.8 (NOVO, 03/10) — `action1` não atende pelo verbo que este jogo lhe deu.** Pedido do Dev para
+  registar como troca/adição a fazer. O `input/voice-map` da engine dá a `action1` uma palavra só, e é
+  genérica: **`ação`** (pt), **`action`** (en), **`acción`** (es). Mas o preset deste jogo põe em `action1`
+  o verbo **«Correr / interagir»** (`act.run`). Uma criança que diga «corre» não é ouvida; se disser
+  «pega», a gramática fechada entrega-a a `action2`, que aqui é **Pular** — ou seja, ela pede uma coisa e o
+  boneco faz outra, que é pior do que não responder.
+  📌 **É o ÚNICO dos quatro onde a palavra e o verbo não se encontram.** Os outros três já trazem o
+  sinónimo certo: `action2` tem `pulo`/`jump`/`saltar`, `action3` tem `especial`/`special`, `action4` tem
+  `troca`/`swap`/`cambiar`.
+  **Pedido:** acrescentar a `action1` os sinónimos de correr e de interagir nos três idiomas — algo como
+  `corre`/`interage`, `run`/`interact`, `corre`/`interactúa`. ⚠️ Com duas restrições que a engine já
+  documenta: as palavras vêm **como o vocabulário do reconhecedor as escreve, com acentos** (a medição do
+  `ação` vs `acao` está no próprio `voice-map`), e a gramática é fechada e curta de propósito — palavras
+  parecidas entre si fazem o modelo empurrar uma para a outra (o laboratório mediu «configurações de
+  inclusão» a virar «quatro»). Então o sinónimo novo tem de ser curto e distante dos que já lá estão.
+  **Onde:** `input/voice-map.js` da engine (PT/ES/EN), não neste cartucho.
 
 ### Estado em 02/10, ~22h30 — pivô para Tauri (abandono do PWA)
 
