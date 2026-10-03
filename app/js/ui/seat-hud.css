@@ -92,18 +92,19 @@
   --rodape-h: 0px;
 }
 
-/* 🔴 O MENU SELECT COMEÇA ABAIXO DA BARRA DE ACESSIBILIDADE (pedido do Dev, 03/10: «o menu precisa
-   diminuir de tamanho, de modo que as opções fiquem sempre abaixo do menu de acessibilidade rápida»).
-   📌 E A ENGINE JÁ DIZ COMO: `--barra-a11y-h` é a banda que ela reserva no topo, e o `create-game` manda os
-   jogos lerem-na — *«read `--barra-a11y-h` on #game-region and leave that room free (ADR-0148)»*. O quiz
-   dela faz exatamente isto (`style.css:572`, `.quiz-app{padding-top:var(--barra-a11y-h,0px)}`); o cartão
-   do menu ficou de fora porque nasceu depois, com a engine 11.
-   ⚠️ A BANDA É MAIOR QUE A BARRA, e é de propósito: mede 149 px contra os 88 px dos ícones, porque inclui
-   a linha onde aparece o NOME do ícone apontado (`ui/top-band`). Usar a altura dos ícones deixaria o
-   primeiro item do menu debaixo desse nome — que é o mesmo defeito, um nome mais tarde. */
-.screen-pause {
-  padding-top: var(--barra-a11y-h, 0px);
-  box-sizing: border-box;
+/* 🔴 A BARRA SAI QUANDO UM MENU DE TELA INTEIRA ABRE (pedido do Dev, 03/10, corrigindo-se a si próprio:
+   *«o correto não era o menu ficar abaixo da barra de acessibilidade rápida, mas sim não haver barra de
+   acessibilidade rápida quando um menu que ocupa a tela inteira é invocado»*).
+   📌 E É MELHOR DO QUE RECUAR O MENU, que foi a primeira tentativa: um menu de tela inteira é modal, então
+   nada deve disputar o topo com ele. O cartão volta a ter a tela toda — deixou de precisar de scroll para
+   mostrar as seis opções — e a criança não perde acesso nenhum, porque as mesmas acomodações estão dentro
+   do menu, em «Configurações de inclusão».
+   ⚠️ O TÍTULO NÃO CONTA, pela mesma razão de sempre: ele é um `.overlay` de tela inteira e está à vista o
+   tempo todo no ecrã inicial — incluí-lo aqui apagaria a barra justamente onde o Dev pediu que ela
+   funcionasse (`d8df2ae`). É a mesma exclusão da regra da camada, abaixo, e pelo mesmo motivo. */
+#game-region:has(.screen-pause:not([hidden])) #title-icons,
+#game-region:has(#dom-layer > .overlay:not([hidden]):not(#title-overlay)) #title-icons {
+  display: none;
 }
 
 /* ⚠️ E O RELÓGIO SOME NO MENU SELECT (pedido do Dev, 03/10: «apesar de necessário neste momento, ele
