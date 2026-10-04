@@ -1,0 +1,180 @@
+---
+metadata:
+  status: "accepted"
+  date: 2026-10-03
+  decision-makers: [Dev]
+  confirmed-by:
+    - "tests/carregar-e-arremessar.node.test.js"
+    - "tests/recycling-world.node.test.js"
+    - "tests/recycling-scene.node.test.js"
+    - "tests/lixo-no-hud.node.test.js"
+  consulted:
+    - "ADR-0060 (the interaction button acts BY CONTEXT, and only running is a latch) — its routing table is
+       what this record adds a condition to; ERRATUM filed there"
+    - "ADR-0061 (the no-littering sign bars the CHILD) — its negative consequence predicted this complaint in
+       writing and accepted it; ERRATUM filed there"
+    - "ADR-0049 §1 (behaviour points) — untouched: an armful neither gives nor takes points"
+    - "ADR-0010 pillar 3 (three languages) — why the icons carry the name in an attribute and not in text"
+    - "the Dev, 2026-08-28: `Uma vez que segura o lixo ele só poderá soltar na lixeira e não poderá seguir
+       após a placa`"
+    - "the Dev, 2026-10-03, playing: `Permita coletar mais de um lixo. Bloquear para um de cada vez tornou o
+       jogo chato e menos interessante`"
+    - "the Dev, 2026-10-03: `O nome do item não precisa aparecer, só seu ícone, desta forma é possível coletar
+       vários e saber o que foi coletado`"
+  informed: []
+
+title: The child carries an ARMFUL of litter — and the bin receives the one at the FRONT of the queue, which is what keeps the lesson
+
+context-and-problem-statement: |
+  Picking up litter locked the hand: one piece at a time, no dropping, no throwing, and the only exit is the
+  right bin. The lock on dropping is the Dev's own decision (ADR-0061); the limit of ONE was mine, and the
+  argument for it was written into `recycling-world.pegarPerto` — the drop has to be a choice PER ITEM,
+  «which is where the content is».
+
+  ⚠️ ADR-0061 PREDICTED THIS COMPLAINT, IN WRITING, AND ACCEPTED IT. Its negative consequences say: «Locking
+  the hand means a child who picks up litter far from a bin must carry it back, and the walk is not fun. It is
+  accepted because the alternative is a droppable object the sign then has to police.»
+
+  🔴 THE DEV PLAYED IT AND REFUSED THE PRICE: «bloquear para um de cada vez tornou o jogo "chato" e "menos
+  interessante"». The record had the cost right and the trade wrong — and it is worth noticing WHY the trade
+  looked forced: it assumed the only way to shorten the walk was to let litter be dropped, which the sign then
+  has to police. There was a third way, and nobody had looked for it because the consequence had been written
+  down as settled.
+
+  AND THE SECOND HALF OF THE REQUEST IS ABOUT READING IT: «desta forma é possível coletar vários e saber o que
+  foi coletado». Carrying four things is only useful if she can tell what they are.
+
+decision-drivers:
+  - "A walk repeated once per can is travel, not learning. The lesson is WHICH BIN, and the walk is the tax on
+     getting to it."
+  - "The lesson must survive the change: a child who can carry one of each colour must still have to know
+     which bin each one goes in."
+  - "The lock on dropping is not in question. Dropping and throwing litter ARE the disobedience the sign
+     exists for (ADR-0061), and nothing here lets her do either."
+  - "What she carries has to be legible without reading — the audience is learning to read."
+
+considered-options:
+  - "A1 — keep one at a time"
+  - "A2 — carry several; the bin receives whichever carried item MATCHES its colour"
+  - "A3 — carry several; the bin receives the item at the FRONT of the queue, in pick-up order"
+  - "A4 — carry several and let her choose which to drop, with a selector"
+
+pros-and-cons-of-the-options:
+  A1:
+    good: ["Every bin visit is a decision about one object, which is the content at its sharpest.",
+           "Nothing to build."]
+    bad: ["⚠️ THE DEV REFUSED IT AT THE CONTROLLER, which is the only instrument that answers «is this fun».",
+          "The walk is paid once per piece, and the pieces are one per material."]
+  A2:
+    good: ["Never a frustrating refusal; she is always right at the bin she reaches.",
+           "Simplest to implement and to explain."]
+    bad: ["⚠️ IT DELETES THE LESSON. With one of each colour in hand, EVERY bin is the right bin: she walks
+           past all four, scores four times, and never has to know the can is the yellow one.",
+          "The failure is invisible — the game still looks like it is teaching."]
+  A3:
+    good: ["The question stays exactly as it was: «where does THIS one go?»",
+           "The walk is amortised over up to four pieces, which is the Dev's complaint answered.",
+           "The order is visible — the first icon and the top of the pile on her body are the same piece."]
+    bad: ["A refusal can feel arbitrary to a child who does not realise order matters: she stands at the yellow
+           bin holding a can and is told no, because a bottle is in front.",
+          "Needs a queue — pick-up order, which is not the order the round scattered the items in."]
+  A4:
+    good: ["Full control; no refusal is ever a surprise."]
+    bad: ["A selector is another control to learn, on a pad that already asks for ten positions.",
+          "It puts an inventory UI in a platformer for a 7-year-old."]
+
+decision-outcome:
+  chosen-option:
+    link: "A3 — an armful of up to four, and the bin receives the front of the queue"
+    justification: |
+      ===== 1. HOW MANY, AND WHERE THAT NUMBER LIVES =====
+      `game/carry.PODE` gains `cabem` — the capacity of each carry class. Litter is FOUR, which is one per
+      material and also what the round puts on the ground. A gate compares the two numbers, because they live
+      in different files and would otherwise drift in silence the day a material is added.
+
+      ⚠️ AND THE OTHER THREE CLASSES KEEP `cabem: 1`. A ball with another in reach still THROWS, exactly as
+      before. The Dev changed litter; seed, ball and lost-object were not in the request and are not touched.
+
+      ===== 2. THE ROUTING GAINS ONE CONDITION, AND ONLY ONE =====
+      `acaoDeCarga` used to ask first «is anything in the hand?», and whoever had something never picked up.
+      It now asks «is there something in reach, and does it fit?». For the `cabem: 1` classes the arithmetic
+      `naMao < 1` is false and the button falls through to the throw, which is byte-for-byte the old behaviour.
+      ERRATUM filed on ADR-0060, whose table this amends.
+
+      ===== 3. THE BIN RECEIVES THE FRONT OF THE QUEUE — THE DECISION THAT SAVES THE LESSON =====
+      `cargasDe` returns what she carries in PICK-UP order, and `cargaDe` is the first of that list. Not the
+      order of `itens[]`, which is where the round scattered them and has nothing to do with what she chose.
+
+      ⚠️ «THE ONE THAT MATCHES» WOULD HAVE BEEN EASIER AND WOULD HAVE EMPTIED THE GAME. With one of each
+      colour in hand, every bin would be the right bin. The content of this activity is the match between a
+      material and a colour; a rule that always matches teaches nothing and still scores. The queue keeps the
+      question standing and gives back only the walk.
+
+      ===== 4. WHAT SHE SEES =====
+      ON HER BODY, an armful CENTRED on the belly, not stacked up from it. Four pieces at a 4 px step piled
+      upwards would put the last one above her head, which is the «state icon» ADR-0060's sibling decision
+      rejected in writing. Centred, the armful runs from just under the chin to mid-thigh — someone with their
+      arms full. With one piece the arithmetic is zero, so the drawing approved on 02/10 is unchanged.
+
+      IN THE HUD's top-right corner, ONE ICON PER PIECE, in a column, in queue order. 📏 The name was there
+      first and measured 295 of the HUD line's 640 px, beside the clock, because the type size is the engine's
+      and does not shrink to fit. The icon IS the object, which is what was asked to appear; the whole name
+      goes in the `aria-label`, which costs no width, and the game already speaks it on pick-up.
+
+      ⚠️ THE TOP ICON AND THE TOP OF THE PILE ARE THE SAME PIECE, and that is not decoration: it is the one
+      the next bin will receive.
+
+  consequences:
+    positive:
+      - "The walk is paid once for up to four pieces instead of once per piece — the complaint answered."
+      - "The lesson is intact: every deposit is still a decision about ONE object's colour."
+      - "What she carries is readable without reading, which the previous design did not show at all."
+      - "`PODE` grew a third axis, so the next carry class answers «how many» as explicitly as it answers
+         «can it be thrown»."
+    negative:
+      - "⚠️ A REFUSAL CAN LOOK ARBITRARY. She stands at the yellow bin holding a can and is told no, because a
+         bottle is in front of the queue. The icons say so, in order, but only if she reads them that way — and
+         nothing in the game explains the rule."
+      - "The sign's barrier now holds back a child carrying FOUR things, so a wrong turn costs more than it did."
+      - "A screen reader now meets a list of up to four items in the corner, which is four more things announced
+         on a screen that already announces a lot."
+      - "ADR-0061's negative consequence is now wrong as written, and needed an erratum. A consequence accepted
+         in a record is not a decision closed."
+    neutral:
+      - "No change to points: ADR-0049 §1 counts one behaviour point per correct deposit, whatever is in hand."
+      - "Dropping and throwing litter stay impossible. `PODE.lixo` is still `{ soltar: false, arremessar: false }`,
+         which is the clause ADR-0061's confirmation checks."
+
+  confirmation: |
+    · `tests/carregar-e-arremessar.node.test.js`: with litter in hand and another in reach the button PICKS UP,
+      to the fourth piece; with a BALL in hand it throws, which pins that the other classes did not move; and a
+      full armful goes back to the silence litter always had.
+    · `tests/recycling-world.node.test.js`: hands already full take the second; the hand has a ceiling; the
+      queue is pick-up order and NOT the order of `itens[]` — asserted by picking up the item that sits LAST in
+      the array first; depositing removes the front and the next moves up; and `PODE.lixo.cabem` equals
+      `MATERIAIS.length`, read from both files, never repeated.
+    · `tests/lixo-no-hud.node.test.js`: one icon per piece in queue order, the list shrinks when a piece goes
+      into a bin, the DOM is rebuilt only when the armful CHANGES (it runs every frame, and a screen reader
+      would re-announce the list otherwise), and the name is in the attribute and not in the text.
+    · Mutations verified on each: `cabem` back to 1, `cargaDe` back to a `find` over `itens[]`, the capacity
+      guard removed, the name written beside the icon again.
+    · 📌 ONE MUTATION IS NAMED AND NOT RUN, because it is the decision and not a defect: making `depositar`
+      pick the item that MATCHES the bin leaves every test green and empties the game. It is written in that
+      file's mutation list as the reason `cargaDe` says «the front» and not «the match».
+    · Measured in the browser on 2026-10-03: three pieces carried at once through the real pick-up path, three
+      icons in queue order, three distinct heights on the body.
+
+    ⚠️ WHAT NO TEST CONFIRMS: whether a child understands that the ORDER decides which bin accepts her. The
+    icons show it and nothing explains it. That needs a person watching a child — issue #7.
+
+more-information: |
+  📌 THIS IS A NEW RECORD AND NOT AN AMENDMENT TO ADR-0061, and the line is worth drawing. ADR-0061 decides
+  that the SIGN bars the child and that litter has no exit but the right bin; none of that moved. What moved is
+  a consequence it accepted — the walk — and the mechanism that produced it, which was never its decision. The
+  erratum there points here.
+
+  🔴 WHAT THIS TAUGHT ABOUT WRITING CONSEQUENCES. ADR-0061 named this exact cost, in the child's terms, and
+  accepted it with a reason that sounded closed: «the alternative is a droppable object the sign then has to
+  police». The alternative it named was a false dichotomy — carrying several is not dropping any — and writing
+  the cost down made it look decided for six weeks. A consequence accepted is a bet, and a bet is settled at
+  the controller.

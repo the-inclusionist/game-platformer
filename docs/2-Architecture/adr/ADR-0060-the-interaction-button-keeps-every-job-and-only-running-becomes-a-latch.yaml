@@ -1,6 +1,21 @@
 ---
 metadata:
   status: "accepted"
+  errata:
+    - date: 2026-10-03
+      what: |
+        🔴 THE ROUTING TABLE GAINED ONE CONDITION, and the record's own sentence «near an object is PICK
+        UP» is now true only while the thing in hand still has room. `game/carry.PODE` grew a third axis,
+        `cabem`: litter holds FOUR (one per material), and seed, ball and lost-object hold ONE. `acaoDeCarga`
+        used to ask first «is anything in the hand?» and whoever had something never picked up; it now asks «is
+        there something in reach, and does it fit?».
+        ⚠️ FOR THE THREE CLASSES THAT HOLD ONE, NOTHING MOVED. With a ball in hand and another in reach the
+        button still THROWS, because `naMao < 1` is false — byte-for-byte the behaviour this record decided, and
+        a case pins it. Only litter can now add.
+        📌 The reason is in ADR-0261, which this erratum points at: the Dev refused the one-at-a-time
+        limit at the controller. What this record decided — the interaction button keeps every job in every
+        input mode, running is a STATE and interacting is an EVENT, the jump never sticks and never picks up —
+        is untouched.
   date: 2026-08-28
   supersedes: [ADR-0045]
   decision-makers: [Dev]

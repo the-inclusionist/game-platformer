@@ -1,0 +1,166 @@
+---
+metadata:
+  status: "accepted"
+  date: 2026-10-03
+  decision-makers: [Dev]
+  confirmed-by:
+    - "tests/sonar-no-r1.node.test.js"
+  consulted:
+    - "engine:dist-pkg/ui/screen-text.js — `MENU_SONAR = 'rightShoulder'`, and its header quotes the Dev:
+       «Tecla padrão para o sonar deve ser R1». The same file states that IN PLAY the position is the GAME's
+       preset, which is why a game that declares no shoulder has no sonar button"
+    - "ADR-0086 (the eight verbs: four numbered, four named by the hand's anatomy) — `rightShoulder` is R1 on
+       every pad that reports the standard mapping"
+    - "ADR-0074 §1 (an abstract name reaching a person is a defect) — the reason a position has to be
+       DECLARED and not merely wired"
+    - "ADR-0060 (the interaction button acts BY CONTEXT) — the record that governs the four diamond buttons;
+       this one touches none of them"
+    - "ADR-0106 §5 (a control that is seen, pointed at and does not respond) — the inverse defect, and the
+       reason a hidden chord is not an answer either"
+    - "the Dev, 2026-10-03: `o botão R2 aparece no HUD, mas também deve aparecer o R1 (sonar)`"
+    - "the Dev, 2026-10-03: `A partir de agora, sonar somente R1, como na Engine (verifique se é este mesmo o
+       padrão da engine, fazendo o favor)`"
+  informed: []
+
+title: The sonar is R1 — and the chord that was its only door goes, because two triggers make one of them invisible
+
+context-and-problem-statement: |
+  The audio sonar is this game's answer to «where am I?» for a child who does not see the screen: it names the
+  nearest target and points at it with a tone. It has existed since the audio navigation landed, and until
+  today it had NO BUTTON OF ITS OWN.
+
+  What it had was a CHORD, in `game/physics.updatePowerSwap`: hold the power-swap button for about 0.3 s
+  (`_swapT > 18` frames), or press swap and special together. Nothing on screen said so. The pad assistant did
+  not ask for it, the remap screen did not list it, the help table had no row for it, and the legend under the
+  title had no word for it.
+
+  ⚠️ A CHORD IS DISCOVERED, AND THIS IS THE ONE FEATURE THAT CANNOT BE. Whoever most needs the sonar is
+  precisely the child who cannot look at the screen to find out that anything is there. ADR-0106 §5 names the
+  defect of a control that is seen and does not respond; a control that responds and is not seen is the same
+  failure read from the other side, and it is worse here because the audience is defined by not seeing.
+
+  ⚠️ AND THE CHORD COST THE SWAP BUTTON ITS OWN MEANING. `_swapSonar` existed to swallow the power swap after
+  a probe fired, so holding the swap for more than 0.3 s changed no power at all — a button whose job silently
+  stopped happening if you pressed it slowly.
+
+  🔴 THE DEV ASKED ME WHETHER R1 WAS THE SONAR AND I ANSWERED NO, measuring this game's wiring. The engine had
+  his own decision written down — `MENU_SONAR = 'rightShoulder'`, with «Tecla padrão para o sonar deve ser R1»
+  quoted in the header — and says in the same place that in play the position comes from the GAME's preset.
+  My measurement answered «this cartridge declares none» and I reported it as «the engine does not define it».
+  He corrected it, and asked me to check the engine before writing this record. The check is the first line of
+  `consulted`.
+
+decision-drivers:
+  - "The engine already has a default for this position, decided by the Dev and written in its code. A game
+     that silently disagrees with it teaches a child a control that no other game in the family has."
+  - "A position only reaches the pad assistant, the remap screen, the help table and the legend if the game
+     DECLARES it. Wiring a key without declaring it is a feature that exists for whoever already knows."
+  - "Two triggers for one action do not add reach: they make the named one optional and the hidden one
+     invisible, and nothing tells a reader which is the real answer."
+  - "The sonar's audience is the audience least able to discover anything by looking."
+
+considered-options:
+  - "S1 — leave the chord as it is, and declare nothing"
+  - "S2 — declare R1 AND keep the chord, so nobody who learned it loses it"
+  - "S3 — declare R1 and remove the chord: one named door"
+
+pros-and-cons-of-the-options:
+  S1:
+    good: ["Costs nothing and breaks nothing.",
+           "A child who already knows the chord keeps it."]
+    bad: ["⚠️ THE SONAR STAYS UNDISCOVERABLE for everyone else, and «everyone else» is the whole audience it
+           was built for.",
+          "Keeps the swap button's hold silently meaning «do not swap»."]
+  S2:
+    good: ["Nobody loses a gesture they had learned.",
+           "The named door arrives without taking anything away."]
+    bad: ["⚠️ TWO DOORS MAKE ONE INVISIBLE. A reader of the code cannot tell which is the decision, and the
+           next person to touch the physics has no way to know the chord is load-bearing.",
+          "The chord's cost on the swap button stays: `_swapSonar` still has to swallow the swap."]
+  S3:
+    good: ["One position, one word, one row in every surface that lists controls.",
+           "Holding the swap goes back to meaning swap — the field that swallowed it has nothing left to do.",
+           "It is the engine's own default, so the child meets the same button in the next game."]
+    bad: ["A child who had learned the chord loses it, with no notice inside the game.",
+          "On a shared keyboard in 3–4 player mode the position is unreachable (`UNREACHABLE_ON_A_SHARED_KEYBOARD`),
+           so the help table shows a row with no key."]
+
+decision-outcome:
+  chosen-option:
+    link: "S3 — R1 is declared, and the chord goes"
+    justification: |
+      ===== 1. THE PRESET DECLARES THE POSITION =====
+      `game/platformer-preset` gains `rightShoulder: { labelKey: 'act.sonar', shortKey: 'legend.sonar' }`, and
+      the three dictionaries gain the two words. Declaring is what makes the position exist for a person: the
+      pad assistant asks for it, the remap screen lists it, the help table names it, the legend has a short
+      word for it, and every transport reaches it by the same door — key 8, the pad's R1, three fingers at the
+      camera, the gaze cycle.
+
+      ===== 2. THE ROOT PLAYS IT ON THE PRESS, NOT ON THE HOLD =====
+      `main.receberComando` answers `rightShoulder` with `nav.sonar(seat)`. It is an EDGE and not a held state:
+      a sonar that fired while the button was down would play sixty probes a second, which for a child playing
+      with her eyes closed is not more information, it is white noise.
+
+      ===== 3. THE CHORD IS REMOVED, AND WHAT IT COST COMES BACK =====
+      `updatePowerSwap` no longer calls the sonar. With it goes the reason `_swapSonar` existed, so holding the
+      swap button goes back to swapping on release.
+
+      ⚠️ THE FIELD ITSELF STAYS ON THE PLAYER, and the reason is a boundary and not an oversight: `_swapSonar`
+      is REQUIRED on the engine's `Player` (`core/entity.d.ts`). Removing it here does not compile; removing it
+      there is the engine's decision, not this game's. `game/player` records that this game no longer reads it.
+
+      ===== 4. WHAT THE 3–4 PLAYER CASE DOES =====
+      A shared keyboard declares no shoulders (`input/keyboard`, `UNREACHABLE_ON_A_SHARED_KEYBOARD`), so the
+      help table shows «Sonar» with no key. That is the honest degradation ADR-0079 asks for — the absence is
+      said, rather than the row disappearing and the action looking non-existent.
+
+  consequences:
+    positive:
+      - "The sonar becomes nameable, remappable and askable-for, in every surface the engine builds from a
+         preset — which is the whole point of declaring a position rather than binding a key."
+      - "Holding the power-swap button stopped silently meaning «do not swap»."
+      - "The child meets the same button here and in any other game of the family that follows the engine's
+         default."
+      - "`updatePowerSwap` had NO test at all, which is why removing the sonar from it turned nothing red. It
+         has one now, from both sides."
+    negative:
+      - "A child who had learned the chord loses it with no notice. Nothing in the game tells her; she finds
+         the button on the legend or not at all."
+      - "In 3–4 player mode the help table shows a row with no key, which a reader can mistake for a defect."
+      - "This game now declares TEN positions where it declared eight, and each one is a step the pad
+         assistant asks a child to perform before she plays."
+    neutral:
+      - "The sonar's content — what it names and how it pans — is untouched. This record decides only the door."
+      - "The engine's `Player._swapSonar` becomes dead weight for this cartridge. Whether it leaves the engine
+         is the engine's call."
+
+  confirmation: |
+    · `tests/sonar-no-r1.node.test.js` steps a real player through the physics with the swap button held for
+      sixty frames and with the swap+special chord, and asserts the sonar NEVER fires — plus that releasing the
+      swap after a long hold swaps the power, which is what the chord used to eat.
+    · The same file reads the root and the preset: `receberComando` answers `rightShoulder` with `nav.sonar`,
+      the early return on a non-press edge is intact, and the preset declares the position with both keys.
+    · Three mutations verified: restoring the chord fails three cases; removing the root's call fails one;
+      removing the preset line fails one.
+    · Measured in the browser on 2026-10-03, against `dist/`: key 8 raised `__incl.sonarCount` from 0 to 1, and
+      holding the swap for 1.2 s left it at 1.
+
+    ⚠️ WHAT NO TEST CONFIRMS: whether a child FINDS the button. The legend under the title and the pad
+    assistant are the only two places that say it exists, and whether either is read is a question for a person
+    watching a child, not for a gate.
+
+more-information: |
+  THE ENGINE WAS CHECKED BEFORE THIS WAS WRITTEN, at the Dev's explicit request («verifique se é este mesmo o
+  padrão da engine, fazendo o favor»). `engine:dist-pkg/ui/screen-text.js` pins `MENU_SONAR = 'rightShoulder'`
+  for the sonar WITH A MENU OPEN and quotes him; the same header states that in play the position belongs to
+  the game's preset. So the engine's default and this record now agree, and they agree because he remembered
+  what he had decided and I had not.
+
+  📌 WHY THIS IS A RECORD OF THIS GAME AND NOT OF THE ENGINE (ADR-0229 triage): the engine decided that R1 is
+  the sonar's default and already implements it for its own menus. What is decided HERE is that this platform
+  adopts that position in play, names it `act.sonar`, and gives up the chord it had instead. The engine's
+  record would be wrong to carry a cartridge's preset.
+
+  R1 AND R2 ARE THE TWO QUESTIONS ABOUT WHERE YOU ARE, and the pair reads itself: R1 listens to the place, R2
+  tidies the map that shows it (ADR-0260). That is a pleasing accident of two separate requests on the same
+  day, not a principle — but it is the reason the two shoulders filled up and the two triggers did not.

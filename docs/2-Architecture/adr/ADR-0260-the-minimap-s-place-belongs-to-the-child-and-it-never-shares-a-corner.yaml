@@ -1,0 +1,194 @@
+---
+metadata:
+  status: "accepted"
+  date: 2026-10-03
+  decision-makers: [Dev]
+  confirmed-by:
+    - "tests/minimapa-cantos.node.test.js"
+    - "tests/canto-superior-direito.node.test.js"
+  consulted:
+    - "ADR-0086 (the eight verbs; the shoulders and triggers are named by the hand) — `rightTrigger` is R2"
+    - "ADR-0074 §1 (an abstract name reaching a person is a defect) — why R2 is DECLARED and not just wired"
+    - "ADR-0259 (the sonar is R1) — the other shoulder, decided the same day and by the same argument"
+    - "ADR-0020 (canonical Z-order, world/overlay, PIXI + DOM) — the record that says the canvas and the DOM
+       are two orders; this one is what happens when two things claim one corner across that line"
+    - "ADR-0106 §5 (a control that is seen and does not respond) — the inverse of a map that is drawn and not
+       seen"
+    - "the Dev, 2026-10-03: `Botão R2 altera a disposição do mapa na tela, entre canto inferior esquerdo,
+       canto inferior direito e canto superior direito`"
+    - "the Dev, 2026-10-03: `Se o personagem toca no minimapa, ele deve mudar de posição para a direita da
+       tela`"
+    - "the Dev, 2026-10-03, with a screenshot of the right arrangement: `A disposição correta do HUD com
+       controle. Repare a posição correta dos botões R1 e R2 e do mapa`"
+  informed: []
+
+title: The minimap's place on screen belongs to the CHILD — R2 moves it, her feet push it, and it never shares a corner with a button
+
+context-and-problem-statement: |
+  The minimap is drawn in the canvas, in the logical world of 320×180, pinned to the bottom-left corner. It had
+  been there since it was born, and nothing could move it.
+
+  THREE THINGS WENT WRONG WITH ONE FIXED CORNER, and the Dev reported them on the same day:
+
+    · ⚠️ IT COVERS THE GROUND SHE IS WALKING ON. In a platformer the child walks under the map, and the map
+      hides exactly the tiles her feet are about to land on. A map that hides the floor is worse than no map.
+    · ⚠️ WITH A TOUCH PAD ON SCREEN THE BOTTOM-LEFT CORNER IS THE DIRECTIONAL. 📏 Measured at 1000×620: the map
+      sat at (4, 140), entirely under the d-pad, invisible.
+    · ⚠️ AND SHE HAS NO SAY. Whatever corner we pick is wrong for some level, some scenario, some child.
+
+  🔴 AND THE TOP-RIGHT CORNER IS SHARED ACROSS A LINE NO `z-index` CROSSES. The minimap is drawn INSIDE the
+  canvas; the pad's shoulder buttons and the HUD's carried-item icons are DOM on top of it. They are not in the
+  same stacking context, so nothing arbitrates between them — whatever lands in the same place is simply
+  hidden. ADR-0020 says the canvas and the DOM are two orders; this is the first time two things claimed one
+  corner across that boundary.
+
+decision-drivers:
+  - "A map that hides the floor the child is standing on costs more than it gives."
+  - "No fixed corner is right for every level, every scenario and every control method — so the choice has to
+     be hers."
+  - "A map drawn where a button is drawn is not a layering problem, because the two are in different orders.
+     It is an arrangement problem, and it has to be measured rather than declared."
+  - "ADR-0074 §1: the button that moves it has to be NAMED, or it is a feature for whoever already knows."
+
+considered-options:
+  - "M1 — leave the map where it is, and accept that it covers the floor and hides under the d-pad"
+  - "M2 — move it automatically: flee the character, and jump to a free corner when a pad appears"
+  - "M3 — give the child a button (R2) that cycles the corners, and let the map flee her feet"
+  - "M4 — M3, and in the top-right the map drops BELOW the shoulder column"
+  - "M5 — M3, and in the top-right the map sits BESIDE the shoulder column, with the carried items below it"
+
+pros-and-cons-of-the-options:
+  M1:
+    good: ["Nothing to learn, nothing to build.",
+           "The map is always in the same place, which is its own kind of accessibility."]
+    bad: ["⚠️ IT HIDES THE FLOOR, which is the complaint that started this.",
+          "With a touch pad it is not visible at all — a feature that exists and is never seen."]
+  M2:
+    good: ["Costs the child nothing; she never has to learn a control.",
+           "Always right without her thinking about it."]
+    bad: ["⚠️ A MAP THAT MOVES ON ITS OWN IS A MAP YOU HAVE TO FIND AGAIN. For a child who is building a mental
+           model of a screen, the one thing a reference should do is stay.",
+          "Two writers for one corner — the automatic rule and her button — and the automatic one always wins
+           the next frame."]
+  M3:
+    good: ["The place becomes hers, with a named button that every surface lists.",
+           "The flee answers the floor problem without her having to do anything about it."]
+    bad: ["She has to discover R2, and on a shared keyboard in 3–4 player mode she cannot reach it.",
+          "Says nothing about the corner the buttons are in."]
+  M4:
+    good: ["Simple to state and simple to measure: the map starts under whatever is above it."]
+    bad: ["⚠️ MEASURED AND REJECTED BY THE DEV, with a screenshot. The map is WIDE and SHORT, the button column
+           is NARROW and TALL: stacked, the map falls to mid-screen and the corner keeps half of itself empty.",
+          "It also puts the map in the middle of the play area, which is the thing the whole record is against."]
+  M5:
+    good: ["Side by side the two share one band of height, which is what the corner has.",
+           "The items have a place that is theirs — under the buttons, or under the map when there are none.",
+           "It is the arrangement the Dev drew."]
+    bad: ["Three things now depend on one measurement, so one wrong number moves all of them.",
+          "The measurement reads the DOM every frame while a pad is on screen."]
+
+decision-outcome:
+  chosen-option:
+    link: "M5 — R2 cycles, the map flees, and in the top-right it sits beside the buttons with the items below"
+    justification: |
+      ===== 1. R2 CYCLES THREE CORNERS, IN THE DEV'S ORDER =====
+      Bottom-left → bottom-right → top-right → bottom-left. `rightTrigger` is declared in the preset
+      (`act.mapa` / `legend.mapa`), so the pad assistant asks for it, the remap screen lists it and the legend
+      names it. The root answers the PRESS, never the hold: a held trigger would walk three corners a second.
+
+      ===== 2. THE MAP FLEES HER FEET, IN BOTH DIRECTIONS =====
+      When the character's ON-SCREEN position falls on the map's rectangle, plus a 6 px margin, the map swaps
+      SIDE. The margin is there because she does not have to touch it for it to be in the way.
+
+      ⚠️ BOTH DIRECTIONS, AND THE DEV NAMED ONLY ONE. He said «goes to the right», which is the side opposite
+      the corner it is born in. Without the return trip, a child who crossed the screen once pushed the map
+      away and lost the left corner for the rest of the game.
+
+      ===== 3. SIDE AND HEIGHT ARE INDEPENDENT STATE, AND THAT IS WHAT LETS THE TWO RULES COEXIST =====
+      With a 0..2 index the flee and the cycle would write the same variable: fleeing from the top corner would
+      have to choose between dropping the map (which nobody asked for) or not fleeing (which is not solving the
+      problem). With side and height apart, the flee swaps only the SIDE — so fleeing in the top corner reaches
+      the top-LEFT, a fourth corner R2 does not visit, and from which `findIndex` returning -1 makes the cycle
+      start over with no special case.
+
+      ===== 4. IN THE TOP-RIGHT, THE MAP STANDS BESIDE THE BUTTONS — NOT UNDER THEM =====
+      🔴 I BUILT M4 FIRST, from the Dev's sentence «no canto superior direito, o mapa deve ficar ABAIXO dos
+      botões R1 e R2», read literally. His screenshot showed the opposite: the map stays at the TOP, to the
+      LEFT of the column, and what moves down are the carried ITEMS. The sentence was true about the items and
+      I applied it to the map.
+
+      It reads better because of SHAPE: the map is 60×36 logical, the column is narrow and tall. Side by side
+      they share one band of height; stacked, half the corner is empty and the map is in the play area.
+
+      ===== 5. AND THE ITEMS GO UNDER WHATEVER IS ABOVE THEM =====
+      The Dev: «os itens devem aparecer abaixo dos botões R2 e R1 e, por consequência, abaixo do mapa quando
+      não houverem botões visíveis». That is an ORDER and not a maximum: the buttons IF there are any,
+      otherwise the map. With both present the map is beside the buttons, not over the icons, so it has nothing
+      to say to them.
+
+      ===== 6. THE NUMBERS ARE READ, NEVER DECLARED =====
+      `ui/canto-superior-direito` measures the column and converts: the column's WIDTH, in logical pixels, goes
+      to the map; where the thing above ends, in CSS pixels, goes to the items through a custom property the
+      stylesheet reads. A shoulder's size follows `--alvo-min`, the minimum target the child chooses in the
+      settings, and the column holds one button or two depending on what the game declares. Any number of mine
+      would be right today and silently wrong after either change.
+
+  consequences:
+    positive:
+      - "The map's place is the child's, through a button every control surface names."
+      - "The floor she is walking on stops being hidden, without her doing anything about it."
+      - "The three things that claim that corner now have one arrangement, measured from the DOM instead of
+         guessed, and it survives a change of minimum target size."
+      - "The cycle has a total answer for a corner outside the list, because `(-1 + 1) % 3` is 0 — no special
+         case to forget."
+    negative:
+      - "⚠️ WITH A TOUCH PAD ON SCREEN, THE MAP IS STILL BORN IN THE BOTTOM-LEFT CORNER — under the d-pad,
+         invisible until she presses R2. Measured at 1000×620: (4, 140). A record that leaves a known defect in
+         place has to say so: this one does, and the automatic corner was considered (M2) and rejected because
+         two writers for one corner take the button out of her hands. Reopening it is the Dev's call."
+      - "On a shared keyboard in 3–4 player mode R2 is unreachable, so the help table shows a row with no key.
+         It costs nothing there, because the minimap is not drawn in multiplayer at all."
+      - "The arrangement reads two element rectangles per frame while a pad is on screen."
+      - "A child who moves the map has to find it again. The flee makes that happen without her asking."
+    neutral:
+      - "The map's CONTENT — the fog of war, the window around the player, the colours by tile type — is
+         untouched. This record decides only where the rectangle is."
+      - "`setMinimapCorner(touch)` was deleted the same day as dead code: it moved the map to the top-right
+         when the pad appeared and NOTHING in the product ever called it. Its intention is option M2 above."
+
+  confirmation: |
+    · `tests/minimapa-cantos.node.test.js` runs the module whole, with `vi.mock('pixi.js')`, and asserts the
+      POSITION it writes: the cycle in the Dev's order, the return trip of the flee, that height is kept when
+      the side flips, that the top-right recess moves the map LEFT and not DOWN, and that a recess larger than
+      the screen leaves it on screen.
+    · Its assertions are by CORNER («x below half the screen is the left»), never by pixel: comparing against
+      `LOGICAL_W - MM_VIEW_W - MM_PAD` would repeat the module's own arithmetic, which measures my reasoning
+      and not the code. That mistake was made and corrected on this record's own day.
+    · `tests/canto-superior-direito.node.test.js` holds the measurement: that the recess is the column's WIDTH
+      and not its height, that the items' order is buttons-then-map and not a maximum, that a null box in a
+      scrolled region invents no occupancy, and that nothing is written when the number has not changed.
+    · Ten mutations verified across the two files, including the one that is exactly the defect this record
+      corrects: making the recess drop the map instead of moving it aside.
+    · Measured in the browser at 1000×620: map 693..873 with the column starting at 882, both flush at the top,
+      items at 158 against the column's bottom of 150; with the pad hidden, the map returns to the right edge
+      and the items fall to 132 against its bottom of 120.
+
+    ⚠️ WHAT NO TEST CONFIRMS: that the selectors match the right elements. The module names
+    `.touch-ombros--dir`, `#touch-controls` and `.vphud-carga`, which are the engine's classes and this game's;
+    only a browser says they are still the ones. Measured by hand on 2026-10-03, and that is the whole proof.
+
+more-information: |
+  📌 WHY THIS IS ONE RECORD AND NOT THREE. The R2 cycle, the flee and the corner arrangement arrived as three
+  requests on one day, and they are three answers to one question: WHERE IS THE MAP. Splitting them would put
+  the two rules that write the same position in two files, and the first thing a reader needs to know is that
+  they do not fight — which is section 3.
+
+  🔴 THE SCREENSHOT IS WHY SECTION 4 EXISTS, and it is worth keeping the error in the record. The Dev's
+  sentence was literal and I obeyed it literally; it was about the ITEMS. The gate I wrote for the wrong
+  reading was GREEN and correct about the wrong thing, which is the worst state a test can be in, because it
+  defends the defect. It was replaced, not amended.
+
+  THE AUTOMATIC CORNER (M2) IS NOT CLOSED, it is declined for now with its reason written. The negative
+  consequence above states the live cost. If the Dev decides the map should jump to a free corner when a
+  control appears on screen, this record is amended and the rule gets a transition — once, when the pad
+  appears — rather than a per-frame write, so R2 stays hers.

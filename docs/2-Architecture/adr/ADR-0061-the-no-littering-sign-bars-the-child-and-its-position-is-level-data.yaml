@@ -1,6 +1,23 @@
 ---
 metadata:
   status: "accepted"
+  errata:
+    - date: 2026-10-03
+      what: |
+        🔴 THE NEGATIVE CONSEQUENCE «Locking the hand means a child who picks up litter far from a bin
+        must carry it back, and the walk is not fun. It is accepted because the alternative is a droppable
+        object the sign then has to police» NO LONGER DESCRIBES THE GAME, and the sentence that accepted it was
+        a false dichotomy. The Dev, playing on 2026-10-03: «Permita coletar mais de um lixo. Bloquear para um de
+        cada vez tornou o jogo "chato" e "menos interessante"». Carrying SEVERAL is not dropping any — the third
+        way the sentence did not look for. The child now carries up to four, one per material, and the bin
+        receives the piece at the FRONT of the queue: ADR-0261.
+        ⚠️ WHAT THIS RECORD DECIDED IS UNTOUCHED. The sign bars the CHILD, its position is level data, it
+        never punishes, and litter still has no exit but the right bin — `PODE.lixo` remains
+        `{ soltar: false, arremessar: false }`, which is exactly what this record's `confirmation` checks. The
+        limit of ONE PIECE was never decided here; it lived in `recycling-world.pegarPerto` with an argument of
+        its own, and it is that argument that fell.
+        📌 And the barrier now holds back a child carrying four things instead of one, so a wrong turn
+        past the sign costs more than it did when this was written.
   date: 2026-08-28
   decision-makers: [Dev]
   consulted:
