@@ -24,6 +24,15 @@ export interface ItemDeLixo {
   /** Já foi para a lixeira certa e saiu do mundo. */
   descartado: boolean;
   dono: number | null;
+  /**
+   * A ORDEM EM QUE ESTE ITEM FOI APANHADO pelo dono atual — 1 para o primeiro, 2 para o seguinte. `null` no
+   * chão.
+   *
+   * 🔴 EXISTE DESDE 03/10, com a braçada: com várias coisas na mão, «a carga» deixou de ser uma só, e a fila
+   * é o que decide QUAL vai para a lixeira em que a criança entra. A ordem do `itens[]` não serve — ela é a
+   * ordem em que a volta os espalhou pelo chão, que não tem nada que ver com a ordem em que ela os apanhou.
+   */
+  pegoEm: number | null;
 }
 
 /** O resultado de uma ação sobre a carga, com o que o chamador precisa saber para reagir. */
@@ -62,22 +71,49 @@ export function montarItens(
     material: MATERIAIS[(ordemInicial + ordem) % MATERIAIS.length]!,
     descartado: false,
     dono: null,
+    pegoEm: null,
   }));
 }
 
-/** O item que este jogador carrega, se houver. */
-export function cargaDe(itens: readonly ItemDeLixo[], jogador: number): ItemDeLixo | null {
-  return itens.find((i) => i.dono === jogador && !i.descartado) ?? null;
+/**
+ * TUDO o que este jogador carrega, na ordem em que apanhou — o primeiro da lista é o da frente da fila.
+ *
+ * 📌 É a fila inteira que o HUD desenha (um ícone por item) e é a frente dela que vai para a lixeira.
+ */
+export function cargasDe(itens: readonly ItemDeLixo[], jogador: number): ItemDeLixo[] {
+  return itens
+    .filter((i) => i.dono === jogador && !i.descartado)
+    .sort((a, b) => (a.pegoEm ?? 0) - (b.pegoEm ?? 0));
 }
 
 /**
- * Pega o item mais próximo ao alcance, se as mãos estiverem livres.
+ * O item da FRENTE da fila deste jogador, se houver — o próximo a ir para a lixeira.
  *
- * ⚠️ MÃOS OCUPADAS NÃO PEGAM O SEGUNDO. Sem essa guarda a criança acumularia lixo invisível e o descarte
- * deixaria de ser uma escolha por item — que é onde o conteúdo está.
+ * ⚠️ «O DA FRENTE» E NÃO «O QUE COMBINA COM ESTA LIXEIRA», e a escolha é a que salva o conteúdo do jogo.
+ * Com uma braçada de um de cada cor, depositar sempre o que combina tornaria QUALQUER lixeira certa: a
+ * criança passearia pelas quatro e acertaria as quatro sem nunca ter de saber que a lata é da amarela. A
+ * fila mantém a pergunta de pé — «onde vai ESTE?» — e o que a braçada tira é só a travessia repetida.
  */
-export function pegarPerto(itens: ItemDeLixo[], jogador: number, x: number, y: number, alcance: number): ItemDeLixo | null {
-  if (cargaDe(itens, jogador)) return null;
+export function cargaDe(itens: readonly ItemDeLixo[], jogador: number): ItemDeLixo | null {
+  return cargasDe(itens, jogador)[0] ?? null;
+}
+
+/**
+ * Pega o item mais próximo ao alcance, se ainda couber na mão.
+ *
+ * 🔴 `cabem` ENTROU EM 03/10 NO LUGAR DA TRAVA. A guarda era `if (cargaDe(…)) return null` — mãos ocupadas
+ * não pegavam o segundo —, e o Dev reprovou-a a jogar: *«bloquear para um de cada vez tornou o jogo "chato"
+ * e "menos interessante"»*. O que ela protegia (o descarte ser uma escolha por item) passou para a FILA:
+ * ver `cargaDe` acima.
+ *
+ * ⚠️ E O TETO É PARÂMETRO, não um número daqui: quem o sabe é `game/carry.PODE`, que é onde mora a pergunta
+ * «o que se pode fazer com isto?». Dois lugares a responder quantas cabem seriam dois lugares a divergir.
+ */
+export function pegarPerto(
+  itens: ItemDeLixo[], jogador: number, x: number, y: number, alcance: number, cabem: number,
+): ItemDeLixo | null {
+  const naMao = cargasDe(itens, jogador);
+  if (naMao.length >= cabem) return null;
   let melhor: ItemDeLixo | null = null;
   let menor = Infinity;
   for (const it of itens) {
@@ -85,7 +121,8 @@ export function pegarPerto(itens: ItemDeLixo[], jogador: number, x: number, y: n
     const d = Math.hypot(it.x - x, it.y - y);
     if (d <= alcance && d < menor) { menor = d; melhor = it; }
   }
-  if (melhor) melhor.dono = jogador;
+  // O fim da fila: um a mais do que o último que já lá estava, e 1 para quem chega de mãos vazias.
+  if (melhor) { melhor.dono = jogador; melhor.pegoEm = (naMao[naMao.length - 1]?.pegoEm ?? 0) + 1; }
   return melhor;
 }
 
@@ -114,6 +151,7 @@ export function depositar(itens: ItemDeLixo[], jogador: number, lixeira: Lixeira
   if (!r.acertou) return { pontos: 0, fala: 'sr.lixo.errou' };
   carga.descartado = true;
   carga.dono = null;
+  carga.pegoEm = null;   // saiu da fila; sem isto, um item devolvido ao mundo voltaria com lugar marcado
   return { pontos: r.pontos, fala: 'sr.lixo.acertou' };
 }
 

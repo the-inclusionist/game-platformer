@@ -1262,10 +1262,12 @@ const seatHud = createSeatHud({
   powerShort: POWER_SHORT,
   // ⚠️ LIDO A CADA QUADRO e não guardado: a carga muda por botão (`game/carry`) e o nome muda de idioma a
   // meio da partida, como o objetivo logo acima — uma tabela resolvida uma vez ficaria no idioma do arranque.
-  carga: (i) => {
-    const it = reciclagem.itens().find((x) => x.dono === i && !x.descartado);
-    return it ? { icone: ICONE_DO_LIXO[it.material] ?? '🗑️', rotulo: t('lixo.obj.' + it.material) } : null;
-  },
+  // 📌 NA ORDEM DA FILA (`recycling-world.cargasDe`): o primeiro ícone é o da frente, o próximo a ir para a
+  // lixeira. É isso que faz os ícones responderem à pergunta da criança — «o que eu tenho, e qual é o
+  // próximo?» — em vez de serem um amontoado.
+  cargas: (i) => reciclagem.cargasDe(i).map((it) => ({
+    icone: ICONE_DO_LIXO[it.material] ?? '🗑️', rotulo: t('lixo.obj.' + it.material),
+  })),
 });
 // ⚠️ O `applyLetra()` depois de remontar NÃO é enfeite: ele vinha no `onScreensBuilt` do `ui/hud` da engine. Remontar
 // apaga as `.player-screen`, e com elas o desafio multi-tela pendurado nelas; o `applyLetra` re-renderiza o desafio
@@ -1363,12 +1365,14 @@ function update(dt: number){
   // recebeu, e um jogador por vez faria o item do jogador 2 perder o dono e voltar para a posição do chão.
   reciclagem.atualizar(controlados().map((pl) => {
     const direcao = held(pl, 'left') ? -1 : held(pl, 'right') ? 1 : 0;
-    const carregando = reciclagem.itens().some((it) => it.dono === pl.i && !it.descartado);
+    // 🔴 QUANTAS, e já não «tem alguma?»: desde 03/10 o lixo empilha-se até quatro (`game/carry.PODE`), e é
+    // a contagem que decide se o botão pega mais um ou cai no soltar/arremessar.
+    const naMao = reciclagem.itens().filter((it) => it.dono === pl.i && !it.descartado).length;
     const objetoPerto = reciclagem.temItemPerto(pl.i, pl.x, pl.y);   // UM alcance só — ver a API da cena
-    const acao = acaoDeCarga({ objetoPerto, carregando, bordaDeInteracao: pl.runEdge, direcao,
+    const acao = acaoDeCarga({ objetoPerto, naMao, bordaDeInteracao: pl.runEdge, direcao,
       // Hoje a única coisa carregável do jogo é lixo. Semente, bola e objeto perdido já estão decididos
       // (`game/carry.PODE`) e ainda não existem no mundo — quando existirem, é este campo que muda.
-      tipoDaCarga: carregando ? 'lixo' : null });
+      tipoDaCarga: naMao > 0 ? 'lixo' : null });
     // ⚠️ E A BORDA É CONSUMIDA QUANDO A AÇÃO ACONTECE, porque o botão age POR CONTEXTO. O Dev: "se não há
     // nada para pegar, ele alterna a corrida. Por isso é botão de interação: sua ação, a forma com que
     // interage, funciona pelo contexto." Então há uma coisa só por aperto — pegou a lata, não alternou a

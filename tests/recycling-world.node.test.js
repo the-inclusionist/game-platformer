@@ -13,16 +13,20 @@
 // MUTAÇÕES CONFERIDAS (no fim do arquivo).
 import { describe, it, expect } from 'vitest';
 import {
-  montarItens, cargaDe, pegarPerto, depositar, faltamDescartar, lixeiraSob, entrouNaLixeira,
+  montarItens, cargaDe, cargasDe, pegarPerto, depositar, faltamDescartar, lixeiraSob, entrouNaLixeira,
 } from '../app/js/game/recycling-world.js';
 import { MATERIAIS, LIXEIRA_DE } from '../app/js/game/recycling.js';
+import { PODE } from '../app/js/game/carry.js';
+
+/** Quantas cabem na mão — LIDO de quem decide (`game/carry.PODE`), nunca repetido aqui. */
+const CABEM = PODE.lixo.cabem;
 
 /** Escolhedor determinístico: os `n` primeiros, na ordem. É por onde o produto injeta o embaralhamento. */
 const emOrdem = (total, n) => Array.from({ length: Math.min(n, total) }, (_, i) => i);
 /** Pontos alinhados numa fileira, 10px de distância entre eles. */
 const fileira = (n) => Array.from({ length: n }, (_, i) => ({ x: i * 10, y: 100 }));
 /** Um item solto no chão, para os casos que não precisam do `montarItens`. */
-const solto = (x, material) => ({ x, y: 100, material, descartado: false, dono: null });
+const solto = (x, material) => ({ x, y: 100, material, descartado: false, dono: null, pegoEm: null });
 
 describe('reciclagem · o mundo', () => {
   /* ===================== nascimento ===================== */
@@ -55,7 +59,7 @@ describe('reciclagem · o mundo', () => {
 
   it('[Right] pega o item mais PRÓXIMO dentro do alcance, e ele passa a ter dono', () => {
     const itens = [solto(0, 'metal'), solto(30, 'vidro'), solto(8, 'papel')];
-    const pego = pegarPerto(itens, 0, 10, 100, 20);
+    const pego = pegarPerto(itens, 0, 10, 100, 20, CABEM);
     expect(pego.material, 'o de x=8 está a 2px; o de x=0 está a 10').toBe('papel');
     expect(pego.dono).toBe(0);
     expect(cargaDe(itens, 0)).toBe(pego);
@@ -63,24 +67,61 @@ describe('reciclagem · o mundo', () => {
 
   it('[Boundary] fora do alcance não pega, e no limite exato pega', () => {
     const itens = [solto(20, 'metal')];
-    expect(pegarPerto(itens, 0, 0, 100, 19.9), 'a 20px de distância, alcance 19,9').toBe(null);
-    expect(pegarPerto(itens, 0, 0, 100, 20), 'alcance exatamente 20').toBeTruthy();
+    expect(pegarPerto(itens, 0, 0, 100, 19.9, CABEM), 'a 20px de distância, alcance 19,9').toBe(null);
+    expect(pegarPerto(itens, 0, 0, 100, 20, CABEM), 'alcance exatamente 20').toBeTruthy();
   });
 
-  it('[Zero] MÃOS OCUPADAS NÃO PEGAM O SEGUNDO', () => {
-    // Sem esta guarda a criança acumularia lixo invisível e o descarte deixaria de ser uma escolha POR ITEM,
-    // que é justamente onde o conteúdo está: qual cor recebe ESTA lata.
+  it('🔴 [Right] A BRAÇADA: mãos ocupadas pegam o segundo, e a fila guarda a ordem', () => {
+    // 🔴 ESTE CASO DIZIA O CONTRÁRIO ATÉ 03/10 — «[Zero] MÃOS OCUPADAS NÃO PEGAM O SEGUNDO» —, e a
+    // justificação escrita nele era que o descarte tem de ser uma escolha POR ITEM. O Dev reprovou a trava
+    // a jogar: «bloquear para um de cada vez tornou o jogo "chato" e "menos interessante"». A metade certa
+    // do argumento antigo não caiu, MUDOU-SE: quem desce para a lixeira é o item da FRENTE da fila
+    // (`cargaDe`), um de cada vez, com a cor que ELE pede. Ver o caso da fila, logo abaixo.
     const itens = [solto(0, 'metal'), solto(2, 'vidro')];
-    pegarPerto(itens, 0, 0, 100, 20);
-    expect(pegarPerto(itens, 0, 0, 100, 20)).toBe(null);
-    expect(itens.filter((i) => i.dono === 0)).toHaveLength(1);
+    pegarPerto(itens, 0, 0, 100, 20, CABEM);
+    expect(pegarPerto(itens, 0, 0, 100, 20, CABEM), 'o segundo também vem').toBeTruthy();
+    expect(itens.filter((i) => i.dono === 0)).toHaveLength(2);
+  });
+
+  it('⚠️ [Boundary] e a mão tem teto: cheia, não entra mais nada', () => {
+    const itens = Array.from({ length: CABEM + 1 }, (_, k) => solto(k, 'metal'));
+    for (let k = 0; k < CABEM; k++) expect(pegarPerto(itens, 0, 0, 100, 99, CABEM), 'a ' + (k + 1)).toBeTruthy();
+    expect(pegarPerto(itens, 0, 0, 100, 99, CABEM), 'a seguinte').toBe(null);
+    expect(itens.filter((i) => i.dono === 0)).toHaveLength(CABEM);
+  });
+
+  it('🎯 [Right] A FILA É A ORDEM EM QUE APANHOU, e não a ordem do chão', () => {
+    // 📏 O `itens[]` está na ordem em que a volta os espalhou. Se `cargaDe` lesse essa ordem, a lixeira
+    // receberia um item que a criança não escolheu — e ela ouviria «essa não é a lixeira do vidro» depois
+    // de ter ido à lixeira da lata que acabou de apanhar.
+    const itens = [solto(0, 'metal'), solto(2, 'vidro')];
+    pegarPerto(itens, 0, 2, 100, 1, CABEM);    // o VIDRO primeiro, que está longe do início da lista
+    pegarPerto(itens, 0, 0, 100, 1, CABEM);    // a lata depois
+    expect(cargasDe(itens, 0).map((i) => i.material)).toEqual(['vidro', 'metal']);
+    expect(cargaDe(itens, 0).material, 'o da frente é o que vai para a lixeira').toBe('vidro');
+  });
+
+  it('🔴 [Interface] a mão cabe UM DE CADA MATERIAL — os dois números são lidos, não repetidos', () => {
+    // «Uma braçada cheia» é um de cada cor, e é também o que a volta põe no chão (`quantosItens` na raiz).
+    // Os dois números vivem em ficheiros diferentes e podem divergir em silêncio: um material novo faria a
+    // mão deixar de caber a volta inteira, sem nada ficar vermelho.
+    expect(PODE.lixo.cabem).toBe(MATERIAIS.length);
+  });
+
+  it('⚠️ depositar TIRA DA FILA, e o seguinte passa à frente', () => {
+    const itens = [solto(0, 'metal'), solto(2, 'vidro')];
+    pegarPerto(itens, 0, 0, 100, 1, CABEM);
+    pegarPerto(itens, 0, 2, 100, 1, CABEM);
+    expect(depositar(itens, 0, LIXEIRA_DE.metal).pontos, 'a lata, que estava à frente').toBe(1);
+    expect(cargasDe(itens, 0).map((i) => i.material)).toEqual(['vidro']);
+    expect(itens[0].pegoEm, 'quem saiu perde o lugar na fila').toBe(null);
   });
 
   it('[Zero] item de outro jogador e item já descartado ficam invisíveis para quem pega', () => {
     const itens = [solto(0, 'metal'), solto(2, 'vidro')];
     itens[0].dono = 1;
     itens[1].descartado = true;
-    expect(pegarPerto(itens, 0, 0, 100, 50)).toBe(null);
+    expect(pegarPerto(itens, 0, 0, 100, 50, CABEM)).toBe(null);
   });
 
   /* ===================== a placa e o arremesso saíram daqui ======================
@@ -93,7 +134,7 @@ describe('reciclagem · o mundo', () => {
 
   it('[Right] lixeira CERTA: um ponto de comportamento e o item sai do mundo', () => {
     const itens = [solto(0, 'metal')];
-    pegarPerto(itens, 0, 0, 100, 20);
+    pegarPerto(itens, 0, 0, 100, 20, CABEM);
     const acao = depositar(itens, 0, LIXEIRA_DE.metal);
     expect(acao).toEqual({ pontos: 1, fala: 'sr.lixo.acertou' });
     expect(itens[0].descartado).toBe(true);
@@ -104,7 +145,7 @@ describe('reciclagem · o mundo', () => {
     // Devolver ao chão faria a criança refazer o percurso inteiro por ter errado uma COR — punição disfarçada
     // de física, e cobrada justamente de quem ainda está aprendendo a diferença entre as cores.
     const itens = [solto(0, 'metal')];
-    pegarPerto(itens, 0, 0, 100, 20);
+    pegarPerto(itens, 0, 0, 100, 20, CABEM);
     const acao = depositar(itens, 0, LIXEIRA_DE.vidro);
     expect(acao).toEqual({ pontos: 0, fala: 'sr.lixo.errou' });
     expect(cargaDe(itens, 0), 'continua na mão para tentar de novo').toBeTruthy();
@@ -119,7 +160,7 @@ describe('reciclagem · o mundo', () => {
     for (const m of MATERIAIS) {
       const certas = ['azul', 'vermelha', 'amarela', 'verde'].filter((cor) => {
         const itens = [solto(0, m)];
-        pegarPerto(itens, 0, 0, 100, 20);
+        pegarPerto(itens, 0, 0, 100, 20, CABEM);
         return depositar(itens, 0, cor).pontos === 1;
       });
       expect(certas, `${m}`).toEqual([LIXEIRA_DE[m]]);
@@ -165,7 +206,7 @@ describe('reciclagem · o mundo', () => {
   it('[Right] `faltamDescartar` conta só o que ainda está no mundo', () => {
     const itens = montarItens(fileira(4), 4, emOrdem);
     expect(faltamDescartar(itens)).toBe(4);
-    pegarPerto(itens, 0, 0, 100, 5);
+    pegarPerto(itens, 0, 0, 100, 5, CABEM);
     expect(faltamDescartar(itens), 'na mão ainda é do mundo').toBe(4);
     depositar(itens, 0, LIXEIRA_DE[itens[0].material]);
     expect(faltamDescartar(itens)).toBe(3);
@@ -173,8 +214,13 @@ describe('reciclagem · o mundo', () => {
 });
 
 // ========================= MUTAÇÕES CONFERIDAS =========================
-//   · tirando a guarda de mãos ocupadas de `pegarPerto` → "[Zero] MÃOS OCUPADAS" reprova, e o efeito real é a
-//     criança carregando uma pilha invisível de lixo, com o descarte deixando de ser escolha por item.
+//   · tirando o teto de `pegarPerto` → "[Boundary] e a mão tem teto" reprova, e o efeito real é uma pilha sem
+//     fim, que o canto do HUD não desenha e o tronco do personagem não mostra.
+//   · fazendo `cargaDe` voltar a um `find` sobre `itens` → "[Right] A FILA É A ORDEM EM QUE APANHOU" reprova, e
+//     o efeito real é a lixeira receber um item que a criança não escolheu.
+//   · fazendo `depositar` escolher o item que COMBINA com a lixeira → "[Right] A FILA" continua verde, mas o
+//     conteúdo do jogo some: com um de cada cor na mão, QUALQUER lixeira passa a estar certa. É a razão de
+//     `cargaDe` dizer «o da frente» e não «o que combina», e está escrita lá.
 //   · fazendo `depositar` soltar o item no chão quando a cor está errada → "[Right] LIXEIRA ERRADA" reprova, e
 //     o efeito real é refazer o percurso como preço de errar uma cor.
 //   · trocando o rodízio de `montarItens` por um material fixo → "[Right] os quatro materiais em RODÍZIO"

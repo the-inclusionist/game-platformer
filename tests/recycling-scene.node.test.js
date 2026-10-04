@@ -277,8 +277,29 @@ describe('reciclagem · a cena', () => {
     c.api.montar();
     const it = c.api.itens()[0];
     expect(c.api.temItemPerto(0, it.x + 100, it.y), 'longe').toBe(false);
+    expect(c.api.temItemPerto(0, it.x, it.y), 'encostado').toBe(true);
+  });
+
+  it('🔴 [Interface] e responde SÓ sobre alcance — quem decide se cabe mais é `acaoDeCarga`', () => {
+    // 🔴 ATÉ 03/10 ESTA PERGUNTA RESPONDIA `false` COM A MÃO CHEIA, porque a mão só levava um item. Com a
+    // braçada (o Dev: «permita coletar mais de um lixo»), o teto passou a ser `game/carry.PODE.lixo.cabem`,
+    // e misturá-lo aqui poria o mesmo número em dois lugares — que é exatamente a divergência silenciosa
+    // que esta API existe para evitar, só que do outro lado.
+    const c = cena(undefined, { alcance: 24 });
+    c.api.montar();
+    const it = c.api.itens()[0];
     c.api.atualizar([quem(0, it.x, it.y, 'pegar')]);
-    expect(c.api.temItemPerto(0, it.x, it.y), 'de mãos cheias não há o que pegar').toBe(false);
+    expect(c.api.cargasDe(0), 'apanhou').toHaveLength(1);
+    expect(c.api.temItemPerto(0, it.x, it.y), 'e continua a haver alcance a declarar').toBe(true);
+  });
+
+  it('🎯 A BRAÇADA: a cena deixa apanhar vários, e devolve-os na ordem da fila', () => {
+    const c = cena(undefined, { alcance: 999 });
+    c.api.montar();
+    const [a, b] = c.api.itens();
+    c.api.atualizar([quem(0, b.x, b.y, 'pegar')]);
+    c.api.atualizar([quem(0, a.x, a.y, 'pegar')]);
+    expect(c.api.cargasDe(0).map((i) => i.material)).toEqual([b.material, a.material]);
   });
 
   it('[Zero] ENCOSTAR NÃO PEGA — pegar é escolha, e é de botão', () => {

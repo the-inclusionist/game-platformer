@@ -70,20 +70,43 @@
 /** As classes de coisa que se carrega. Fechada de propósito — ver acima. */
 export type TipoDeCarga = 'lixo' | 'semente' | 'bola' | 'perdido';
 
-/** O que cada classe permite. */
-export const PODE: Readonly<Record<TipoDeCarga, { soltar: boolean; arremessar: boolean }>> = Object.freeze({
-  lixo: { soltar: false, arremessar: false },
-  semente: { soltar: true, arremessar: true },
-  bola: { soltar: true, arremessar: true },
-  perdido: { soltar: true, arremessar: false },
-});
+/**
+ * O que cada classe permite, e QUANTAS cabem na mão.
+ *
+ * 🔴 `cabem` CHEGOU EM 03/10, e desfaz uma regra minha que o Dev reprovou a jogar: *«permita coletar mais de
+ * um lixo. Bloquear para um de cada vez tornou o jogo "chato" e "menos interessante"»*. O argumento antigo
+ * — escrito em `recycling-world.pegarPerto` — era que o descarte tem de ser uma escolha POR ITEM, «que é
+ * onde o conteúdo está». A metade certa dele fica de pé e mudou-se para o descarte: deposita-se o item da
+ * FRENTE da fila, um de cada vez, com a cor que ele pede. O que caiu foi o preço — obrigar a criança a uma
+ * viagem inteira por latinha, que é travessia e não aprendizagem.
+ *
+ * ⚠️ QUATRO PARA O LIXO, que é um por material (`game/recycling.MATERIAIS`): uma braçada cheia é «um de cada
+ * cor», e é também o que a volta põe no chão. Um gate compara os dois números, para não poderem divergir em
+ * silêncio no dia em que um material entrar.
+ *
+ * ⚠️ E UM PARA AS OUTRAS TRÊS, que é o que elas sempre fizeram: uma bola na mão e outra ao alcance, o botão
+ * ARREMESSA, como antes. Dar-lhes pilha seria mexer numa decisão que o Dev não tocou.
+ */
+export const PODE: Readonly<Record<TipoDeCarga, { soltar: boolean; arremessar: boolean; cabem: number }>> =
+  Object.freeze({
+    lixo: { soltar: false, arremessar: false, cabem: 4 },
+    semente: { soltar: true, arremessar: true, cabem: 1 },
+    bola: { soltar: true, arremessar: true, cabem: 1 },
+    perdido: { soltar: true, arremessar: false, cabem: 1 },
+  });
 
 /** O contexto do quadro. */
 export interface ContextoDeCarga {
   /** Há objeto pegável ao alcance? */
   objetoPerto: boolean;
-  /** As mãos já estão ocupadas? */
-  carregando: boolean;
+  /**
+   * QUANTAS coisas já estão na mão.
+   *
+   * 🔴 ERA `carregando: boolean`, e o booleano deixou de bastar em 03/10: com `cabem` acima, a pergunta que
+   * decide a ação não é «tem alguma coisa?» mas «ainda cabe mais?». Um booleano ao lado de `cabem` seria
+   * dois campos a dizer a mesma coisa e a poder discordar.
+   */
+  naMao: number;
   /** A borda do BOTÃO DE INTERAÇÃO (o mesmo do correr) neste quadro. Único gatilho da carga, em todo modo. */
   bordaDeInteracao: boolean;
   /** A direção SEGURADA no instante do botão: -1 esquerda, +1 direita, 0 nenhuma. É ela que separa
@@ -98,9 +121,14 @@ export type AcaoDeCarga = 'pegar' | 'arremessar' | 'soltar' | 'nada';
 /**
  * O que este quadro faz com a carga. Um gatilho só — o botão de interação —, em todo modo de entrada.
  *
- *   1. mãos livres + objeto ao alcance → pega
- *   2. carregando + direção segurada   → arremessa, se a classe permitir
- *   3. carregando, sem direção         → solta, se a classe permitir
+ *   1. objeto ao alcance e ainda cabe    → pega
+ *   2. carregando + direção segurada     → arremessa, se a classe permitir
+ *   3. carregando, sem direção           → solta, se a classe permitir
+ *
+ * ⚠️ PEGAR VEM PRIMEIRO, E É O QUE A PILHA MUDOU. Antes a primeira pergunta era «tem alguma coisa na mão?»,
+ * e quem tinha nunca pegava; agora a primeira é «há o que pegar, e cabe?». Para as classes de `cabem: 1`
+ * isso dá exatamente o que dava antes — com uma bola na mão a conta `naMao < 1` é falsa, e o botão cai no
+ * arremesso como sempre caiu. Só o lixo, com `cabem: 4`, passa a poder somar.
  *
  * ⚠️ O "NÃO PISAR NO SOLO" SAIU JUNTO com o roteamento pelo pulo. Ele existia para separar o primeiro toque
  * (pular) do segundo (jogar) num botão que fazia as duas coisas; num botão que só interage não há dois
@@ -108,12 +136,12 @@ export type AcaoDeCarga = 'pegar' | 'arremessar' | 'soltar' | 'nada';
  */
 export function acaoDeCarga(ctx: ContextoDeCarga): AcaoDeCarga {
   if (!ctx.bordaDeInteracao) return 'nada';
-  if (ctx.carregando) {
-    // O que está na mão decide o que é permitido. Com lixo, os dois são 'não' — e o botão simplesmente não
-    // responde, que é o silêncio certo: nada é tirado dela, ela só não tem essa saída.
-    const pode = ctx.tipoDaCarga ? PODE[ctx.tipoDaCarga] : { soltar: true, arremessar: true };
-    if (ctx.direcao === 0) return pode.soltar ? 'soltar' : 'nada';
-    return pode.arremessar ? 'arremessar' : 'nada';
-  }
-  return ctx.objetoPerto ? 'pegar' : 'nada';
+  // O que está na mão decide o que é permitido — e, de mãos vazias, o que vier cabe.
+  const pode = ctx.tipoDaCarga ? PODE[ctx.tipoDaCarga] : { soltar: true, arremessar: true, cabem: Infinity };
+  if (ctx.objetoPerto && ctx.naMao < pode.cabem) return 'pegar';
+  if (ctx.naMao === 0) return 'nada';
+  // Com lixo, soltar e arremessar são os dois 'não' — e o botão simplesmente não responde, que é o silêncio
+  // certo: nada é tirado dela, ela só não tem essa saída.
+  if (ctx.direcao === 0) return pode.soltar ? 'soltar' : 'nada';
+  return pode.arremessar ? 'arremessar' : 'nada';
 }

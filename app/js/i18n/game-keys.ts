@@ -217,6 +217,8 @@ const pt: Record<string, string> = {
   'legend.mapa': 'mapa',
   'act.sonar': 'Sonar',
   'legend.sonar': 'sonar',
+  // A legenda da lista de ícones no canto do HUD — o que a criança tem na mão (`ui/seat-hud`).
+  'hud.carregando': 'Carregando',
 };
 
 const en: Record<string, string> = {
@@ -424,6 +426,7 @@ const en: Record<string, string> = {
   'legend.mapa': 'map',
   'act.sonar': 'Sonar',
   'legend.sonar': 'sonar',
+  'hud.carregando': 'Carrying',
 };
 
 const es: Record<string, string> = {
@@ -631,6 +634,7 @@ const es: Record<string, string> = {
   'legend.mapa': 'mapa',
   'act.sonar': 'Sonar',
   'legend.sonar': 'sonar',
+  'hud.carregando': 'Llevando',
 };
 
 /**

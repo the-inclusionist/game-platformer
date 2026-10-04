@@ -54,6 +54,14 @@
      zero escrito de outra maneira — a conta tem de dar exatamente a linha das moedas no caso comum. */
   top: max(0.4em, var(--shoulders-right-reach, 0px));
   right: 0.55em;
+  /* 🔴 EM COLUNA, e não em linha, desde que a braçada chegou (03/10). Quatro ícones lado a lado avançariam
+     sobre o relógio, que está no topo ao centro; descendo pela borda direita eles não disputam com nada —
+     e a ordem de cima para baixo É a da fila, a mesma da braçada desenhada no tronco do personagem. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1em;
+  line-height: 1;
   white-space: nowrap;
 }
 

@@ -29,7 +29,7 @@ import { acaoDeCarga, PODE } from '../app/js/game/carry.js';
 
 // `direcao: 1` é o PADRÃO daqui porque os casos antigos são todos de arremesso, e arremessar exige direção
 // desde 2026-08-28. Deixá-la fora faria os casos passarem por `undefined !== 0`, que é passar por acidente.
-const ctx = (o = {}) => ({ objetoPerto: false, carregando: false, bordaDeInteracao: false, direcao: 1, tipoDaCarga: 'bola', ...o });
+const ctx = (o = {}) => ({ objetoPerto: false, naMao: 0, bordaDeInteracao: false, direcao: 1, tipoDaCarga: 'bola', ...o });
 
 describe('carga · qual botão faz o quê, e em que contexto', () => {
   /* ===================== o que está na mão decide o que é permitido ===================== */
@@ -38,7 +38,7 @@ describe('carga · qual botão faz o quê, e em que contexto', () => {
     // "Uma vez que segura o lixo ele só poderá soltar na lixeira e não poderá seguir após a placa. Ou seja,
     // pegar o lixo trava ele de soltá-lo ou arremessá-lo." Soltar e lançar SÃO a desobediência; barrá-los é
     // o que faz a desobediência não ter por onde começar.
-    const comLixo = { carregando: true, bordaDeInteracao: true, tipoDaCarga: 'lixo' };
+    const comLixo = { naMao: 1, bordaDeInteracao: true, tipoDaCarga: 'lixo' };
     expect(acaoDeCarga(ctx({ ...comLixo, direcao: 0 })), 'sem direção').toBe('nada');
     expect(acaoDeCarga(ctx({ ...comLixo, direcao: 1 })), 'com direção').toBe('nada');
     expect(acaoDeCarga(ctx({ ...comLixo, direcao: -1 }))).toBe('nada');
@@ -47,7 +47,7 @@ describe('carga · qual botão faz o quê, e em que contexto', () => {
   it('[Right] semente e bola arremessam; objeto PERDIDO só se deixa no chão', () => {
     // A lista de arremessáveis é fechada por decisão: "nenhum outro objeto além de sementes e bolas [...] são
     // arremessáveis". E um filhote de cachorro não é projétil.
-    const seg = (tipo, direcao) => acaoDeCarga(ctx({ carregando: true, bordaDeInteracao: true, tipoDaCarga: tipo, direcao }));
+    const seg = (tipo, direcao) => acaoDeCarga(ctx({ naMao: 1, bordaDeInteracao: true, tipoDaCarga: tipo, direcao }));
     expect(seg('semente', 1)).toBe('arremessar');
     expect(seg('bola', -1)).toBe('arremessar');
     expect(seg('perdido', 1), 'é de alguém — não se joga').toBe('nada');
@@ -65,7 +65,7 @@ describe('carga · qual botão faz o quê, e em que contexto', () => {
   it('[Right] carregando + botão + DIREÇÃO = arremessa; sem direção = SOLTA', () => {
     // "Arremesso = apertar a direção da esquerda ou direita e apertar o botão de interação / corrida quando
     // se está segurando algo." Sem direção o objeto não voa: fica onde a criança está.
-    const carregando = { carregando: true, bordaDeInteracao: true };
+    const carregando = { naMao: 1, bordaDeInteracao: true };
     expect(acaoDeCarga(ctx({ ...carregando, direcao: 1 }))).toBe('arremessar');
     expect(acaoDeCarga(ctx({ ...carregando, direcao: -1 }))).toBe('arremessar');
     expect(acaoDeCarga(ctx({ ...carregando, direcao: 0 }))).toBe('soltar');
@@ -75,7 +75,7 @@ describe('carga · qual botão faz o quê, e em que contexto', () => {
     // "Ela deve poder pegar lixo e soltar para administrar seus assuntos e também poderá voltar e pegar o que
     // ficou para trás com o poder de vôo." Sem soltar, carregar seria uma armadilha: escolher um item
     // trancaria a criança nele até achar a lixeira certa.
-    expect(acaoDeCarga(ctx({ carregando: true, bordaDeInteracao: true, direcao: 0 }))).toBe('soltar');
+    expect(acaoDeCarga(ctx({ naMao: 1, bordaDeInteracao: true, direcao: 0 }))).toBe('soltar');
   });
 
   it('[Zero] sem borda nenhuma, nada acontece', () => {
@@ -88,14 +88,33 @@ describe('carga · qual botão faz o quê, e em que contexto', () => {
     expect(acaoDeCarga(ctx({ objetoPerto: true, bordaDeInteracao: true }))).toBe('pegar');
   });
 
-  it('[Boundary] carregando vence objeto perto — não se pega o segundo com as mãos ocupadas', () => {
-    expect(acaoDeCarga(ctx({ carregando: true, objetoPerto: true, bordaDeInteracao: true }))).toBe('arremessar');
+  it('🔴 [Boundary] com uma BOLA na mão, outra ao alcance não se pega — o botão arremessa', () => {
+    // 📌 ESTE CASO MUDOU DE RAZÃO EM 03/10, e não de resultado. Antes a regra era «mãos ocupadas não pegam
+    // o segundo», para toda a gente; agora é `PODE.bola.cabem === 1`, e é a CLASSE que decide. O resultado da
+    // bola é o mesmo de sempre — e tem de ser, porque o Dev mudou o LIXO e não tocou nas outras três.
+    expect(acaoDeCarga(ctx({ naMao: 1, objetoPerto: true, bordaDeInteracao: true }))).toBe('arremessar');
+  });
+
+  it('🎯 mas com LIXO na mão pega-se o segundo, até à quarta peça', () => {
+    // O Dev, a jogar, em 03/10: «permita coletar mais de um lixo. Bloquear para um de cada vez tornou o jogo
+    // "chato" e "menos interessante"».
+    const perto = { objetoPerto: true, bordaDeInteracao: true, tipoDaCarga: 'lixo' };
+    expect(acaoDeCarga(ctx({ ...perto, naMao: 1 })), 'a segunda').toBe('pegar');
+    expect(acaoDeCarga(ctx({ ...perto, naMao: 3 })), 'a quarta').toBe('pegar');
+  });
+
+  it('⚠️ e com a braçada CHEIA o botão volta ao silêncio, em vez de soltar o que não se solta', () => {
+    // 📌 Cheia, a ação cai no ramo de soltar/arremessar — e com lixo os dois são 'não'. É o mesmo silêncio
+    // que o lixo sempre teve: nada lhe é tirado, ela só não tem essa saída. A única é a lixeira.
+    const cheia = { objetoPerto: true, bordaDeInteracao: true, tipoDaCarga: 'lixo', naMao: PODE.lixo.cabem };
+    expect(acaoDeCarga(ctx({ ...cheia, direcao: 0 }))).toBe('nada');
+    expect(acaoDeCarga(ctx({ ...cheia, direcao: 1 }))).toBe('nada');
   });
 
   it('[Right] ARREMESSA TAMBÉM NO CHÃO — não há mais "dois toques" para separar', () => {
     // O "não pisar no solo" existia para separar o primeiro toque (pular) do segundo (jogar) num botão que
     // fazia as duas coisas. Num botão que só interage, exigir estar no ar seria dificuldade inventada.
-    expect(acaoDeCarga(ctx({ carregando: true, bordaDeInteracao: true, direcao: 1 }))).toBe('arremessar');
+    expect(acaoDeCarga(ctx({ naMao: 1, bordaDeInteracao: true, direcao: 1 }))).toBe('arremessar');
   });
 
   it('[Zero] O PULO NÃO PEGA NADA — ele voltou a ser só pulo, em todo modo', () => {
@@ -105,7 +124,7 @@ describe('carga · qual botão faz o quê, e em que contexto', () => {
     // O caso passa a borda de pulo de propósito, como quem ainda acreditasse no contrato antigo: a decisão é
     // que ela seja IGNORADA. Afirmar sobre o produto, e não sobre a forma do meu objeto de teste.
     expect(acaoDeCarga(ctx({ objetoPerto: true, bordaDePulo: true, bordaDeInteracao: false }))).toBe('nada');
-    expect(acaoDeCarga(ctx({ carregando: true, bordaDePulo: true, bordaDeInteracao: false }))).toBe('nada');
+    expect(acaoDeCarga(ctx({ naMao: 1, bordaDePulo: true, bordaDeInteracao: false }))).toBe('nada');
   });
 
   it('[Zero] sem objeto perto e de mãos livres, não há o que pegar', () => {
@@ -115,9 +134,12 @@ describe('carga · qual botão faz o quê, e em que contexto', () => {
 });
 
 // ========================= MUTAÇÕES CONFERIDAS =========================
-//   · pondo `objetoPerto` antes de `carregando` → "[Boundary] carregando vence" reprova. ⚠️ A primeira
-//     versão desta mutação preservava a guarda `&& !ctx.carregando` e por isso PASSOU — era equivalente ao
-//     código, não uma mutação. Fica anotado: mutação que não falha dá a sensação de rigor sem o rigor.
+//   · tirando o `&& ctx.naMao < pode.cabem` do ramo de pegar → "[Boundary] com uma BOLA na mão" reprova, e o
+//     efeito real é a bola deixar de se poder arremessar quando há outra ao alcance. ⚠️ Fica a nota de 28/08,
+//     que vale na mesma: a primeira versão daquela mutação preservava a guarda e por isso PASSOU — era
+//     equivalente ao código, não uma mutação. Mutação que não falha dá a sensação de rigor sem o rigor.
+//   · `PODE.lixo.cabem` de 4 para 1 → "mas com LIXO na mão pega-se o segundo" reprova, e o efeito real é a
+//     trava que o Dev chamou de "chata" de volta.
 //   · fazendo a borda do PULO voltar a valer como gatilho → "[Zero] O PULO NÃO PEGA NADA" reprova, e o efeito
 //     real é o contrato revogado de volta: perto de um objeto, o pulo pega em vez de pular.
 //   · exigindo `!ctx.noChao` para arremessar (a regra dos "dois toques", que saiu) → "[Right] ARREMESSA

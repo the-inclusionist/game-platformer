@@ -32,10 +32,10 @@ import {
 } from './recycling-spawn.js';
 import type { BarreiraDaPlaca } from './recycling.js';
 import {
-  montarItens, cargaDe, pegarPerto, depositar, lixeiraSob, entrouNaLixeira,
+  montarItens, cargaDe, cargasDe, pegarPerto, depositar, lixeiraSob, entrouNaLixeira,
   type ItemDeLixo, type PostoDeLixeira,
 } from './recycling-world.js';
-import type { AcaoDeCarga } from './carry.js';
+import { PODE, type AcaoDeCarga } from './carry.js';
 
 /** A fatia de sprite que esta cena escreve. Mínima de propósito — ver ADR-0039. */
 export interface SpriteDeLixo extends Visible {
@@ -131,6 +131,14 @@ export interface RecyclingApi {
   /** Os itens, para quem precisar ler (testes, depuração, futuro sonar). */
   itens(): readonly ItemDeLixo[];
   /**
+   * A braçada deste jogador, NA ORDEM DA FILA — o primeiro é o da frente, o próximo a ir para a lixeira.
+   *
+   * ⚠️ EXISTE PELA MESMA RAZÃO QUE `temItemPerto`: o HUD precisa desta lista e a raiz não pode recalculá-la
+   * com a sua própria conta, senão a ordem que a criança vê nos ícones e a ordem que a lixeira recebe seriam
+   * duas, e divergiriam no dia em que uma mudasse.
+   */
+  cargasDe(jogador: number): readonly ItemDeLixo[];
+  /**
    * Há item ao alcance deste jogador?
    *
    * ⚠️ EXISTE PARA NÃO HAVER DOIS ALCANCES. A raiz de composição precisa desta resposta para montar o
@@ -167,6 +175,35 @@ export interface RecyclingApi {
 const ABAIXO_DA_CABECA = 8 / 30;
 /** O quanto o objeto avança para o lado em que a pessoa olha. */
 const A_FRENTE = 2;
+
+/* ===================== E COM VÁRIOS NA MÃO, UMA BRAÇADA (03/10) =====================
+ *
+ * 🔴 A BRAÇADA É CENTRADA NA BARRIGA, não empilhada a partir dela, e o motivo é a decisão de cima: com quatro
+ * itens e um passo de 4 px, empilhar para cima levaria o último a 34 px do pé — ACIMA da cabeça, que é
+ * exatamente o «ícone de estado» recusado ali. Centrada, a braçada de quatro vai de 28 px (logo abaixo da
+ * cabeça) a 16 px (meio da coxa) do pé: é alguém com os braços cheios, que é o que está a acontecer.
+ *
+ * 📌 E COM UM SÓ ITEM A CONTA DÁ ZERO, de propósito: `(0 - 0/2) * passo`. O desenho que o Dev aprovou em 02/10
+ * fica byte a byte onde estava, e a braçada só existe quando há braçada. */
+
+/** O passo entre dois itens da braçada, em fração da altura do jogador — 4 px num boneco de 30. */
+const PASSO_DA_BRACADA = 4 / 30;
+
+/**
+ * O deslocamento vertical deste item dentro da braçada do dono, em pixels do mundo.
+ *
+ * ⚠️ O PRIMEIRO APANHADO FICA EM CIMA (deslocamento negativo), e isso não é arbitrário: ele é o da FRENTE
+ * da fila, o próximo a ir para a lixeira (`recycling-world.cargaDe`). O que a criança vê no alto da braçada
+ * é o que a próxima lixeira vai receber.
+ */
+function alturaNaBracada(
+  fila: readonly ItemDeLixo[] | undefined, item: ItemDeLixo, alturaDoJogador: number,
+): number {
+  if (!fila || fila.length <= 1) return 0;
+  const k = fila.indexOf(item);
+  if (k < 0) return 0;
+  return (k - (fila.length - 1) / 2) * PASSO_DA_BRACADA * alturaDoJogador;
+}
 
 export function createRecycling(ctx: RecyclingSceneCtx): RecyclingApi {
   let itens: ItemDeLixo[] = [];
@@ -221,7 +258,6 @@ export function createRecycling(ctx: RecyclingSceneCtx): RecyclingApi {
 
   function atualizar(jogadores: readonly JogadorNaReciclagem[]): void {
     for (const j of jogadores) {
-      const carga = cargaDe(itens, j.i);
 
       // ⚠️ PEGAR É DE BOTÃO, NÃO DE PROXIMIDADE. Encostar e pegar parece gentil, mas com lixo a mão fica
       // TRAVADA até a lixeira (`game/carry.PODE`) — e uma trava em que se cai sem querer, só por passar por
@@ -230,8 +266,11 @@ export function createRecycling(ctx: RecyclingSceneCtx): RecyclingApi {
       // ⚠️ E NÃO HÁ 'soltar' NEM 'arremessar' AQUI, o que é a decisão e não um esquecimento: soltar e lançar
       // o lixo SÃO a desobediência à placa. `acaoDeCarga` nunca devolve nenhuma das duas com lixo na mão, e
       // este módulo não tem um segundo caminho para elas. A única saída do lixo é a lixeira.
-      if (!carga && j.acao === 'pegar') {
-        const pego = pegarPerto(itens, j.i, j.x, j.y, ctx.alcance);
+      // 🔴 A TRAVA `!carga` SAIU EM 03/10 — o Dev, a jogar: *«permita coletar mais de um lixo»*. Quem conta
+      // quantas cabem é `game/carry.PODE.lixo.cabem`, pelo mesmo caminho que já decidia a ação: a raiz de
+      // composição chama `acaoDeCarga` com quantas estão na mão, e só manda `'pegar'` se ainda couber.
+      if (j.acao === 'pegar') {
+        const pego = pegarPerto(itens, j.i, j.x, j.y, ctx.alcance, PODE.lixo.cabem);
         if (pego) ctx.anunciar('sr.lixo.pegou', j.i, { material: pego.material });
       }
 
@@ -248,6 +287,9 @@ export function createRecycling(ctx: RecyclingSceneCtx): RecyclingApi {
       ultimaLixeira[j.i] = sob;
     }
 
+    // A fila de cada jogador, uma vez por quadro: é ela que diz o LUGAR de cada item na braçada, logo abaixo.
+    const filas = new Map<number, readonly ItemDeLixo[]>(jogadores.map((j) => [j.i, cargasDe(itens, j.i)]));
+
     // Os sprites seguem o estado, e não o contrário: o item na mão flutua sobre o dono, o descartado some.
     itens.forEach((it, k) => {
       const s = spritesDeLixo[k];
@@ -259,7 +301,7 @@ export function createRecycling(ctx: RecyclingSceneCtx): RecyclingApi {
       if (dono) {
         // Na BARRIGA: centrado no tronco, o topo logo abaixo da cabeça, e 2px para o lado em que ele olha.
         s.x = dono.x - ctx.larguraDoLixo(it.material) / 2 + dono.olhandoPara * A_FRENTE;
-        s.y = dono.y - ctx.alturaDoJogador * (1 - ABAIXO_DA_CABECA);
+        s.y = dono.y - ctx.alturaDoJogador * (1 - ABAIXO_DA_CABECA) + alturaNaBracada(filas.get(dono.i), it, ctx.alturaDoJogador);
       } else {
         // No CHÃO: apoiado na linha do pé, subindo a altura do próprio objeto.
         s.x = it.x;
@@ -268,10 +310,13 @@ export function createRecycling(ctx: RecyclingSceneCtx): RecyclingApi {
     });
   }
 
-  const temItemPerto = (jogador: number, x: number, y: number): boolean =>
-    !cargaDe(itens, jogador) && itens.some((it) => it.dono === null && !it.descartado
+  // ⚠️ E ESTA PERGUNTA É SÓ DE ALCANCE, desde 03/10: o `!cargaDe(…)` que a abria saiu com a trava de um item
+  // só. Quem responde «ainda cabe?» é `acaoDeCarga`, na raiz — misturar as duas aqui poria o teto em dois
+  // lugares outra vez, que é a divergência silenciosa que o cabeçalho desta API existe para evitar.
+  const temItemPerto = (_jogador: number, x: number, y: number): boolean =>
+    itens.some((it) => it.dono === null && !it.descartado
       && Math.hypot(it.x - x, it.y - y) <= ctx.alcance);
 
-  return { montar, atualizar, itens: () => itens, temItemPerto,
+  return { montar, atualizar, itens: () => itens, cargasDe: (j) => cargasDe(itens, j), temItemPerto,
     placaX: () => placa, barreira: () => vao, lixeiras: () => lixeiras };
 }

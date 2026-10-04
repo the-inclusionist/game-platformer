@@ -30,8 +30,8 @@ describe('the game\'s own dictionary keys (engine ADR-0174)', () => {
     // ownerColors,readingLevel,wheelchair}` and their six `.hint`, plus `accom.contrastOutlines.hint` → 186.
     // Four arrived on 2026-10-03 with the two right shoulders: `act.mapa`/`legend.mapa` for R2, which moves the
     // minimap's corner, and `act.sonar`/`legend.sonar` for R1, which plays the sonar (`game/platformer-preset`)
-    // → 200.
-    expect(chavesDe('pt').length).toBe(200);
+    // → 200; and `hud.carregando`, the name of the list of icons in the HUD's corner, with the armful → 201.
+    expect(chavesDe('pt').length).toBe(201);
   });
 
   it('🔴 [Right] every key is in pt, en and es', () => {

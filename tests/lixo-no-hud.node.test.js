@@ -33,6 +33,12 @@ function elemento(doc) {
     className: '', textContent: '', hidden: false, filhos: [], atributos: {},
     style: {}, dataset: {}, ownerDocument: doc,
     append(...fs) { for (const f of fs) if (typeof f !== 'string') this.filhos.push(f); },
+    querySelectorAll(sel) {
+      const classe = sel.replace(/^\./, '');
+      return this.filhos.flatMap((f) => [
+        ...(f.className.split(' ').includes(classe) ? [f] : []), ...f.querySelectorAll(sel),
+      ]);
+    },
     replaceChildren() { this.filhos = []; },
     setAttribute(k, v) { this.atributos[k] = String(v); },
     getAttribute(k) { return this.atributos[k] ?? null; },
@@ -50,8 +56,11 @@ function elemento(doc) {
   return el;
 }
 
-/** Monta o HUD de `n` assentos; `carregando` diz o que cada assento tem na mão (índice → material ou null). */
-function montar(carregando = [null], n = carregando.length) {
+/** Um ícone por material, para o teste poder distinguir as peças da braçada umas das outras. */
+const ICONES = { metal: '🥫', papel: '📦', plastico: '🧴', vidro: '🫙' };
+
+/** Monta o HUD de `n` assentos; `carregando[i]` é a braçada daquele assento, na ordem da fila. */
+function montar(carregando = [[]], n = carregando.length) {
   const doc = { createElement: () => elemento(doc) };
   const raiz = elemento(doc);
   raiz.className = 'game-hud';
@@ -63,7 +72,7 @@ function montar(carregando = [null], n = carregando.length) {
     objective: () => ({ name: { text: 'moedas', gender: 'f', plural: true }, have: 0, need: 10 }),
     icon: '🪙',
     powerShort: () => '—',
-    carga: (i) => (carregando[i] ? { icone: '🥫', rotulo: 'lata:' + carregando[i] } : null),
+    cargas: (i) => (carregando[i] ?? []).map((m) => ({ icone: ICONES[m], rotulo: 'lata:' + m })),
   });
   seatHud.buildGameHud();
   const cargaDe = (i) => raiz.filhos[i]?.querySelector('.vphud-carga') ?? null;
@@ -72,27 +81,57 @@ function montar(carregando = [null], n = carregando.length) {
 
 describe('ui/seat-hud — a carga no canto', () => {
   it('[Zero] de mãos vazias o canto está escondido, e não vazio', () => {
-    // 📌 `hidden` e não texto em branco: um nó presente com conteúdo nenhum continua a ocupar a sua linha e a
-    // ser lido pelo leitor de tela como um elemento sem nome.
-    const m = montar([null]);
+    // 📌 `hidden` e não uma caixa vazia: um nó presente sem conteúdo continua a ocupar a sua linha e a ser
+    // lido pelo leitor de tela como um elemento sem nome.
+    const m = montar([[]]);
     expect(m.cargaDe(0)).not.toBeNull();
     expect(m.cargaDe(0).hidden).toBe(true);
   });
 
-  it('🎯 carregando, aparece com o ícone e o nome', () => {
-    const m = montar(['metal']);
+  it('🎯 carregando, aparece com o ícone', () => {
+    const m = montar([['metal']]);
     m.seatHud.updateGameHud();
     const c = m.cargaDe(0);
     expect(c.hidden).toBe(false);
     expect(c.querySelector('.vphud-ico').textContent).toBe('🥫');
   });
 
-  it('⚠️ e volta a esconder-se ao depositar — senão o canto mentiria até ao fim da volta', () => {
-    const mao = ['metal'];
+  it('🔴 A BRAÇADA: um ícone por peça, NA ORDEM DA FILA', () => {
+    // O Dev, em 03/10: «desta forma é possível coletar vários e saber o que foi coletado». Saber O QUÊ pede
+    // um ícone por peça; e a ordem não é enfeite — o primeiro é o da frente, o próximo a ir para a lixeira.
+    const m = montar([['vidro', 'metal', 'papel']]);
+    m.seatHud.updateGameHud();
+    expect(m.cargaDe(0).querySelectorAll('.vphud-carga-item').map((e) => e.textContent))
+      .toEqual([ICONES.vidro, ICONES.metal, ICONES.papel]);
+  });
+
+  it('⚠️ e a lista encolhe quando uma peça desce para a lixeira', () => {
+    const mao = [['vidro', 'metal']];
+    const m = montar(mao);
+    m.seatHud.updateGameHud();
+    expect(m.cargaDe(0).querySelectorAll('.vphud-carga-item')).toHaveLength(2);
+    mao[0] = ['metal'];               // o vidro foi para a verde
+    m.seatHud.updateGameHud();
+    expect(m.cargaDe(0).querySelectorAll('.vphud-carga-item').map((e) => e.textContent))
+      .toEqual([ICONES.metal]);
+  });
+
+  it('🔴 e o DOM só se refaz quando a braçada muda — senão o leitor de tela reanunciava a lista', () => {
+    // 📏 Isto corre a cada quadro. Reconstruir quatro nós sessenta vezes por segundo não é só trabalho
+    // perdido: um leitor de tela volta a anunciar a lista por cima de si mesma enquanto a criança anda.
+    const m = montar([['vidro', 'metal']]);
+    m.seatHud.updateGameHud();
+    const antes = m.cargaDe(0).querySelectorAll('.vphud-carga-item')[0];
+    m.seatHud.updateGameHud();
+    expect(m.cargaDe(0).querySelectorAll('.vphud-carga-item')[0], 'o mesmo nó').toBe(antes);
+  });
+
+  it('⚠️ e volta a esconder-se ao depositar a última — senão o canto mentiria até ao fim da volta', () => {
+    const mao = [['metal']];
     const m = montar(mao);
     m.seatHud.updateGameHud();
     expect(m.cargaDe(0).hidden).toBe(false);
-    mao[0] = null;                 // a criança deitou o lixo na lixeira
+    mao[0] = [];                   // a criança deitou o lixo na lixeira
     m.seatHud.updateGameHud();
     expect(m.cargaDe(0).hidden).toBe(true);
   });
@@ -102,14 +141,25 @@ describe('ui/seat-hud — a carga no canto', () => {
     // porque a letra é a da engine (`--hud-fs`, pedido do Dev) e não encolhe para caber. O ícone É o objeto,
     // que é o que o Dev pediu que aparecesse; e o nome não se perde — vai inteiro para quem lê com o ouvido,
     // e o jogo já o fala ao apanhar (`sr.lixo.pegou`).
-    const m = montar(['papel']);
+    const m = montar([['papel']]);
     m.seatHud.updateGameHud();
-    expect(m.cargaDe(0).getAttribute('aria-label')).toBe('lata:papel');
-    expect(m.cargaDe(0).filhos).toHaveLength(1);   // o ícone, e mais nada
+    const peca = m.cargaDe(0).querySelectorAll('.vphud-carga-item')[0];
+    expect(peca.getAttribute('aria-label')).toBe('lata:papel');
+    expect(peca.textContent, 'e à vista fica só o ícone').toBe(ICONES.papel);
+  });
+
+  it('⚠️ a caixa é uma LISTA e cada peça um item dela', () => {
+    // Sem os papéis, quem usa leitor de tela ouve ícones soltos em vez de «lista de 3 itens». O CSS que esta
+    // caixa precisa apaga o papel implícito de uma `<ul>`, por isso ele é declarado à mão.
+    const m = montar([['papel', 'metal']]);
+    m.seatHud.updateGameHud();
+    expect(m.cargaDe(0).getAttribute('role')).toBe('list');
+    expect(m.cargaDe(0).querySelectorAll('.vphud-carga-item').map((e) => e.getAttribute('role')))
+      .toEqual(['listitem', 'listitem']);
   });
 
   it('cada assento mostra a SUA carga — num jogo de dois, a mão de um não aparece na tela do outro', () => {
-    const m = montar(['metal', null]);
+    const m = montar([['metal'], []]);
     m.seatHud.updateGameHud();
     expect(m.cargaDe(0).hidden).toBe(false);
     expect(m.cargaDe(1).hidden).toBe(true);
@@ -169,6 +219,13 @@ describe('e o canto é o SUPERIOR DIREITO', () => {
     // navegador reprovou em 03/10.
     expect(readFileSync(join(process.cwd(), 'app', 'js', 'ui', 'seat-hud.ts'), 'utf8'))
       .not.toMatch(/vphud-carga-nome/);
+  });
+
+  it('🔴 e desce em COLUNA, para a braçada não avançar sobre o relógio', () => {
+    // Quatro ícones lado a lado atravessariam o topo até ao relógio, que está ao centro. Descendo pela borda
+    // direita eles não disputam com nada — e a ordem de cima para baixo é a mesma da fila.
+    expect(regra).toMatch(/flex-direction:\s*column/);
+    expect(regra).toMatch(/align-items:\s*flex-end/);
   });
 });
 
