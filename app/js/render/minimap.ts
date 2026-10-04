@@ -115,11 +115,42 @@ const CANTOS: readonly (readonly [boolean, boolean])[] = Object.freeze([
   [true, true],   // superior direito
 ]);
 
+/**
+ * QUANTO O CANTO DE CIMA JÁ ESTÁ OCUPADO, em pixels lógicos — hoje, a coluna de ombros R1/R2 do pad de toque.
+ * Zero quando não há nada lá, que é o caso de quem joga de teclado ou de pad.
+ *
+ * 🔴 PORQUE O MAPA NÃO PODE NASCER DEBAIXO DOS BOTÕES (pedido do Dev, 03/10: *«no canto superior direito, o
+ * mapa deve ficar ABAIXO dos botões R1 e R2»*). Os botões são DOM sobre o canvas, e o mapa é desenhado DENTRO
+ * do canvas: nenhum dos dois vê o outro, e o `z-index` não os arbitra porque nem sequer estão na mesma
+ * camada — o mapa fica simplesmente escondido.
+ *
+ * ⚠️ EM PIXELS LÓGICOS E NÃO EM CSS, e é quem escreve este número que faz a conversão (`ui/mapa-sob-os-ombros`):
+ * aqui dentro tudo mede-se no mundo de 320×180, e aceitar um px de CSS faria o recuo mudar de significado com
+ * o tamanho da janela.
+ */
+let _recuoDeTopo = 0;
+
 /** Põe o minimapa no canto em que ele está agora — a única linha que escreve a posição. */
 function colocarNoCanto(): void {
   if (!_minimap) return;
   _minimap.x = _mmNaDireita ? LOGICAL_W - MM_VIEW_W - MM_PAD : MM_PAD;
-  _minimap.y = _mmEmCima ? MM_PAD : LOGICAL_H - MM_VIEW_H - MM_PAD;
+  _minimap.y = _mmEmCima ? MM_PAD + _recuoDeTopo : LOGICAL_H - MM_VIEW_H - MM_PAD;
+}
+
+/**
+ * Declara quanto o canto de cima já está ocupado (ver `_recuoDeTopo`). Recoloca o mapa na hora.
+ *
+ * ⚠️ O RECUO É LIMITADO A CABER NA TELA, e o limite é o que torna a regra segura: quem o escreve mede o DOM,
+ * e um canto muito cheio — braçada de quatro numa tela baixa, ou um alvo mínimo grande — pediria um recuo
+ * que empurra o mapa para fora por baixo. Descer até ao último lugar onde ele ainda se vê é degradar; sair
+ * da tela é desaparecer, e um mapa que desaparece é pior do que um mapa tapado.
+ */
+export function setMinimapRecuoDeTopo(logicos: number): void {
+  const teto = LOGICAL_H - MM_VIEW_H - MM_PAD * 2;
+  const novo = Math.min(Math.max(0, logicos), Math.max(0, teto));
+  if (novo === _recuoDeTopo) return;
+  _recuoDeTopo = novo;
+  colocarNoCanto();
 }
 
 /**

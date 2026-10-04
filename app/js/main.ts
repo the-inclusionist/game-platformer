@@ -124,6 +124,7 @@ import { createTitleScreen } from './ui/title-screen.js';
 import { createSeatHud } from './ui/seat-hud.js';
 import { createPadWizardDemo } from './ui/pad-wizard-demo.js';
 import { createBarraRecolhivel } from './ui/barra-recolhivel.js';
+import { criarMapaSobOsOmbros } from './ui/mapa-sob-os-ombros.js'; // o mapa no canto de cima fica abaixo dos ombros R1/R2
 import { criarPadOpaco } from './ui/pad-opaco.js';
 import { criarComandosVirtuais, ARESTA_DA_ACAO } from './core/comandos-virtuais.js';
 import type { VirtualCommand } from '@the-inclusionist/engine/input/virtual-controller.js';
@@ -154,7 +155,7 @@ import type { Rng } from '@the-inclusionist/engine/core/rng.js'; // Fase 2.26: R
 import { initCollision, tileAt, solidAt, surfTop } from './core/collision.js'; // Estágio 4: colisão de grade (determinística; ctx por closures)
 import { BOX, makePlayer } from './game/player.js'; // Estágio 4: entidade + geometria de colisão do jogador
 import { initCoins, findCoinCandidates, pickCoins } from './game/coins.js'; // Estágio 4: posicionamento dos coletáveis (pools vêm daqui)
-import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount, proximoCantoDoMinimapa } from './render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
+import { initMinimap, markSeen, redrawMinimapIfDirty, drawMinimapPlayer, resetMinimap, setMinimapVisible, getMinimap, minimapSeenCount, proximoCantoDoMinimapa, setMinimapRecuoDeTopo } from './render/minimap.js'; // Estágio 4 (Tier 1): minimapa + fog-of-war
 import { createLayout } from '@the-inclusionist/engine/ui/layout.js'; // Estágio 4 (Tier 1): escala do jogo (múltiplo inteiro de 320×180 em px reais)
 // Mundo carregado do texto-glifo assets/levels/clarity.map.txt (Fase 1.2). Construtor em core/world.js.
 import { buildWorldFromText } from './core/world.js';
@@ -1640,6 +1641,13 @@ function receberComando(comando: VirtualCommand): void {
  */
 const padOpaco = criarPadOpaco({ $, signal: CANCELAR.signal });
 
+/*
+ * O MAPA NO CANTO DE CIMA FICA ABAIXO DOS BOTÕES R1/R2 (pedido do Dev, 03/10) — ver `ui/mapa-sob-os-ombros`
+ * para o porquê de isto precisar de uma medição: os ombros são DOM e o mapa é canvas, e nenhum `z-index` os
+ * arbitra.
+ */
+const mapaSobOsOmbros = criarMapaSobOsOmbros({ $, recuar: setMinimapRecuoDeTopo });
+
 const barraRecolhivel = createBarraRecolhivel({
   $, signal: CANCELAR.signal, mundoRodando: () => fatosDaCena().worldRunning,
 });
@@ -1875,6 +1883,7 @@ function quadro(dt: number): void { update(dt); draw();
   setMinimapVisible(!titleG.visible&&rodada.numPlayers<=1); document.body.classList.toggle('at-title',titleG.visible); // HUD/minimapa não vazam no menu
   barraRecolhivel.tick(); // a barra de acessibilidade some aos 5s em jogo e volta no pico/foco (paliativo, ver o módulo)
   padOpaco.tick();        // o pad de toque nasce sólido e esmaece aos 5s, salvo em alto contraste
+  mapaSobOsOmbros.tick(); // no canto superior direito, o mapa desce abaixo da coluna de ombros do pad
   fpsTick();
   if(fatosDaCena().worldRunning){ weather.updateWeather(); ambient.updateAmbient(); guide.updateGuide(); } } // F4: clima + ambiente + guia auditivo (só durante o jogo)
   // ⚠️ O 2 E O `aoFalhar` FALTAVAM AQUI: a chamada tinha DOIS argumentos (ADR-0054, issue #109). O laço já
