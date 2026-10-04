@@ -69,7 +69,10 @@ try {
     console.error(`\n✗ axe: ${results.violations.length} WCAG A/AA violation(s).`);
     process.exit(1);
   }
-  console.log('✓ axe: 0 WCAG A/AA violations — one exclusion, the VLibras widget.');
+  // ⚠️ THE LINE SAYS THE SCOPE, not just the count, and that is the point of it: it used to read "one
+  // exclusion, the VLibras widget", and after the widget left the page it would have gone on saying so —
+  // a green line asserting a caveat that no longer existed. A gate's own report is a thing that rots.
+  console.log('✓ axe: 0 WCAG A/AA violations — whole page, no exclusions.');
 } finally {
   await browser.close();
 }
