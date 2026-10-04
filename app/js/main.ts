@@ -1616,6 +1616,18 @@ function receberComando(comando: VirtualCommand): void {
    * se desenha (`setMinimapVisible`), de modo que não há canto para dois pedirem ao mesmo tempo.
    */
   if (comando.action === 'rightTrigger') proximoCantoDoMinimapa();
+  /*
+   * 🔴 O R1 TOCA O SONAR (pedido do Dev, 03/10). Pela mesma porta e pela mesma razão que o R2: é um TOQUE, e
+   * o sonar segurado dispararia sessenta sondagens por segundo — o que para quem joga de olhos fechados não
+   * é mais informação, é ruído branco.
+   *
+   * 🔴 E É A ÚNICA PORTA desde 03/10 («a partir de agora, sonar somente R1, como na Engine»). O acorde
+   * que havia na física — segurar «trocar», ou trocar+especial — saiu junto: ver `updatePowerSwap`.
+   */
+  if (comando.action === 'rightShoulder') {
+    const quem = controlados()[comando.player];
+    if (quem) nav.sonar(quem);
+  }
 }
 
 /*

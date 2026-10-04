@@ -64,12 +64,30 @@ export function platformerPreset(): ActionPreset {
      */
     rightTrigger: { labelKey: 'act.mapa', shortKey: 'legend.mapa' },
 
+    /**
+     * 🔴 O R1 É O SONAR, declarado em 03/10 a pedido do Dev — *«o botão R2 aparece no HUD, mas também deve
+     * aparecer o R1 (sonar)»*.
+     *
+     * ⚠️ É O PADRÃO DA PRÓPRIA ENGINE, conferido antes de escrever esta linha: `ui/screen-text` fixa
+     * `MENU_SONAR = 'rightShoulder'` para o sonar com um menu aberto e cita o Dev — «Tecla padrão para o
+     * sonar deve ser R1» —, dizendo que EM JOGO a posição é a do preset do jogo. Esta plataforma não
+     * declarava ombro nenhum, e por isso tinha um acorde (segurar «trocar», ou trocar+especial) onde a
+     * engine tem um botão. O acorde SAIU com esta linha (`game/physics.updatePowerSwap`): dois gatilhos
+     * para a mesma coisa tornam um deles invisível, e quem mais precisa do sonar é exatamente quem não vê
+     * a tela para descobrir um acorde.
+     *
+     * 📌 E A DUPLA R1/R2 LÊ-SE SOZINHA: os dois ombros direitos são as duas perguntas sobre ONDE SE ESTÁ —
+     * o R1 ouve o lugar, o R2 arruma o mapa que o mostra.
+     */
+    rightShoulder: { labelKey: 'act.sonar', shortKey: 'legend.sonar' },
+
     // 🔴 `start` SAIU, e não por esquecimento: a engine 11 é DONA da pausa (decisão (A) do Dev, 02/10) e o
     // `createGame` RECUSA um preset que reclame `start` ou `select` — o jogo não arrancava. O START abre a pausa
     // rápida e o SELECT o cartão em qualquer transporte, e quem os rotula é a engine.
-    // ⚠️ `select` e os outros TRÊS ombros/gatilhos continuam por declarar, e a ausência continua a ser a
+    // ⚠️ `select` e os DOIS ombros ESQUERDOS continuam por declarar, e a ausência continua a ser a
     // declaração: esta plataforma não os usa. O assistente de controle não vai perguntar por eles, o que é
     // exatamente o que `labellerFrom` devolver `null` significa — uma ausência vira menos um passo, nunca
-    // um passo mudo. O R2 saiu dessa lista acima porque ganhou trabalho, não porque a regra mudou.
+    // um passo mudo. Os dois da direita saíram dessa lista acima porque ganharam trabalho, não porque a
+    // regra mudou.
   };
 }

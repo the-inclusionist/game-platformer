@@ -68,7 +68,7 @@ export type PhysicsPlayer = Pick<ControlledGamePlayer,
   'activePower' | 'owned' |
   'jumpChain' | 'groundIdle' | 'airTime' |
   'clinging' | 'clingN' | 'flying' |
-  'stepT' | 'guardT' | '_swapDown' | '_swapT' | '_swapSonar' |
+  'stepT' | 'guardT' | '_swapDown' | '_swapT' |
   'easy' | 'toggleMove' | 'runCane' | 'collected' |
   'quiz' | 'quit' | 'waiting' | 'elevTarget' | '_fallV' | 'caneDist' |
   // `visual` é o eixo da engine 8.0.0 e é por ele que `caneOn` decide; `viz` fica porque é a chave LEGADA
@@ -262,17 +262,36 @@ function updateCling(pl: PhysicsPlayer): void {
   if (!pl.clinging) pl.clingN = null;
 }
 
-/** TROCAR PODER / SONAR: tap curto no swap = troca poder; SEGURAR o swap ou o acorde swap+especial = SONAR (F3). */
+/**
+ * TROCAR PODER: soltar o botão de troca cicla o poder.
+ *
+ * 🔴 O SONAR SAIU DAQUI EM 03/10, por decisão do Dev: *«a partir de agora, sonar somente R1, como na
+ * Engine»*. Ele disparava ao SEGURAR a troca uns 0,3 s, ou pelo acorde troca+especial — e as duas são
+ * descobertas por acaso, não botões. 📏 Conferido na engine antes de mexer: `ui/screen-text` fixa
+ * `MENU_SONAR = 'rightShoulder'` e cita o próprio Dev — «Tecla padrão para o sonar deve ser R1» —, e diz
+ * que em jogo a posição é a do preset DO JOGO. Este jogo não declarava ombro nenhum, então a plataforma
+ * tinha um acorde onde a engine tem um botão. Agora declara (`game/platformer-preset.rightShoulder`), e
+ * quem o toca é a raiz, no PRESSIONAR (`main.ts`, `receberComando`).
+ *
+ * ⚠️ E O ACORDE NÃO FICOU «também»: dois gatilhos para a mesma coisa é o que torna um deles invisível. Quem
+ * aprendeu a segurar a troca perde esse caminho — e ganha um botão que o assistente de controle pergunta, a
+ * tela de remapeamento mostra e a legenda nomeia, que é o que ele nunca teve.
+ *
+ * 📌 O QUE ISSO DEVOLVE DE GRAÇA: segurar a troca deixou de significar «não trocar». `_swapSonar` existia
+ * só para engolir a troca depois de uma sondagem, e este jogo deixou de o ler.
+ *
+ * ⚠️ O CAMPO FICA NO JOGADOR, e não por descuido: ele é OBRIGATÓRIO no `Player` da engine
+ * (`core/entity.d.ts`), que é de outro repositorio. Tirá-lo daqui não compila; tirá-lo de lá é decisão da
+ * engine, não deste jogo. Fica declarado em `game/player` que este jogo já não o lê.
+ */
 function updatePowerSwap(pl: PhysicsPlayer, dt: number): void {
   const doSwap = (): void => {
     if (!pl.owned.length) return; const seq = ['off', ...pl.owned]; const idx = seq.indexOf(pl.activePower); pl.activePower = seq[(idx + 1) % seq.length]!;
     pl.clinging = false; pl.flying = false; C.sfx('power'); C.showPower(pl); C.srSay(C.POWER_MSG(pl.activePower, 'act.run')); // o botão do grude é sempre o de interação
   };
   const swapNow = held(pl, 'action4');
-  if (swapNow) {
-    pl._swapT += dt;
-    if (!pl._swapSonar && (pl._swapT > 18 || held(pl, 'action3'))) { pl._swapSonar = true; C.nav.sonar(pl); } // segurar ~0,3s OU acorde swap+especial
-  } else { if (pl._swapDown && !pl._swapSonar) doSwap(); pl._swapT = 0; pl._swapSonar = false; } // soltou após tap curto → troca
+  if (swapNow) pl._swapT += dt;
+  else { if (pl._swapDown) doSwap(); pl._swapT = 0; }
   pl._swapDown = swapNow;
 }
 

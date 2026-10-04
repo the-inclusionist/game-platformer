@@ -28,9 +28,10 @@ describe('the game\'s own dictionary keys (engine ADR-0174)', () => {
     // 176 measured when the menu moved here; three left with WebGazer's eye button on 2026-09-16 (engine ADR-0214) → 173;
     // 13 arrived on 2026-09-27 with the accommodations' words (2213eaa): `accom.{caneSpacing,characterMotion,easyMode,
     // ownerColors,readingLevel,wheelchair}` and their six `.hint`, plus `accom.contrastOutlines.hint` → 186.
-    // Two arrived on 2026-10-03 with R2: `act.mapa` and `legend.mapa`, the words of the position that moves the
-    // minimap's corner (see `game/platformer-preset`) → 198.
-    expect(chavesDe('pt').length).toBe(198);
+    // Four arrived on 2026-10-03 with the two right shoulders: `act.mapa`/`legend.mapa` for R2, which moves the
+    // minimap's corner, and `act.sonar`/`legend.sonar` for R1, which plays the sonar (`game/platformer-preset`)
+    // → 200.
+    expect(chavesDe('pt').length).toBe(200);
   });
 
   it('🔴 [Right] every key is in pt, en and es', () => {

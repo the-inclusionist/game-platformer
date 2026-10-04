@@ -33,7 +33,7 @@ export function makePlayer(i: number): GamePlayer { return {i,x:SPAWN_X+i*22,y:S
   facing:1,anim:0,walkAnim:0,jumpBuffer:0,waterStroke:0,hurtTimer:0,quiz:null,jumpEdge:false,collected:0,ctrl:null,sprite:null,
   activePower:'off',owned:[],hasKey:false,jumpChain:0,groundIdle:0,clinging:false,clingN:null,runEdge:false,swapEdge:false,specialEdge:false,airTime:99,flying:false,idleNow:false,idleTime:0,flavor:-1,flavorT:0,climbFrame:0,
   walkDir:0,leftEdge:false,rightEdge:false, viz:'normal', visual:DEFAULT_VISUAL, _tx:null, easy:false, toggleMove:false, toggleRun:false, runLatch:false, pad:-1,
-  rmWalk:false, rmBreath:false, rmFlavor:false, stepT:0, guardT:0, _swapDown:false, _swapT:0, _swapSonar:false}; } // stepT/guardT = cadência de áudio; _swap* = detecção segurar-swap p/ sonar
+  rmWalk:false, rmBreath:false, rmFlavor:false, stepT:0, guardT:0, _swapDown:false, _swapT:0, _swapSonar:false}; } // stepT/guardT = cadência de áudio; _swapDown/_swapT = borda do botão de trocar poder; _swapSonar é campo OBRIGATÓRIO do `Player` da engine e este jogo deixou de o ler em 03/10 (o sonar é o R1)
 
 // Há PEDRA(2) logo abaixo dos pés? (chão que dá pique — bounce). Varre a largura da caixa na linha y+1.
 /**

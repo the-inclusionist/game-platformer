@@ -215,6 +215,8 @@ const pt: Record<string, string> = {
   // é a da lista de remapeamento; a curta vai debaixo do glifo na legenda, onde «Mover o mapa» não cabe.
   'act.mapa': 'Mover o mapa',
   'legend.mapa': 'mapa',
+  'act.sonar': 'Sonar',
+  'legend.sonar': 'sonar',
 };
 
 const en: Record<string, string> = {
@@ -420,6 +422,8 @@ const en: Record<string, string> = {
   'legend.jump': 'jump',
   'act.mapa': 'Move the map',
   'legend.mapa': 'map',
+  'act.sonar': 'Sonar',
+  'legend.sonar': 'sonar',
 };
 
 const es: Record<string, string> = {
@@ -625,6 +629,8 @@ const es: Record<string, string> = {
   'legend.jump': 'saltar',
   'act.mapa': 'Mover el mapa',
   'legend.mapa': 'mapa',
+  'act.sonar': 'Sonar',
+  'legend.sonar': 'sonar',
 };
 
 /**

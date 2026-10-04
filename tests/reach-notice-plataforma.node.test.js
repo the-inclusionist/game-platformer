@@ -41,16 +41,17 @@ describe('o aviso e da engine, e este cartucho entrega-lhe as duas respostas que
     expect(RAIZ).not.toMatch(/showReachNotice\s*\(/);
   });
 
-  // NOVE desde 03/10, e o literal muda porque o JOGO muda: eram oito desde que o `start` saiu do preset (a pausa
-  // passou a ser da engine, que recusa um preset que o reclame), e o `rightTrigger` entrou para mover o canto do
-  // minimapa a pedido do Dev. A pergunta deste caso continua a mesma.
-  it('[Interface] os nove lugares CABEM, e nao e essa a pergunta que reprova', () => {
+  // DEZ desde 03/10, e o literal muda porque o JOGO muda: eram oito desde que o `start` saiu do preset (a pausa
+  // passou a ser da engine, que recusa um preset que o reclame), e os dois ombros direitos entraram a pedido do
+  // Dev — `rightTrigger` move o canto do minimapa, `rightShoulder` toca o sonar. A pergunta deste caso
+  // continua a mesma.
+  it('[Interface] os dez lugares CABEM, e nao e essa a pergunta que reprova', () => {
     // Esta metade da crenca antiga continua VERDADEIRA e vale prende-la: o jogo foi desenhado para caber no
     // controle de tela, e `curtos` (os transportes com lugares a menos) fica vazio. O que mudou foi haver uma
     // SEGUNDA pergunta ao lado desta desde a engine 8.0.0 — contar lugares responde se as acoes cabem, nao se
     // a crianca consegue segura-las ao mesmo tempo.
     const acoes = presetActions(platformerPreset());
-    expect(acoes).toHaveLength(9);
+    expect(acoes).toHaveLength(10);
     expect(reach(soToque(), acoes, 1).short).toEqual([]);
   });
 
