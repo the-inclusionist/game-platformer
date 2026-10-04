@@ -34,8 +34,8 @@ class NoFalso {
 vi.mock('pixi.js', () => ({ Container: NoFalso, Graphics: NoFalso }));
 
 const { LOGICAL_W, LOGICAL_H } = await import('@the-inclusionist/engine/core/constants.js');
-const { initMinimap, drawMinimapPlayer, proximoCantoDoMinimapa, getMinimap } =
-  await import('../app/js/render/minimap.js');
+const { initMinimap, drawMinimapPlayer, proximoCantoDoMinimapa, getMinimap,
+  setMinimapRecuoDaDireita, fundoDoMinimapaNoAlto } = await import('../app/js/render/minimap.js');
 
 /** O canto em que o mapa está AGORA, em palavras — metade da tela para cada lado. */
 function canto() {
@@ -49,7 +49,11 @@ const andarAte = (x, y) => drawMinimapPlayer(x, y, 0, 0);
 /** Um ponto logo dentro do retângulo do mapa, seja qual for o canto e o tamanho dele. */
 const dentroDoMapa = () => [getMinimap().x + 1, getMinimap().y + 1];
 
-beforeEach(() => { initMinimap(new NoFalso(), 20, 10); });
+// ⚠️ O RECUO LATERAL NÃO SE REPÕE NO `initMinimap`, e por isso repõe-se aqui: ele é propriedade do LAYOUT
+// (a largura da coluna de ombros na janela), não da instância do mapa — e quem o escreve, `ui/canto-superior-
+// direito`, só volta a escrever quando o número muda. Se o `initMinimap` o zerasse, remontar o stage deixava
+// o mapa por baixo dos botões até a coluna mudar de tamanho, que pode ser nunca.
+beforeEach(() => { initMinimap(new NoFalso(), 20, 10); setMinimapRecuoDaDireita(0); });
 
 describe('o R2 percorre os três cantos que o Dev nomeou', () => {
   it('[Zero] o mapa nasce no canto inferior esquerdo', () => {
@@ -158,6 +162,64 @@ describe('e o R2 chega lá', () => {
   });
 });
 
+describe('o canto superior direito é partilhado com os botões R1/R2', () => {
+  // 🔴 O ARRANJO É O DO PRINT DO DEV (03/10): os dois botões encostados à direita, o mapa à ESQUERDA deles e
+  // encostado ao alto, e os itens carregados por baixo dos botões. A primeira leitura que fiz da frase dele
+  // («o mapa deve ficar ABAIXO dos botões R1 e R2») descia o mapa, e o print desfê-la.
+  // 📌 Quem MEDE a coluna é `ui/canto-superior-direito`, que tem o seu portão; aqui prende-se o que o mapa
+  // faz com o número depois de o receber.
+
+  it('🎯 no canto superior direito, o recuo encosta o mapa à esquerda dos botões', () => {
+    proximoCantoDoMinimapa(); proximoCantoDoMinimapa();   // superior direito
+    const semRecuo = getMinimap().x;
+    setMinimapRecuoDaDireita(30);
+    expect(getMinimap().x, 'andou 30 para a esquerda').toBe(semRecuo - 30);
+    expect(canto(), 'e continua no canto de cima').toBe('superior direito');
+  });
+
+  it('⚠️ e NÃO desce: o `y` do canto de cima é o mesmo com recuo ou sem ele', () => {
+    proximoCantoDoMinimapa(); proximoCantoDoMinimapa();
+    const yAntes = getMinimap().y;
+    setMinimapRecuoDaDireita(30);
+    expect(getMinimap().y).toBe(yAntes);
+  });
+
+  it('🔴 o recuo SÓ vale naquele canto — nos outros não há coluna de ombros nenhuma', () => {
+    setMinimapRecuoDaDireita(30);
+    expect(canto(), 'nasce no inferior esquerdo').toBe('inferior esquerdo');
+    const xEsq = getMinimap().x;
+    proximoCantoDoMinimapa();                              // inferior direito
+    const xInfDir = getMinimap().x;
+    proximoCantoDoMinimapa();                              // superior direito
+    expect(getMinimap().x, 'só aqui o mapa se afasta da borda').toBe(xInfDir - 30);
+    expect(xEsq, 'e à esquerda o recuo não o empurra para dentro').toBeLessThan(xInfDir);
+  });
+
+  it('⚠️ um recuo maior do que a tela encosta-o à esquerda, em vez de o mandar para fora', () => {
+    proximoCantoDoMinimapa(); proximoCantoDoMinimapa();
+    setMinimapRecuoDaDireita(9999);
+    expect(getMinimap().x).toBeGreaterThanOrEqual(0);
+    expect(getMinimap().x).toBeLessThan(LOGICAL_W / 2);
+  });
+
+  it('🎯 `fundoDoMinimapaNoAlto` responde onde o mapa acaba — e só naquele canto', () => {
+    // É o que os itens carregados leem quando NÃO há botões: «por consequência, abaixo do mapa quando não
+    // houverem botões visíveis».
+    expect(fundoDoMinimapaNoAlto(), 'inferior esquerdo').toBeNull();
+    proximoCantoDoMinimapa();
+    expect(fundoDoMinimapaNoAlto(), 'inferior direito').toBeNull();
+    proximoCantoDoMinimapa();
+    expect(fundoDoMinimapaNoAlto(), 'superior direito').toBe(getMinimap().y + 36);
+  });
+
+  it('⚠️ e responde `null` com o mapa escondido — no título e no multijogador', () => {
+    proximoCantoDoMinimapa(); proximoCantoDoMinimapa();
+    expect(fundoDoMinimapaNoAlto()).not.toBeNull();
+    getMinimap().visible = false;
+    expect(fundoDoMinimapaNoAlto(), 'sem mapa à vista não há nada por cima dos itens').toBeNull();
+  });
+});
+
 describe('antes do boot', () => {
   it('[Zero] o R2 e a fuga são inertes sem minimapa montado, em vez de rebentarem', async () => {
     vi.resetModules();
@@ -175,5 +237,11 @@ describe('antes do boot', () => {
 // 5. `MM_FOLGA` 6 → 0: cai o caso da folga.
 // 6. Tirar a guarda `camX !== undefined`: cai o caso de desenhar sem câmara.
 // 7. Fazer a fuga escrever também `_mmEmCima`: cai o caso da altura mantida.
+// 10. `_minimap.x -= recuo` → `_minimap.y += recuo` (a leitura que o print desfez): caem os dois primeiros
+//     casos do canto partilhado.
+// 11. Aplicar o recuo em qualquer canto: cai «o recuo SÓ vale naquele canto».
+// 12. Tirar o tecto de `setMinimapRecuoDaDireita`: cai o caso do recuo maior do que a tela.
+// 13. `fundoDoMinimapaNoAlto` a devolver um número noutro canto, ou sem olhar ao `visible`: caem os dois
+//     últimos.
 // 8. Tirar a chamada do `rightTrigger` em `main.ts`: cai o caso da ligação.
 // 9. Tirar `rightTrigger` do preset: cai o caso da declaração.

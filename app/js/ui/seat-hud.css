@@ -44,15 +44,17 @@
    `aria-label` (ver `seat-hud.ts`), que não ocupa largura nenhuma. */
 .vphud-carga {
   position: absolute;
-  /* 🔴 ABAIXO DO OMBRO DIREITO QUANDO ELE EXISTE, e quem mede é a engine. 📏 Medido em 03/10, depois de o R2
-     passar a ser declarado (`game/platformer-preset`): o pad de toque ganhou um botão R2 no canto superior
-     direito, e um `elementFromPoint` sobre o 📦 devolvia `touch-btn touch-ombro` — o ícone estava lá, por
-     baixo do botão, que é o defeito que «existe no DOM» esconde. `--shoulders-right-reach` é a resposta da
-     própria engine a esta colisão («where they and anything else meet, the other thing moves»): quanto a
-     coluna de ombros desce daquele lado, e `0px` quando aquele canto não tem nenhum.
-     ⚠️ `max()` E NÃO SOMA: sem pad o recuo é o da engine (`.4em`, o mesmo das moedas), e não `.4em` mais
-     zero escrito de outra maneira — a conta tem de dar exatamente a linha das moedas no caso comum. */
-  top: max(0.4em, var(--shoulders-right-reach, 0px));
+  /* 🔴 POR BAIXO DO QUE JÁ OCUPA O CANTO — os botões R1/R2, ou o mapa quando não há botões (Dev, 03/10:
+     «os itens devem aparecer abaixo dos botões R2 e R1 e, por consequência, abaixo do mapa quando não
+     houverem botões visíveis»). 📏 Medido em 03/10, antes da regra: com o R2 declarado, o pad ganhou uma
+     coluna de ombros naquele canto e um `elementFromPoint` sobre o 📦 devolvia `touch-btn touch-ombro` —
+     o ícone estava lá, por baixo do botão, que é o defeito que «existe no DOM» esconde.
+     ⚠️ QUEM ESCREVE A VARIÁVEL É `ui/canto-superior-direito`, e não o CSS: o mapa é desenhado no canvas,
+     e nenhuma folha de estilo sabe onde ele está. A engine publica `--shoulders-right-reach`, que cobria o
+     caso dos botões — mas só esse, e a metade que falta é metade do pedido.
+     ⚠️ `max()` E NÃO SOMA: sem nada no canto o recuo é o da engine (`.4em`, o mesmo das moedas), e não
+     `.4em` mais zero escrito de outra maneira — a conta tem de dar exatamente a linha das moedas. */
+  top: max(0.4em, var(--canto-dir-ocupado, 0px));
   right: 0.55em;
   /* 🔴 EM COLUNA, e não em linha, desde que a braçada chegou (03/10). Quatro ícones lado a lado avançariam
      sobre o relógio, que está no topo ao centro; descendo pela borda direita eles não disputam com nada —

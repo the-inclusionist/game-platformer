@@ -203,14 +203,21 @@ describe('e o canto é o SUPERIOR DIREITO', () => {
     expect(regra).toMatch(/right:\s*0?\.55em/);
   });
 
-  it('🔴 e desce abaixo do ombro direito do pad, pela medida DA ENGINE', () => {
+  it('🔴 e desce abaixo do que ocupa o canto — os botões, ou o mapa sem eles', () => {
     // 📏 Medido em 03/10, depois de o R2 passar a ser declarado: o pad de toque ganhou um botão R2 naquele
     // canto, e um `elementFromPoint` sobre o 📦 devolvia `touch-btn touch-ombro` — o ícone no DOM, por baixo
-    // do botão. `--shoulders-right-reach` é a resposta da própria engine («where they and anything else
-    // meet, the other thing moves»), e vale `0px` quando aquele canto não tem ombro nenhum.
+    // do botão.
+    // 🔴 E A VARIÁVEL É NOSSA, NÃO A DA ENGINE. A engine publica `--shoulders-right-reach`, que respondia
+    // pelos botões — mas só por eles, e o Dev pediu as duas metades: «os itens devem aparecer abaixo dos
+    // botões R2 e R1 e, por consequência, abaixo do mapa quando não houverem botões visíveis». O mapa é
+    // desenhado no canvas e nenhuma folha de estilo sabe onde ele está; quem mede e escreve é
+    // `ui/canto-superior-direito`, e o nome do par está preso no teste daquele módulo.
     // ⚠️ Um número meu — «desce 72 px quando há pad» — ficaria errado no dia em que o alvo mínimo mudasse,
     // e ficaria errado em silêncio: o ícone voltava para trás do botão e o teste continuava verde.
-    expect(regra).toMatch(/var\(--shoulders-right-reach,\s*0px\)/);
+    // ⚠️ A ASSERÇÃO É SOBRE A DECLARAÇÃO, e não sobre o ficheiro: a primeira versão proibia o nome
+    // `--shoulders-right-reach` em qualquer lugar da regra, e reprovava o COMENTÁRIO que explica por que ele
+    // já não serve. Um portao que proíbe falar de uma coisa proíbe documentá-la.
+    expect(regra).toMatch(/top:\s*max\([^)]*var\(--canto-dir-ocupado,\s*0px\)/);
   });
 
   it('⚠️ e não escreve o nome ao lado — é o que o fazia ocupar metade da linha', () => {
@@ -234,6 +241,6 @@ describe('e o canto é o SUPERIOR DIREITO', () => {
 // 2. Tirar o `setAttribute('aria-label', …)`: cai o caso do nome inteiro.
 // 3. Tirar uma entrada de `ICONE_DO_LIXO`: cai o caso dos quatro materiais.
 // 4. `right` → `left` na regra CSS: cai o caso do canto.
-// 5. `top: max(.4em, var(--shoulders-right-reach))` → `top: .4em`: cai o caso do ombro (o ícone volta
-//    para trás do botão R2 do pad) e o do recuo da engine.
+// 5. `top: max(.4em, var(--canto-dir-ocupado))` → `top: .4em`: cai o caso do que ocupa o canto (o ícone
+//    volta para trás do botão R2 do pad) e o do recuo da engine.
 // 6. Voltar a escrever o nome num `.vphud-carga-nome`: cai o caso do nome ao lado.

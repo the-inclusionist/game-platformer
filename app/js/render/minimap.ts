@@ -116,41 +116,69 @@ const CANTOS: readonly (readonly [boolean, boolean])[] = Object.freeze([
 ]);
 
 /**
- * QUANTO O CANTO DE CIMA JÁ ESTÁ OCUPADO, em pixels lógicos — hoje, a coluna de ombros R1/R2 do pad de toque.
- * Zero quando não há nada lá, que é o caso de quem joga de teclado ou de pad.
+ * QUANTO A COLUNA DE OMBROS OCUPA À DIREITA, em pixels lógicos. Zero sem pad de toque — que é o caso de quem
+ * joga de teclado ou de pad, e por isso o caso comum.
  *
- * 🔴 PORQUE O MAPA NÃO PODE NASCER DEBAIXO DOS BOTÕES (pedido do Dev, 03/10: *«no canto superior direito, o
- * mapa deve ficar ABAIXO dos botões R1 e R2»*). Os botões são DOM sobre o canvas, e o mapa é desenhado DENTRO
- * do canvas: nenhum dos dois vê o outro, e o `z-index` não os arbitra porque nem sequer estão na mesma
- * camada — o mapa fica simplesmente escondido.
+ * 🔴 O MAPA DESVIA-SE PARA O LADO, E NÃO PARA BAIXO (correção do Dev em 03/10, com um print do arranjo certo).
+ * A primeira versão desta regra descia o mapa abaixo do R1 — o Dev tinha escrito *«o mapa deve ficar ABAIXO
+ * dos botões R1 e R2»* e eu li ao pé da letra. O print desfez a leitura: no arranjo que ele quer, o mapa fica
+ * EM CIMA, encostado ao alto, com os dois botões à sua direita; quem desce são os ITENS carregados, que vão
+ * para debaixo dos botões.
  *
- * ⚠️ EM PIXELS LÓGICOS E NÃO EM CSS, e é quem escreve este número que faz a conversão (`ui/mapa-sob-os-ombros`):
- * aqui dentro tudo mede-se no mundo de 320×180, e aceitar um px de CSS faria o recuo mudar de significado com
- * o tamanho da janela.
+ * 📌 E FAZ SENTIDO À VISTA, que é o argumento dele: o mapa é largo e baixo, os botões são uma coluna estreita
+ * e alta. Lado a lado eles usam a mesma faixa de altura; empilhados, o mapa cairia a meia tela e o canto de
+ * cima ficava com um buraco.
+ *
+ * ⚠️ PORQUE NENHUM `z-index` RESOLVE ISTO: os botões são DOM sobre o canvas e o mapa é desenhado DENTRO do
+ * canvas. Não estão na mesma camada, então não há empilhamento a arbitrar — o mapa fica simplesmente
+ * escondido, e a única saída é não os pôr no mesmo lugar.
+ *
+ * ⚠️ EM PIXELS LÓGICOS E NÃO EM CSS, e é quem escreve este número que faz a conversão
+ * (`ui/canto-superior-direito`): aqui dentro tudo se mede no mundo de 320×180, e aceitar um px de CSS faria o
+ * recuo mudar de significado com o tamanho da janela.
  */
-let _recuoDeTopo = 0;
+let _recuoDaDireita = 0;
 
-/** Põe o minimapa no canto em que ele está agora — a única linha que escreve a posição. */
+/**
+ * Põe o minimapa no canto em que ele está agora — a única linha que escreve a posição.
+ *
+ * 📌 O RECUO SÓ VALE NO CANTO SUPERIOR DIREITO, que é o único onde a coluna de ombros está. No inferior
+ * direito mora o losango de ação do pad, que é outra largura e outra pergunta — e o Dev não a fez.
+ */
 function colocarNoCanto(): void {
   if (!_minimap) return;
-  _minimap.x = _mmNaDireita ? LOGICAL_W - MM_VIEW_W - MM_PAD : MM_PAD;
-  _minimap.y = _mmEmCima ? MM_PAD + _recuoDeTopo : LOGICAL_H - MM_VIEW_H - MM_PAD;
+  const recuo = _mmNaDireita && _mmEmCima ? _recuoDaDireita : 0;
+  _minimap.x = _mmNaDireita ? LOGICAL_W - MM_VIEW_W - MM_PAD - recuo : MM_PAD;
+  _minimap.y = _mmEmCima ? MM_PAD : LOGICAL_H - MM_VIEW_H - MM_PAD;
 }
 
 /**
- * Declara quanto o canto de cima já está ocupado (ver `_recuoDeTopo`). Recoloca o mapa na hora.
+ * Declara quanto a coluna de ombros ocupa à direita (ver `_recuoDaDireita`). Recoloca o mapa na hora.
  *
- * ⚠️ O RECUO É LIMITADO A CABER NA TELA, e o limite é o que torna a regra segura: quem o escreve mede o DOM,
- * e um canto muito cheio — braçada de quatro numa tela baixa, ou um alvo mínimo grande — pediria um recuo
- * que empurra o mapa para fora por baixo. Descer até ao último lugar onde ele ainda se vê é degradar; sair
- * da tela é desaparecer, e um mapa que desaparece é pior do que um mapa tapado.
+ * ⚠️ O RECUO É LIMITADO A CABER NA TELA, e o limite é o que torna a regra segura: quem o escreve mede o DOM, e
+ * uma coluna larga — um alvo mínimo grande, numa janela estreita — pediria um recuo que empurra o mapa para
+ * fora pela esquerda. Encostar-se à borda esquerda é degradar; sair da tela é desaparecer, e um mapa que
+ * desaparece é pior do que um mapa apertado.
  */
-export function setMinimapRecuoDeTopo(logicos: number): void {
-  const teto = LOGICAL_H - MM_VIEW_H - MM_PAD * 2;
+export function setMinimapRecuoDaDireita(logicos: number): void {
+  const teto = LOGICAL_W - MM_VIEW_W - MM_PAD * 2;
   const novo = Math.min(Math.max(0, logicos), Math.max(0, teto));
-  if (novo === _recuoDeTopo) return;
-  _recuoDeTopo = novo;
+  if (novo === _recuoDaDireita) return;
+  _recuoDaDireita = novo;
   colocarNoCanto();
+}
+
+/**
+ * ONDE O MAPA ACABA, EM BAIXO, se ele estiver no canto SUPERIOR direito — e `null` em qualquer outro canto.
+ *
+ * 🔴 EXISTE PARA OS ITENS CARREGADOS (Dev, 03/10): *«os itens devem aparecer abaixo dos botões R2 e R1 e, por
+ * consequência, abaixo do mapa quando não houverem botões visíveis»*. Sem pad não há coluna nenhuma, e então
+ * quem ocupa o alto daquele canto é o mapa — e os itens têm de o saber. A resposta é em pixels LÓGICOS; quem
+ * a converte para CSS é o DOM, que é quem tem a régua da janela.
+ */
+export function fundoDoMinimapaNoAlto(): number | null {
+  if (!_minimap || !_mmNaDireita || !_mmEmCima || !_minimap.visible) return null;
+  return _minimap.y + MM_VIEW_H;
 }
 
 /**
