@@ -14,7 +14,9 @@
        o seu `/game-slug/heavy/*` e a Pages Function teria que duplicar-se.
        📌 NAO QUEBRA os caminhos do Vite: ele emite tudo em paths absolutos (`/game-platformer/assets/...`),
        e `<base>` so afeta a resolucao de paths RELATIVOS, que nao ha. O registo do service worker usa
-       path absoluto. Externos (`https://vlibras.gov.br/...`) ficam intactos. -->
+       path absoluto.
+       ⚠️ E DESDE 03/10 NAO HA MAIS EXTERNOS nesta pagina: o VLibras era o ultimo, e saiu (ver o fim do
+       `<body>`). A Libras passou a ser a da engine, servida da propria origem. -->
   <base href="/" />
   <meta name="theme-color" content="#0b1020" />
   <meta name="description" content="The Inclusionist — jogo educativo acessível (PixiJS, v4)." />
@@ -115,7 +117,10 @@
            propósito: aquela camada tem `pointer-events:none`, e a barra ficaria visível e morta. -->
       <div class="pause-icons" id="title-icons" role="group" aria-label="Atalhos de acessibilidade" data-i18n-aria="a11y.shortcuts"></div>
     </section>
-      <div id="libras-slot" class="libras-slot" aria-hidden="true"></div>
+      <!-- 🔴 O `#libras-slot` SAIU COM O VLIBRAS (03/10). Ele reservava largura para o intérprete não tapar
+           o jogo, e já não reservava nada: a raiz responde `librasReserve: () => 0` desde que o intérprete
+           deixou de empurrar a tela, e o CSS da engine dá-lhe `width:0;height:0`. Quem desenha o avatar da
+           engine é um canvas que ela própria cria e põe à frente — não precisa de lugar marcado aqui. -->
      </div>
     </div>
 
@@ -185,13 +190,22 @@
        plataforma sera outro shell a volta da MESMA fabrica, e nada dentro do jogo sabe qual o carregou. -->
   <script type="module" src="../src/standalone.ts"></script>
 
-  <!-- VLibras — tradução para Libras (interina; online). Futuro: motor próprio em zdog (P2/P5). -->
-  <div vw class="enabled">
-    <div vw-access-button class="active"></div>
-    <div vw-plugin-wrapper><div class="vw-plugin-top-wrapper"></div></div>
-  </div>
-  <script src="https://vlibras.gov.br/app/vlibras-plugin.js"></script>
-  <script>try{ if(window.VLibras) new window.VLibras.Widget('https://vlibras.gov.br/app'); }
-    catch(e){ console.warn('VLibras indisponível (offline?).', e); }</script>
+  <!-- 🔴 O VLIBRAS SAIU EM 03/10, por decisão do Dev: «Libras deve copiar a engine ao invés de usar o
+       VLibras do governo federal». Daqui saíram o `<div vw>` do widget, o `<script>` de
+       `vlibras.gov.br/app/vlibras-plugin.js` e a linha que o instanciava.
+
+       📌 QUEM SINALIZA AGORA É A ENGINE, e o jogo não liga nada: o `createGame` monta o seu próprio
+       intérprete (`ui/libras-avatar-player`) quando o modo surdo pede, lendo o avatar e os clipes que a
+       entrega escreveu em `libras/avatar/` ao lado desta página (`inclusionist-heavy <pasta> --libras`,
+       ADR-0234 rota B). A opção `interpreter` do `createGame` existe para um anfitrião emprestar outro; não
+       a passamos, e a ausência é a declaração de que queremos o da engine.
+
+       ⚠️ E ISTO TEM UM PASSO DE ENTREGA, que não é código: sem o `--libras` a pasta não existe, e o modo
+       surdo responde «sinalização indisponível» com uma linha em `problems` — as legendas e o texto ficam
+       intactos. É o degrau honesto; o VLibras ficava sempre lá, mas sempre online e sempre de terceiros.
+
+       📌 TRÊS COISAS QUE A SAÍDA DEVOLVE, e valem o registo: a página deixa de depender de um domínio do
+       governo para funcionar offline, deixa de contar à infraestrutura dele quem está a jogar, e o botão
+       flutuante do widget deixa de disputar o canto da tela com o jogo. -->
 </body>
 </html>

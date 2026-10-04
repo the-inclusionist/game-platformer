@@ -23,20 +23,21 @@
 // asynchronously — and auditing then measures a page in the fallback language. Measured live before this was
 // written: with all three satisfied the line reads «Colete 10 moedas».
 //
-// ========================= WHAT IS EXCLUDED, AND WHY =========================
-// ONE subtree, in two selectors: the VLibras interpreter. It is third-party markup this repository does not
-// write and cannot repair without fighting the widget's own re-renders, and axe reports a CRITICAL
-// `image-alt` inside it.
+// ========================= NOTHING IS EXCLUDED, SINCE 2026-10-03 =========================
+// 🔴 THE ONE EXCLUSION THIS FILE EVER HAD IS GONE, and the absence is worth as much as the rule was. It was
+// the VLibras interpreter's subtree, in two selectors — `[vw]`, the div the page declared, and
+// `#vlibras-access-wrapper`, which the widget attached straight onto `<body>`. Third-party markup this
+// repository did not write and could not repair without fighting the widget's own re-renders, with a
+// CRITICAL `image-alt` inside it.
 //
-// ⚠️ TWO SELECTORS, AND THE SECOND IS THE ONE THAT WORKS. `[vw]` is the div this page declares; the widget
-// does not stay in it — it attaches `#vlibras-access-wrapper` straight onto `<body>`. Measured live in this
-// game: both are present, so both are named. Excluding only our own div would exclude nothing.
+// 📌 AND THE REPAIR WAS NOT A SELECTOR, IT WAS A DECISION: the Dev, on 2026-10-03, «Libras deve copiar a
+// engine ao invés de usar o VLibras do governo federal». The widget left the page, and the defect left with
+// it — for the gate AND for the child, which an exclusion never did. The engine's own interpreter draws into
+// a canvas it builds itself (`ui/libras-avatar-player`), from this origin, and it is audited like the rest.
 //
-// ⚠️ AND THE EXCLUSION DOES NOT FIX IT FOR A CHILD. It stops the gate reporting a defect nobody here can
-// repair; the image is still in the page she opens. It is the same exclusion the engine and `game-soccer`
-// make, for the same widget, and it is narrow — one subtree, not a rule switched off.
-//
-// The rest of the page is audited with no exceptions at all, which is where the value is.
+// ⚠️ SO A NEW `.exclude(…)` HERE IS A CLAIM THAT SOMETHING UNREPAIRABLE CAME BACK, and it should be argued
+// in this header before it is written. The whole page is audited with no exceptions, which is where the
+// value is.
 import { chromium } from 'playwright';
 import { AxeBuilder } from '@axe-core/playwright';
 
@@ -60,9 +61,7 @@ try {
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    // The interpreter widget, and nothing else. See the header.
-    .exclude('[vw]')
-    .exclude('#vlibras-access-wrapper')
+    // No `.exclude(…)`: the whole page, every rule. See the header for the one that used to be here.
     .analyze();
 
   if (results.violations.length) {
