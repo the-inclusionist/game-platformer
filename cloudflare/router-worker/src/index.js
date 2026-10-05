@@ -49,6 +49,21 @@ export default {
     const firstSeg = path.split('/')[1] || '';
     const origin = GAMES[firstSeg];
     if (origin) {
+      /*
+       * ⚠️ `/<slug>` SEM BARRA FINAL REDIRECIONA AQUI, E NAO SE PROXIA. Medido em 04/10, no dominio
+       * a serio: `/game-2048` dava 404 enquanto `/game-2048/` dava 200 — num jogo que ja estava no
+       * mapa e ja tinha rota. O endereco que uma pessoa escreve a mao e o primeiro, e era o unico
+       * que nao funcionava.
+       *
+       * ⚠️ E NAO BASTA PROXIAR O CAMINHO NU. O Pages responde-lhe com um 308 cujo `Location` e'
+       * ABSOLUTO — `https://game-chess-cfo.pages.dev/game-chess/` — entao o navegador sairia do
+       * dominio bonito e aterrava no `.pages.dev`, que e' o nome que este Worker existe para
+       * esconder. O redirecionamento tem de ser nosso, para a mesma origem.
+       */
+      if (path === `/${firstSeg}`) {
+        const to = new URL(`${path}/${inUrl.search}`, inUrl.origin);
+        return Response.redirect(to.toString(), 308);
+      }
       return proxyTo(request, origin);
     }
 

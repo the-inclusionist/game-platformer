@@ -14,6 +14,22 @@ zone_name = "jrocha.dev.br"
 pattern = "o-inclusionista.jrocha.dev.br/game-2048/*"
 zone_name = "jrocha.dev.br"
 
+# ⚠️ UMA SEGUNDA ROTA POR JOGO, PARA O CAMINHO NU. `/<slug>/*` NAO casa com `/<slug>` — medido em
+# 04/10 no dominio a serio: `/game-2048` dava 404 e `/game-2048/` dava 200, num jogo ja roteado. Sem
+# estas, o Worker nem sequer corre no endereco que uma pessoa escreve a mao, e por isso nem o
+# redirecionamento que ele agora faz chegaria a acontecer.
+[[routes]]
+pattern = "o-inclusionista.jrocha.dev.br/game-platformer"
+zone_name = "jrocha.dev.br"
+
+[[routes]]
+pattern = "o-inclusionista.jrocha.dev.br/game-2048"
+zone_name = "jrocha.dev.br"
+
+[[routes]]
+pattern = "o-inclusionista.jrocha.dev.br/game-chess"
+zone_name = "jrocha.dev.br"
+
 [[routes]]
 pattern = "o-inclusionista.jrocha.dev.br/heavy/*"
 zone_name = "jrocha.dev.br"
