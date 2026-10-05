@@ -25,6 +25,6 @@ zone_name = "jrocha.dev.br"
 # que tem a Pages Function com o binding R2 (hoje o `game-platformer`). O `game-2048` traz uma Function
 # igual no seu repo por paridade, mas ela fica dormente: este router nunca lhe manda `/heavy/*`.
 #
-# [[routes]]
-# pattern = "o-inclusionista.jrocha.dev.br/game-chess/*"
-# zone_name = "jrocha.dev.br"
+[[routes]]
+pattern = "o-inclusionista.jrocha.dev.br/game-chess/*"
+zone_name = "jrocha.dev.br"

@@ -25,7 +25,10 @@
 const GAMES = {
   'game-platformer': 'game-platformer.pages.dev',
   'game-2048': 'game-2048-32g.pages.dev',
-  // 'game-chess': 'game-chess.pages.dev',   // ← descomentar quando o terceiro jogo existir
+  // ⚠️ `game-chess-cfo`, NAO `game-chess` — a terceira vez que este aviso se paga. O projeto chama-se
+  // `game-chess` (e' o que diz o `wrangler.toml` do repo dele), e o subdominio que a Cloudflare lhe deu
+  // e' `game-chess-cfo.pages.dev`. Lido do site no ar em 04/10, nao do nome do projeto.
+  'game-chess': 'game-chess-cfo.pages.dev',
 };
 
 // `heavy` nao e' um jogo: aponta para o Pages que serve o /heavy/* (hoje, `game-platformer.pages.dev`).
